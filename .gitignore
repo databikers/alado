@@ -1,0 +1,22 @@
+# Editors:
+.idea
+*.iml
+
+# Vendor:
+node_modules
+
+# Optional npm cache directory
+.npm
+
+# Logs:
+logs
+*.log
+
+# package-lock.json
+package-lock.json
+
+# dist
+dist
+
+# coverage
+coverage

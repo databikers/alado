@@ -1,0 +1,10 @@
+.idea
+*.lock
+tsconfig.json
+.editorconfig
+.eslintrc.js
+.prettierrc
+.gitignore
+.npmignore
+src/
+sandbox/
