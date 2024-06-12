@@ -1,14 +1,14 @@
 {
   "name": "alado",
   "description": "Extremely fast, lightweight, robust framework for HTTP applications written in Node.js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Pavlo Lazunko",
   "license": "MIT",
   "scripts": {
     "build": "rm -rf dist && tsc && tsc-alias && eslint src/**/*.ts{,x}",
-    "postinstall": "sh postinstall.sh",
+    "doc": "sh postinstall.sh",
     "eslint": "eslint src --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 0",
     "runtime": "node dist/index.js"
