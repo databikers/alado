@@ -9,6 +9,10 @@ The basis of use is a combination of interface simplicity and separation of the 
 from business logic implementation - due to a declarative approach to describing all request parameters 
 in the form of static reusable structures.
 
+There is an example of the API creating with Alado:
+
+[https://github.com/databikers/alado-api-example](https://github.com/databikers/alado-api-example)
+
 1. Installation
 
 ```shell
