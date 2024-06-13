@@ -28,7 +28,7 @@ export class Router {
     method: HttpMethod,
     uri: string,
     context: Context<any>,
-    handler: (request: Request) => Promise<Response<any>>
+    handler: (request: Request) => Response<any> | Promise<Response<any>>
   ) {
 
     try {

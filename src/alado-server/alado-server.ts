@@ -45,7 +45,7 @@ export class AladoServer {
   public get(
     path: string,
     context: Context<any>,
-    handler: (request: any) => Promise<Response<any>>
+    handler: (request: any) => Response<any> | Promise<Response<any>>
   ) {
     this.router.use(HttpMethod.GET, path, context, handler);
   }
@@ -53,7 +53,7 @@ export class AladoServer {
   public post(
     path: string,
     context: Context<any>,
-    handler: (request: any) => Promise<Response<any>>
+    handler: (request: any) => Response<any> | Promise<Response<any>>
   ) {
     this.router.use(HttpMethod.POST, path, context, handler);
   }
@@ -61,7 +61,7 @@ export class AladoServer {
   public put(
     path: string,
     context: Context<any>,
-    handler: (request: any) => Promise<Response<any>>
+    handler: (request: any) => Response<any> | Promise<Response<any>>
   ) {
     this.router.use(HttpMethod.PUT, path, context, handler);
   }
@@ -69,7 +69,7 @@ export class AladoServer {
   public patch(
     path: string,
     context: Context<any>,
-    handler: (request: any) => Promise<Response<any>>
+    handler: (request: any) => Response<any> | Promise<Response<any>>
   ) {
     this.router.use(HttpMethod.PATCH, path, context, handler);
   }
@@ -77,7 +77,7 @@ export class AladoServer {
   public delete(
     path: string,
     context: Context<any>,
-    handler: (request: any) => Promise<Response<any>>
+    handler: (request: any) => Response<any> | Promise<Response<any>>
   ) {
     this.router.use(HttpMethod.DELETE, path, context, handler);
   }
