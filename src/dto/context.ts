@@ -8,5 +8,5 @@ export interface Context <T> {
   auth?: RequestAuthentication;
   options: ContextOptions;
   request: ContextRequest;
-  response: Response<T>;
+  response: Response<Record<keyof T, any>>;
 }
