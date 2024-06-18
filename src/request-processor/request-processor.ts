@@ -1,12 +1,29 @@
 import { IncomingMessage, ServerResponse } from 'http';
-import { authenticate, clearRoute, isReadableStream, validateRequestFiles, validateRequestPart } from '@helper';
 import { join } from 'path';
-import { access, constants, createReadStream, readdirSync } from 'fs';
-import { HttpMethod } from '@const';
-import { AladoServerError, ContextRequest, Request, Response } from '@dto';
+import {
+  access,
+  constants,
+  createReadStream,
+  readdirSync
+} from 'fs';
+
+import { ContentType, HttpMethod } from '@const';
 import { RequestProcessorOptions } from '@options';
-import { queryParser } from '../helpers/parser/query-parser';
-import { bodyParser } from '../helpers/parser/body-parser';
+import {
+  AladoServerError,
+  ContextRequest,
+  Request,
+  Response
+} from '@dto';
+import {
+  authenticate,
+  bodyParser,
+  queryParser,
+  clearRoute,
+  isReadableStream,
+  validateRequestFiles,
+  validateRequestPart
+} from '@helper';
 
 const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
 const swaggerUiFiles: string[] = readdirSync(swaggerUiAssetPath);
@@ -25,7 +42,7 @@ export class RequestProcessor {
     const isStreamBody = isReadableStream(body);
     const contentType: string = headers['Content-Type'] || headers['content-type'];
     switch (contentType) {
-      case 'application/json':
+      case ContentType.JSON:
         responseBody = isStreamBody ? body : JSON.stringify(body);
         break;
       default:
