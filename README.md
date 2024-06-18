@@ -1,4 +1,4 @@
-Alado is an extremely fast, simple, robust, and lightweight framework 
+Alado is an extremely fast, simple, robust, and lightweight (no-dependency) 
 for creating server applications written in Node.js and running over the HTTP protocol.
 
 Its main difference from most similar well-known frameworks is that with a minimum of external dependencies 
