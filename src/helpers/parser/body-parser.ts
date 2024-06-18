@@ -1,6 +1,7 @@
 import { IncomingMessage } from 'http';
-import { ContentType } from '@const';
-const parseFormData = require('parse-formdata');
+import { ContentType, formDataRegExp, spaceRegExp } from '@const';
+import { PassThrough, pipeline } from 'stream';
+
 
 export
 async function bodyParser(req: IncomingMessage) {
@@ -12,29 +13,57 @@ async function bodyParser(req: IncomingMessage) {
   let body: string = '';
   if (contentType.match(ContentType.FORM_DATA)) {
     req.setEncoding('latin1');
-
-    const { fields, parts } = await new Promise<{ fields: any, parts: any[]}>((resolve, reject) => {
-      parseFormData(req, (err: Error, state: { fields: any, parts: any[]}) => {
-        if (err) {
-          reject(err)
-        } else {
-          return resolve(state);
+    const matchingArray = /boundary=(.+)$/.exec(req.headers['content-type']);
+    const boundary: string =  matchingArray && matchingArray[1];
+    await new Promise<void>((resolve, reject) => {
+      req.on('data', (chunk: any) => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        const formData: any = {
+          files: [],
+          fields: {}
         }
-      })
-
+        const data = body.split(boundary);
+        for (const item of data) {
+          const element: any = {};
+          Object.entries(formDataRegExp).map((entry) => {
+            const [ key, regEx] = entry;
+            const regExpMatchArray = item.match(regEx);
+            element[key] = regExpMatchArray && regExpMatchArray[1] && regExpMatchArray[1];
+          });
+          const { name, value, filename, mimetype } = element;
+          if (!name || !value) {
+            continue;
+          }
+          if (filename) {
+            if (!mimetype) {
+              continue;
+            }
+            const file: any = { name, mimetype }
+            file.stream = new PassThrough();
+            file.stream.push(value);
+            file.stream.push(null);
+            formData.files.push(file)
+          } else {
+            formData.fields[name] = value
+          }
+        }
+        for (const key in formData.fields) {
+          result.body[key] = formData.fields[key];
+        }
+      formData.files.forEach((file: any) => {
+          const { name, stream, mimetype } = file;
+          const key = name.replace(spaceRegExp, '');
+          result.files[key] = {
+            stream: stream,
+            size: stream._readableState.length,
+            mimetype: mimetype.replace(spaceRegExp, '')
+          }
+        });
+        resolve();
+      });
     });
-    for (const key in fields) {
-      result.body[key] = fields[key];
-    }
-    parts.forEach((part: any) => {
-      const { name, stream, mimetype } = part;
-      result.files[name] = {
-        stream: stream,
-        size: stream._readableState.length,
-        mimetype
-      }
-    })
-
   } else {
     await new Promise<void>((resolve, reject) => {
       req.on('data', (chunk: any) => {
