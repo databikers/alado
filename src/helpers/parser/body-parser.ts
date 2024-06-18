@@ -11,6 +11,8 @@ async function bodyParser(req: IncomingMessage) {
   }
   let body: string = '';
   if (contentType.match(ContentType.FORM_DATA)) {
+    req.setEncoding('latin1');
+
     const { fields, parts } = await new Promise<{ fields: any, parts: any[]}>((resolve, reject) => {
       parseFormData(req, (err: Error, state: { fields: any, parts: any[]}) => {
         if (err) {
@@ -19,6 +21,7 @@ async function bodyParser(req: IncomingMessage) {
           return resolve(state);
         }
       })
+
     });
     for (const key in fields) {
       result.body[key] = fields[key];
@@ -31,6 +34,7 @@ async function bodyParser(req: IncomingMessage) {
         mimetype
       }
     })
+
   } else {
     await new Promise<void>((resolve, reject) => {
       req.on('data', (chunk: any) => {

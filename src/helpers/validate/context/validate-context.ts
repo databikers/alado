@@ -1,4 +1,4 @@
-import { inputPropertyRegex, outputPropertyRegex } from '@const';
+import { inputPropertyRegexp, outputPropertyRegexp } from '@const';
 import {
   AladoServerError,
   Context,
@@ -35,7 +35,7 @@ function validateContextAuth(auth: RequestAuthentication) {
     throw new Error(`RequestAuthentication.inputProperty is required property`)
   }
 
-  if (!inputPropertyRegex.test(inputProperty)) {
+  if (!inputPropertyRegexp.test(inputProperty)) {
     throw new Error(`RequestAuthentication.inputProperty should point to the nested property of headers|path|query|body`)
   }
 
@@ -43,7 +43,7 @@ function validateContextAuth(auth: RequestAuthentication) {
     throw new Error(`RequestAuthentication.outputProperty is required property `)
   }
 
-  if (!outputPropertyRegex.test(outputProperty)) {
+  if (!outputPropertyRegexp.test(outputProperty)) {
     throw new Error(`RequestAuthentication.outputProperty should point to the auth or one of its nested properties`)
   }
 
