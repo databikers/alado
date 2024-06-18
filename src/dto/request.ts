@@ -1,5 +1,5 @@
 import { IncomingHttpHeaders } from 'http';
-import { PassThrough } from 'stream';
+import { Readable } from 'stream';
 import { FilePropertyDefinition, PropertyDefinition } from './property-definition';
 import { HttpMethod } from '@const';
 
@@ -21,7 +21,7 @@ export interface Request {
   query?: Record<string, string|string[]>;
   body?: Record<string, any>;
   files?: Record<string, {
-    stream: PassThrough,
+    stream: Readable,
     size: number,
     mimetype: string
   }>;

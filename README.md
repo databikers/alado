@@ -415,7 +415,7 @@ app.post('/user/:id/avatar', context, (request: Request) => {
   console.log(request.files);
   // {
   //   avatar: { 
-  //     stream: PassThrough, 
+  //     stream: Readable, 
   //     size: 65025, 
   //     mimetype: 'image/png' 
   //   }

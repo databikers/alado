@@ -1,6 +1,6 @@
 import { IncomingMessage } from 'http';
 import { ContentType, formDataRegExp, spaceRegExp } from '@const';
-import { PassThrough, pipeline } from 'stream';
+import { Readable } from 'stream';
 
 
 export
@@ -12,7 +12,7 @@ async function bodyParser(req: IncomingMessage) {
   }
   let body: string = '';
   if (contentType.match(ContentType.FORM_DATA)) {
-    req.setEncoding('latin1');
+    req.setEncoding('binary');
     const matchingArray = /boundary=(.+)$/.exec(req.headers['content-type']);
     const boundary: string =  matchingArray && matchingArray[1];
     await new Promise<void>((resolve, reject) => {
@@ -41,9 +41,9 @@ async function bodyParser(req: IncomingMessage) {
               continue;
             }
             const file: any = { name, mimetype }
-            file.stream = new PassThrough();
-            file.stream.push(value);
-            file.stream.push(null);
+            file.stream = new Readable();
+            file.stream.push(Buffer.from(value, 'binary'));
+            file.stream.push(null)
             formData.files.push(file)
           } else {
             formData.fields[name] = value
