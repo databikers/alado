@@ -13,3 +13,5 @@ export const formDataRegExp: Record<string, RegExp> = {
   filename: /filename="(.*?)"/,
   mimetype: /Content-Type:(.*?)\r\n/
 }
+
+export const deprecatedJsonPropertiesRegExp = /\.?(__(proto|defineGetter|defineSetter)__|(prototype|constructor))/;

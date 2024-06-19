@@ -1,5 +1,10 @@
 import { IncomingMessage } from 'http';
-import { ContentType, formDataRegExp, spaceRegExp } from '@const';
+import {
+  ContentType,
+  deprecatedJsonPropertiesRegExp,
+  formDataRegExp,
+  spaceRegExp
+} from '@const';
 import { Readable } from 'stream';
 
 
@@ -72,7 +77,11 @@ async function bodyParser(req: IncomingMessage) {
       req.on('end', () => {
         if (contentType === ContentType.JSON) {
           try {
-            result.body = JSON.parse(body);
+            result.body = JSON.parse(body, function(key, value) {
+              if (!deprecatedJsonPropertiesRegExp.test(key)) {
+                return value;
+              }
+            })
             resolve();
           } catch(e) {
             reject({ statusCode: 400, message: `Invalid JSON`})
