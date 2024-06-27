@@ -1,7 +1,7 @@
 {
   "name": "alado",
   "description": "Extremely fast, lightweight, robust framework for HTTP applications written in Node.js",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Pavlo Lazunko",
@@ -31,9 +31,6 @@
     "hooks": {
       "pre-commit": "npm run eslint"
     }
-  },
-  "engines": {
-    "node": ">=20.10.0"
   },
   "repository": {
     "type": "git",
