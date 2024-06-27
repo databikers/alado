@@ -16,7 +16,7 @@ async function bodyParser(req: IncomingMessage) {
     files: {}
   }
   let body: string = '';
-  if (contentType.match(ContentType.FORM_DATA)) {
+  if (contentType?.match(ContentType.FORM_DATA)) {
     req.setEncoding('binary');
     const matchingArray = /boundary=(.+)$/.exec(req.headers['content-type']);
     const boundary: string =  matchingArray && matchingArray[1];
