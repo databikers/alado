@@ -19,7 +19,8 @@
     "postinstall": "sh postinstall.sh",
     "eslint": "eslint src --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 0",
-    "runtime": "node dist/index.js"
+    "prettier-check": "prettier . --check",
+    "prettier-write": "prettier . --write"
   },
   "dependencies": {
     "swagger-ui-dist": "5.17.14"
@@ -31,6 +32,7 @@
     "@typescript-eslint/parser": "6.17.0",
     "eslint": "8.47.0",
     "husky": "3.0.0",
+    "prettier": "^3.3.2",
     "ts-node": "10.9.2",
     "tsc-alias": "1.8.10",
     "typescript": "5.3.3"
