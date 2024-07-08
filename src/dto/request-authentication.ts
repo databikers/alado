@@ -6,5 +6,5 @@ export interface RequestAuthentication {
   handler: (value: any) => any | Promise<any>;
   handlerContext?: any;
   required: boolean;
-  error: AladoServerError
+  error: AladoServerError;
 }

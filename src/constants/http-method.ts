@@ -5,7 +5,7 @@ export enum HttpMethod {
   PATCH = 'PATCH',
   OPTIONS = 'OPTIONS',
   HEAD = 'HEAD',
-  DELETE = 'DELETE'
+  DELETE = 'DELETE',
 }
 
 export const httpMethods = Object.values(HttpMethod);

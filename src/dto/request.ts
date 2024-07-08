@@ -18,12 +18,14 @@ export interface Request {
   auth?: Record<string, any>;
   path?: Record<string, string>;
   headers?: IncomingHttpHeaders;
-  query?: Record<string, string|string[]>;
+  query?: Record<string, string | string[]>;
   body?: Record<string, any>;
-  files?: Record<string, {
-    stream: Readable,
-    size: number,
-    mimetype: string
-  }>;
+  files?: Record<
+    string,
+    {
+      stream: Readable;
+      size: number;
+      mimetype: string;
+    }
+  >;
 }
-

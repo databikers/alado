@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [ "ES2022" ],
+    "lib": ["ES2022"],
     "module": "commonjs",
     "esModuleInterop": true,
     "target": "ES2022",
@@ -15,39 +15,17 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@alado": [
-        "src/alado-server"
-      ],
-      "@const": [
-        "src/constants"
-      ],
-      "@dto": [
-        "src/dto"
-      ],
-      "@helper": [
-        "src/helpers"
-      ],
-      "@options": [
-        "src/options"
-      ],
-      "@parameters": [
-        "src/parameters"
-      ],
-      "@request-processor": [
-        "src/request-processor"
-      ],
-      "@router": [
-        "src/router"
-      ],
-      "@server": [
-        "src/server"
-      ],
-      "@factory": [
-        "src/factory"
-      ],
+      "@alado": ["src/alado-server"],
+      "@const": ["src/constants"],
+      "@dto": ["src/dto"],
+      "@helper": ["src/helpers"],
+      "@options": ["src/options"],
+      "@parameters": ["src/parameters"],
+      "@request-processor": ["src/request-processor"],
+      "@router": ["src/router"],
+      "@server": ["src/server"],
+      "@factory": ["src/factory"]
     }
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
 }

@@ -5,7 +5,7 @@ function validatePort(port: number) {
   if (typeof port !== 'number') {
     throw new Error('AladoServerOptions.port should be a number');
   }
-  if (port < 0 || port > 65535 || port - Math.ceil(port) ) {
+  if (port < 0 || port > 65535 || port - Math.ceil(port)) {
     throw new Error('AladoServerOptions.port should be a positive integer less than 65536');
   }
 }
@@ -28,7 +28,7 @@ function validateCors(cors: CorsOptions) {
         break;
       case 'allowedHeaders':
       case 'exposeHeaders':
-        if (!Array.isArray(cors[key]) || cors[key].some(item => typeof item !== 'string')) {
+        if (!Array.isArray(cors[key]) || cors[key].some((item) => typeof item !== 'string')) {
           throw new Error(`AladoServerOptions.cors.${key} should be an array of string`);
         }
         break;
@@ -61,7 +61,7 @@ function validateOpenApiDoc(openApiDoc: OpenApiDoc) {
 function validateLogger(logger: AladoServerLogger) {
   if (!logger) {
     return;
-  } else if (typeof logger !=='object') {
+  } else if (typeof logger !== 'object') {
     throw new Error('AladoServerOptions.logger should be an object');
   }
   if (typeof logger.log !== 'function') {
@@ -70,15 +70,9 @@ function validateLogger(logger: AladoServerLogger) {
 }
 
 export function validateAladoOptions(options: AladoServerOptions) {
-  const {
-    port,
-    cors,
-    openApiDoc,
-    logger
-  } = options;
+  const { port, cors, openApiDoc, logger } = options;
   validatePort(port);
   validateCors(cors);
   validateOpenApiDoc(openApiDoc);
   validateLogger(logger);
 }
-

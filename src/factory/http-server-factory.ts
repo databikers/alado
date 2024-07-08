@@ -9,4 +9,3 @@ export function httpServerFactory(requestProcessorOptions: RequestProcessorOptio
   const handler = requestProcessor.process.bind(requestProcessor);
   return ssl ? https.createServer(ssl, handler) : http.createServer(handler);
 }
-

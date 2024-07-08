@@ -11,7 +11,7 @@ export const formDataRegExp: Record<string, RegExp> = {
   name: /name="(.+?)"/,
   value: /\r\n\r\n([\S\s]*)\r\n--$/,
   filename: /filename="(.*?)"/,
-  mimetype: /Content-Type:(.*?)\r\n/
-}
+  mimetype: /Content-Type:(.*?)\r\n/,
+};
 
 export const deprecatedJsonPropertiesRegExp = /\.?(__(proto|defineGetter|defineSetter)__|(prototype|constructor))/;

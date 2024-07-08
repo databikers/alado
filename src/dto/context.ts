@@ -3,7 +3,7 @@ import { RequestAuthentication } from './request-authentication';
 import { Response } from './response';
 import { ContextRequest } from './request';
 
-export interface Context <T> {
+export interface Context<T> {
   title: string;
   auth?: RequestAuthentication;
   options: ContextOptions;

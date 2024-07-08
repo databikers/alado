@@ -1,15 +1,12 @@
 import { Context } from '../dto';
 
-const nonBinResponses = [
-  'application/json',
-  'application/xml'
-]
+const nonBinResponses = ['application/json', 'application/xml'];
 
 export function openApiDocFactory(
   openApiMethod: string,
   openApiRoute: string,
   context: Context<any>,
-  openApiDocObject: any
+  openApiDocObject: any,
 ) {
   // validate params
   openApiRoute = openApiRoute.toString().replace(/\/$/, '');
@@ -19,27 +16,19 @@ export function openApiDocFactory(
   openApiDocObject.paths[openApiRoute][openApiMethod] = { ...openApiDoc, parameters: [] };
   const { title } = context;
   if (context.auth) {
-    const {
-      inputProperty
-    } = context.auth;
-    const [ where, what ] = inputProperty.split('.');
+    const { inputProperty } = context.auth;
+    const [where, what] = inputProperty.split('.');
     const authStrategyName: string = where.toLowerCase() + what.charAt(0).toUpperCase() + what.slice(1);
     if (!openApiDocObject.components.securitySchemes[authStrategyName]) {
-      openApiDocObject.components.securitySchemes[authStrategyName] =  {
+      openApiDocObject.components.securitySchemes[authStrategyName] = {
         type: 'apiKey',
         in: where.replace(/s$/, '').toLowerCase(),
-        name: what.toLowerCase()
+        name: what.toLowerCase(),
       };
     }
-    openApiDocObject.paths[openApiRoute][openApiMethod].security = [{ [authStrategyName]: [] }]
+    openApiDocObject.paths[openApiRoute][openApiMethod].security = [{ [authStrategyName]: [] }];
   }
-  const {
-    headers,
-    body,
-    path,
-    query,
-    files
-  } = context.request;
+  const { headers, body, path, query, files } = context.request;
   if (headers) {
     for (const header in headers) {
       openApiDocObject.paths[openApiRoute][openApiMethod].parameters.push({
@@ -82,20 +71,20 @@ export function openApiDocFactory(
         'multipart/form-data': {
           schema: {
             type: 'object',
-            properties: {}
-          }
-        }
-      }
+            properties: {},
+          },
+        },
+      },
     };
     for (const param in files) {
-      uploadObject.content['multipart/form-data'].schema.properties[param] ={
+      uploadObject.content['multipart/form-data'].schema.properties[param] = {
         type: 'string',
-        format: 'binary'
-      }
+        format: 'binary',
+      };
     }
     if (body) {
       for (const prop in body) {
-        uploadObject.content['multipart/form-data'].schema.properties[prop] = body[prop].openApiDoc.schema
+        uploadObject.content['multipart/form-data'].schema.properties[prop] = body[prop].openApiDoc.schema;
       }
     }
     openApiDocObject.paths[openApiRoute][openApiMethod].requestBody = uploadObject;
@@ -108,13 +97,13 @@ export function openApiDocFactory(
         [contentType]: {
           schema: {
             type: 'object',
-            properties: {}
-          }
-        }
-      }
+            properties: {},
+          },
+        },
+      },
     };
     for (const prop in body) {
-      bodyObject.content[contentType].schema.properties[prop] = body[prop].openApiDoc.schema
+      bodyObject.content[contentType].schema.properties[prop] = body[prop].openApiDoc.schema;
     }
     openApiDocObject.paths[openApiRoute][openApiMethod].requestBody = bodyObject;
   }
@@ -126,7 +115,7 @@ export function openApiDocFactory(
       if (nonBinResponses.includes(responseContentType)) {
         bodyObject = { properties: {} };
         for (const prop in body) {
-          bodyObject.properties[prop] = body[prop]
+          bodyObject.properties[prop] = body[prop];
         }
       } else {
         bodyObject = { example: '' };
@@ -138,11 +127,11 @@ export function openApiDocFactory(
           content: {
             [responseContentType]: {
               schema: {
-                $ref: `#/components/schemas/${title}`
-              }
-            }
-          }
-        }
+                $ref: `#/components/schemas/${title}`,
+              },
+            },
+          },
+        },
       };
     } else {
       openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
@@ -150,12 +139,11 @@ export function openApiDocFactory(
           description,
           content: {
             [responseContentType]: {
-              example: ''
-            }
-          }
-        }
+              example: '',
+            },
+          },
+        },
       };
     }
-
   }
 }

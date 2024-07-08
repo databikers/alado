@@ -8,7 +8,6 @@ import { httpServerFactory } from '@factory';
 import { clearRoute, validateAladoOptions } from '@helper';
 
 export class AladoServer {
-
   private readonly router: Router;
   private readonly server: Server;
   private readonly openApiDocObject: any;
@@ -20,73 +19,59 @@ export class AladoServer {
     if (options.openApiDoc?.route) {
       options.openApiDoc.route = `${clearRoute(options.openApiDoc.route)}`;
     }
-    this.logger = options.logger || console as AladoServerLogger;
+    this.logger = options.logger || (console as AladoServerLogger);
     this.openApiDocObject = { ...defaultOpenApiDocObject, info: options.openApiDoc?.info || {} };
-    this.router = new Router({
-      cors: {
-        enable: options.cors?.enable,
-        allowedOrigin: options?.cors?.allowedOrigin || '*',
-        allowedHeaders: options?.cors?.allowedHeaders || [],
-        allowedMethods: new Map<any,any>,
-        exposeHeaders: options?.cors?.exposeHeaders || [],
+    this.router = new Router(
+      {
+        cors: {
+          enable: options.cors?.enable,
+          allowedOrigin: options?.cors?.allowedOrigin || '*',
+          allowedHeaders: options?.cors?.allowedHeaders || [],
+          allowedMethods: new Map<any, any>(),
+          exposeHeaders: options?.cors?.exposeHeaders || [],
+        },
+        openApiDoc: options.openApiDoc,
+        logger: this.logger,
       },
-      openApiDoc: options.openApiDoc,
-      logger: this.logger
-    }, this.openApiDocObject);
+      this.openApiDocObject,
+    );
     this.port = options.port;
-    this.server = httpServerFactory({
-      router: this.router,
-      openApiDoc: options.openApiDoc,
-      enableCors: options.cors?.enable,
-      logger: this.logger
-    }, options.ssl);
+    this.server = httpServerFactory(
+      {
+        router: this.router,
+        openApiDoc: options.openApiDoc,
+        enableCors: options.cors?.enable,
+        logger: this.logger,
+      },
+      options.ssl,
+    );
   }
 
-  public get(
-    path: string,
-    context: Context<any>,
-    handler: (request: any) => Response<any> | Promise<Response<any>>
-  ) {
+  public get(path: string, context: Context<any>, handler: (request: any) => Response<any> | Promise<Response<any>>) {
     this.router.use(HttpMethod.GET, path, context, handler);
   }
 
-  public post(
-    path: string,
-    context: Context<any>,
-    handler: (request: any) => Response<any> | Promise<Response<any>>
-  ) {
+  public post(path: string, context: Context<any>, handler: (request: any) => Response<any> | Promise<Response<any>>) {
     this.router.use(HttpMethod.POST, path, context, handler);
   }
 
-  public put(
-    path: string,
-    context: Context<any>,
-    handler: (request: any) => Response<any> | Promise<Response<any>>
-  ) {
+  public put(path: string, context: Context<any>, handler: (request: any) => Response<any> | Promise<Response<any>>) {
     this.router.use(HttpMethod.PUT, path, context, handler);
   }
 
-  public patch(
-    path: string,
-    context: Context<any>,
-    handler: (request: any) => Response<any> | Promise<Response<any>>
-  ) {
+  public patch(path: string, context: Context<any>, handler: (request: any) => Response<any> | Promise<Response<any>>) {
     this.router.use(HttpMethod.PATCH, path, context, handler);
   }
 
   public delete(
     path: string,
     context: Context<any>,
-    handler: (request: any) => Response<any> | Promise<Response<any>>
+    handler: (request: any) => Response<any> | Promise<Response<any>>,
   ) {
     this.router.use(HttpMethod.DELETE, path, context, handler);
   }
 
-  public head(
-    path: string,
-    context: Context<any>,
-    handler: (request: any) => Promise<Response<any>>
-  ) {
+  public head(path: string, context: Context<any>, handler: (request: any) => Promise<Response<any>>) {
     this.router.use(HttpMethod.HEAD, path, context, handler);
   }
 
@@ -98,4 +83,3 @@ export class AladoServer {
     this.server.close(cb);
   }
 }
-

@@ -3,7 +3,7 @@ export const defaultOpenApiDocObject: any = {
   info: {
     title: '',
     version: '1.0.0',
-    description: ''
+    description: '',
   },
   servers: [],
   paths: {},
@@ -12,15 +12,15 @@ export const defaultOpenApiDocObject: any = {
       Error: {
         properties: {
           message: {
-            type: 'string'
-          }
-        }
-      }
+            type: 'string',
+          },
+        },
+      },
     },
     securitySchemes: {},
     responses: {
       '204': {
-        description: 'No content'
+        description: 'No content',
       },
       '401': {
         description: 'Unauthorized',
@@ -111,8 +111,8 @@ export const defaultOpenApiDocObject: any = {
             },
           },
         },
-      }
+      },
     },
   },
-  security: []
-}
+  security: [],
+};

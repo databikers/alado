@@ -7,21 +7,21 @@ export interface PropertyDefinitionSchema {
   items?: PropertyDefinitionSchema;
 }
 export interface PropertyDocumentation {
-  schema: PropertyDefinitionSchema,
+  schema: PropertyDefinitionSchema;
   description?: string;
   example?: any;
 }
 
 export interface PropertyValidation {
   required?: boolean;
-  handler: (value: any) => boolean | Promise<boolean>,
-  error: AladoServerError
+  handler: (value: any) => boolean | Promise<boolean>;
+  error: AladoServerError;
 }
 
 export interface PropertyDefinition {
   validation: PropertyValidation; // apply in what context
   openApiDoc?: PropertyDocumentation;
-  transform?: (value: any) => any | Promise<any>,
+  transform?: (value: any) => any | Promise<any>;
 }
 
 export interface FilePropertyDefinition {

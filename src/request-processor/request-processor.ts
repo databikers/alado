@@ -1,20 +1,10 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { join } from 'path';
-import {
-  access,
-  constants,
-  createReadStream,
-  readdirSync
-} from 'fs';
+import { access, constants, createReadStream, readdirSync } from 'fs';
 
 import { ContentType, HttpMethod } from '@const';
 import { RequestProcessorOptions } from '@options';
-import {
-  AladoServerError,
-  ContextRequest,
-  Request,
-  Response
-} from '@dto';
+import { AladoServerError, ContextRequest, Request, Response } from '@dto';
 import {
   authenticate,
   bodyParser,
@@ -22,21 +12,20 @@ import {
   clearRoute,
   isReadableStream,
   validateRequestFiles,
-  validateRequestPart
+  validateRequestPart,
 } from '@helper';
 
 const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
 const swaggerUiFiles: string[] = readdirSync(swaggerUiAssetPath);
 
 export class RequestProcessor {
-
   private readonly options: RequestProcessorOptions;
 
   constructor(requestProcessorOptions: RequestProcessorOptions) {
     this.options = requestProcessorOptions;
   }
 
-  protected respond(res: ServerResponse, response: Response<any>){
+  protected respond(res: ServerResponse, response: Response<any>) {
     let responseBody: any;
     const { statusCode, headers, body } = response;
     const isStreamBody = isReadableStream(body);
@@ -59,60 +48,52 @@ export class RequestProcessor {
 
   protected respondError(res: ServerResponse, error: AladoServerError) {
     const { statusCode, message } = error;
-    return this.respond(
-      res,
-      {
-        statusCode,
-        headers: { 'Content-Type': 'application/json' },
-        body: { message }
-      });
+    return this.respond(res, {
+      statusCode,
+      headers: { 'Content-Type': 'application/json' },
+      body: { message },
+    });
   }
 
-  public async process (req: IncomingMessage, res: ServerResponse){
+  public async process(req: IncomingMessage, res: ServerResponse) {
     try {
-      const { router, openApiDoc, enableCors} = this.options;
+      const { router, openApiDoc, enableCors } = this.options;
       const { headers, method } = req;
       const url = clearRoute(req.url);
       // Process Open API routes
-      if ( openApiDoc?.enable ) {
+      if (openApiDoc?.enable) {
         if (method === HttpMethod.GET) {
           if (
-            !req.url.startsWith(`/swagger.json`)
-            && (
-              (url.startsWith(clearRoute(openApiDoc?.route)) && !['', '/'].includes(openApiDoc?.route) )
-              || swaggerUiFiles.includes(url.replace('/', ''))
-              || url === openApiDoc?.route
-            )
+            !req.url.startsWith(`/swagger.json`) &&
+            ((url.startsWith(clearRoute(openApiDoc?.route)) && !['', '/'].includes(openApiDoc?.route)) ||
+              swaggerUiFiles.includes(url.replace('/', '')) ||
+              url === openApiDoc?.route)
           ) {
             let filePath = join(swaggerUiAssetPath, url.replace(`${clearRoute(openApiDoc.route)}`, ''));
             filePath += url === clearRoute(openApiDoc.route) ? '/index.html' : '';
             return access(filePath, constants.F_OK, (err) => {
               if (err) {
-                return this.respond(
-                  res,
-                  {
-                    statusCode: 404,
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: 'Not Found'
-                  });
+                return this.respond(res, {
+                  statusCode: 404,
+                  headers: { 'Content-Type': 'text/plain' },
+                  body: 'Not Found',
+                });
               } else {
                 createReadStream(filePath).pipe(res);
               }
             });
           } else if (req.url.startsWith(`/swagger.json`)) {
-            return this.respond(
-              res,
-              {
-                statusCode: 200,
-                headers: { 'Content-Type': 'application/json' },
-                body: this.options.router.openApiDocObject
-              });
+            return this.respond(res, {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: this.options.router.openApiDocObject,
+            });
           }
         }
       }
       // Process API routes
 
-      const [ uri, queryString ] =  url.split('?');
+      const [uri, queryString] = url.split('?');
       const route = router.parse(method as HttpMethod, clearRoute(uri));
 
       if (!route) {
@@ -122,21 +103,20 @@ export class RequestProcessor {
         // CORS
         if (enableCors && method === HttpMethod.OPTIONS) {
           const response: Response<any> = await route.handler({});
-          return this.respond(res, response)
+          return this.respond(res, response);
         }
 
-        const {
-          context,
-          handler,
-          path
-        } = route;
+        const { context, handler, path } = route;
 
         // Process request, prepare data
         let body: any = {};
         let query: any = {};
         let files: any = {};
 
-        if ((context.request.body||context.request.files) && ([HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.POST] as string[]).includes(method) ) {
+        if (
+          (context.request.body || context.request.files) &&
+          ([HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.POST] as string[]).includes(method)
+        ) {
           const r = await bodyParser(req);
           body = r.body;
           files = r.files;
@@ -158,7 +138,7 @@ export class RequestProcessor {
           auth: {},
           headers,
           path,
-          query
+          query,
         };
         if (body) {
           request.body = body;
@@ -190,13 +170,12 @@ export class RequestProcessor {
         try {
           const response: Response<any> = await handler(request);
           return this.respond(res, response);
-        } catch(e) {
-          return this.respondError(res, { statusCode: 500, message: e.message })
+        } catch (e) {
+          return this.respondError(res, { statusCode: 500, message: e.message });
         }
       }
-    } catch(e) {
-      return this.respondError(res, { statusCode: 400, message: e.message })
+    } catch (e) {
+      return this.respondError(res, { statusCode: 400, message: e.message });
     }
   }
-
 }

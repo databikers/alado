@@ -4,14 +4,7 @@ export function validateRequestFiles(context: Context<any>, request: any) {
   const { files } = context.request;
   if (files) {
     for (const file in files) {
-      const {
-        required,
-        mimetypes,
-        maxSize,
-        requiredError,
-        maxSizeError,
-        mimetypeError
-      } = files[file];
+      const { required, mimetypes, maxSize, requiredError, maxSizeError, mimetypeError } = files[file];
       if (required && (!request.files || !request.files[file])) {
         return requiredError;
       }
@@ -33,5 +26,4 @@ export function validateRequestFiles(context: Context<any>, request: any) {
   } else {
     request.files = {};
   }
-
 }

@@ -6,7 +6,7 @@ export function clearRoute(route: string) {
   }
   route = route.replace(multiSlashRegExp, '/');
   if (trimRouteRegexp.test(route)) {
-    route = route.replace(trimRouteRegexp, '')
+    route = route.replace(trimRouteRegexp, '');
   }
   return route;
 }

@@ -3,7 +3,7 @@ export const httpStatus: Record<string, Record<string, number>> = {
     CONTINUE: 100,
     SWITCHING_PROTOCOLS: 101,
     PROCESSING: 102,
-    EARLY_HINTS: 103
+    EARLY_HINTS: 103,
   },
   SUCCESS: {
     OK: 200,
@@ -15,7 +15,7 @@ export const httpStatus: Record<string, Record<string, number>> = {
     PARTIAL_CONTENT: 206,
     MULTI_STATUS: 207,
     ALREADY_REPORTED: 208,
-    IM_USED: 226
+    IM_USED: 226,
   },
   REDIRECT: {
     MULTIPLE_CHOICES: 300,
@@ -26,7 +26,7 @@ export const httpStatus: Record<string, Record<string, number>> = {
     USE_PROXY: 305,
     SWITCH_PROXY: 306,
     TEMPORARY_REDIRECT: 307,
-    PERMANENT_REDIRECT: 308
+    PERMANENT_REDIRECT: 308,
   },
   CLIENT_ERROR: {
     BAD_REQUEST: 400,
@@ -57,7 +57,7 @@ export const httpStatus: Record<string, Record<string, number>> = {
     PRECONDITION_REQUIRED: 428,
     TOO_MANY_REQUESTS: 429,
     REQUEST_HEADER_FIELDS_TOO_LARGE: 431,
-    UNAVAILABLE_FOR_LEGAL_REASONS: 451
+    UNAVAILABLE_FOR_LEGAL_REASONS: 451,
   },
   SERVER_ERROR: {
     INTERNAL_SERVER_ERROR: 500,
@@ -70,6 +70,6 @@ export const httpStatus: Record<string, Record<string, number>> = {
     INSUFFICIENT_STORAGE: 507,
     LOOP_DETECTED: 508,
     NOT_EXTENDED: 510,
-    NETWORK_AUTHENTICATION_REQUIRED: 511
-  }
-}
+    NETWORK_AUTHENTICATION_REQUIRED: 511,
+  },
+};

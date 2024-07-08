@@ -4,5 +4,5 @@ export interface ContextOptions {
     description?: string;
     operationId: string;
     tags?: string[];
-  }
+  };
 }
