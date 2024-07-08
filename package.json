@@ -49,5 +49,8 @@
   "bugs": {
     "url": "https://github.com/databikers/alado/issues"
   },
-  "homepage": "https://github.com/databikers/alado"
+  "homepage": "https://github.com/databikers/alado",
+  "engines" : {
+    "node" : ">=16.0.0"
+  }
 }
