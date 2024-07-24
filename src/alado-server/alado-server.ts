@@ -75,7 +75,7 @@ export class AladoServer {
     this.router.use(HttpMethod.HEAD, path, context, handler);
   }
 
-  start(cb: () => void) {
+  start(cb: (err?: Error) => void) {
     this.server.listen(this.port, cb);
   }
 
