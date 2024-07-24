@@ -1,6 +1,6 @@
 {
   "name": "alado",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Extremely fast, lightweight, robust framework for HTTP applications written in Node.js",
   "keywords": [
     "HTTP",
@@ -50,7 +50,7 @@
     "url": "https://github.com/databikers/alado/issues"
   },
   "homepage": "https://github.com/databikers/alado",
-  "engines" : {
-    "node" : ">=16.0.0"
+  "engines": {
+    "node": ">=16.0.0"
   }
 }
