@@ -5,6 +5,8 @@ import { SecureContextOptions } from 'tls';
 
 export interface AladoServerOptions {
   port: number;
+  host?: string;
+  backlog?: number;
   cors: CorsOptions;
   openApiDoc: OpenApiDoc;
   ssl?: SecureContextOptions;

@@ -1,6 +1,6 @@
 import { Server } from 'http';
 
-import { HttpMethod, defaultOpenApiDocObject } from '@const';
+import { HttpMethod, defaultOpenApiDocObject, defaultHost, defaultBacklog } from '@const';
 import { AladoServerOptions } from '@options';
 import { AladoServerLogger, Context, Response } from '@dto';
 import { Router } from '@router';
@@ -12,6 +12,8 @@ export class AladoServer {
   private readonly server: Server;
   private readonly openApiDocObject: any;
   private port: number;
+  private host: string;
+  private backlog: number;
   private readonly logger?: AladoServerLogger;
 
   constructor(options: AladoServerOptions) {
@@ -36,6 +38,8 @@ export class AladoServer {
       this.openApiDocObject,
     );
     this.port = options.port;
+    this.host = options.host || defaultHost;
+    this.backlog = options.backlog || defaultBacklog;
     this.server = httpServerFactory(
       {
         router: this.router,
@@ -75,11 +79,11 @@ export class AladoServer {
     this.router.use(HttpMethod.HEAD, path, context, handler);
   }
 
-  start(cb: (err?: Error) => void) {
-    this.server.listen(this.port, cb);
+  start(cb?: (err?: Error) => void) {
+    return this.server.listen(this.port, this.host, this.backlog, cb);
   }
 
   stop(cb: (error?: Error) => void) {
-    this.server.close(cb);
+    return this.server.close(cb);
   }
 }
