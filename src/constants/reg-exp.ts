@@ -4,7 +4,6 @@ export const outputPropertyRegexp = /^auth(\.\w+)?$/;
 export const startRouteRegexp: RegExp = /^\//;
 export const trimRouteRegexp: RegExp = /\/$/;
 export const multiSlashRegExp: RegExp = /\/+/g;
-
 export const spaceRegExp: RegExp = /^\s+|\s+$/;
 
 export const formDataRegExp: Record<string, RegExp> = {

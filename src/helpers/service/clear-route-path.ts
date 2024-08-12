@@ -1,6 +1,6 @@
 import { multiSlashRegExp, startRouteRegexp, trimRouteRegexp } from '@const';
 
-export function clearRoute(route: string) {
+export function clearRoutePath(route: string) {
   if (!startRouteRegexp.test(route)) {
     route = `/${route}`;
   }

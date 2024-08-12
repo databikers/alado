@@ -1,2 +1,2 @@
-export * from './clear-route';
+export * from './clear-route-path';
 export * from './is-readable-stream';

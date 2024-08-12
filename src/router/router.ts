@@ -2,7 +2,7 @@ import { HttpMethod, httpMethods } from '@const';
 import { AladoServerLogger, Context, Request, Response, Route } from '@dto';
 import { RouterOptions } from '@options';
 import { openApiDocFactory } from '@factory';
-import { clearRoute, validateContext } from '@helper';
+import { clearRoutePath, validateContext } from '@helper';
 
 const pathVariableRegex = /:[a-zA-Z0-9_]+/g;
 
@@ -42,10 +42,10 @@ export class Router {
 
       if (
         this.options.openApiDoc?.enable &&
-        this.options.openApiDoc?.route === clearRoute(uri) &&
+        this.options.openApiDoc?.route === clearRoutePath(uri) &&
         method === HttpMethod.GET
       ) {
-        throw new Error(`Route ${clearRoute(uri)} is used as Open API route already`);
+        throw new Error(`Route ${clearRoutePath(uri)} is used as Open API route already`);
       }
 
       validateContext(context, this.options.openApiDoc?.enable);
@@ -59,12 +59,12 @@ export class Router {
     }
 
     const pathData: any = {};
-    let route: string = `${method}${clearRoute(uri)}`;
+    let route: string = `${method}${clearRoutePath(uri)}`;
 
     let openApiRoute: string = uri;
     const openApiMethod: string = method.toLowerCase();
 
-    let optionsRoute: string = `${HttpMethod.OPTIONS}${clearRoute(uri)}`;
+    let optionsRoute: string = `${HttpMethod.OPTIONS}${clearRoutePath(uri)}`;
     const matches: RegExpMatchArray = route.match(pathVariableRegex);
     if (matches) {
       for (let i = 0; i < matches.length; i++) {
@@ -119,7 +119,7 @@ export class Router {
   }
 
   parse(method: HttpMethod, uri: string): Route<any> {
-    uri = clearRoute(uri);
+    uri = clearRoutePath(uri);
     const p = `${method}${uri}`;
     const keys = Array.from(this.routes.keys());
     const path: any = {};

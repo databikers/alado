@@ -58,6 +58,10 @@ const app = new AladoServer({
     cert: readFileSync('/path/to/cert'),
     key: readFileSync('/path/to/key'),
   },
+  // https://nodejs.org/api/http.html#httpcreateserveroptions-requestlistener
+  serverOptions: {
+    keepAliveTimeout: 5000
+  },
   cors: {
     enable: true,
     allowedOrigin: '*',

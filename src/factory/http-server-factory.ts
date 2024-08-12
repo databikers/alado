@@ -1,11 +1,15 @@
 import { SecureContextOptions } from 'tls';
-import http from 'http';
+import http, { ServerOptions } from 'http';
 import https from 'https';
 import { RequestProcessorOptions } from '@options';
 import { RequestProcessor } from '@request-processor';
 
-export function httpServerFactory(requestProcessorOptions: RequestProcessorOptions, ssl?: SecureContextOptions) {
+function validateServerOptions(options: SecureContextOptions & ServerOptions): boolean {
+  return options && typeof options === 'object' && Boolean(Object.keys(options).length)
+}
+
+export function httpServerFactory(requestProcessorOptions: RequestProcessorOptions, options?: SecureContextOptions & ServerOptions) {
   const requestProcessor: RequestProcessor = new RequestProcessor(requestProcessorOptions);
   const handler = requestProcessor.process.bind(requestProcessor);
-  return ssl ? https.createServer(ssl, handler) : http.createServer(handler);
+  return validateServerOptions(options) ? https.createServer(options, handler) : http.createServer(handler);
 }

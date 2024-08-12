@@ -9,7 +9,7 @@ import {
   authenticate,
   bodyParser,
   queryParser,
-  clearRoute,
+  clearRoutePath,
   isReadableStream,
   validateRequestFiles,
   validateRequestPart,
@@ -59,18 +59,18 @@ export class RequestProcessor {
     try {
       const { router, openApiDoc, enableCors } = this.options;
       const { headers, method } = req;
-      const url = clearRoute(req.url);
+      const url = clearRoutePath(req.url);
       // Process Open API routes
       if (openApiDoc?.enable) {
         if (method === HttpMethod.GET) {
           if (
             !req.url.startsWith(`/swagger.json`) &&
-            ((url.startsWith(clearRoute(openApiDoc?.route)) && !['', '/'].includes(openApiDoc?.route)) ||
+            ((url.startsWith(clearRoutePath(openApiDoc?.route)) && !['', '/'].includes(openApiDoc?.route)) ||
               swaggerUiFiles.includes(url.replace('/', '')) ||
               url === openApiDoc?.route)
           ) {
-            let filePath = join(swaggerUiAssetPath, url.replace(`${clearRoute(openApiDoc.route)}`, ''));
-            filePath += url === clearRoute(openApiDoc.route) ? '/index.html' : '';
+            let filePath = join(swaggerUiAssetPath, url.replace(`${clearRoutePath(openApiDoc.route)}`, ''));
+            filePath += url === clearRoutePath(openApiDoc.route) ? '/index.html' : '';
             return access(filePath, constants.F_OK, (err) => {
               if (err) {
                 return this.respond(res, {
@@ -94,7 +94,7 @@ export class RequestProcessor {
       // Process API routes
 
       const [uri, queryString] = url.split('?');
-      const route = router.parse(method as HttpMethod, clearRoute(uri));
+      const route = router.parse(method as HttpMethod, clearRoutePath(uri));
 
       if (!route) {
         // Not Found

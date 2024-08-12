@@ -5,7 +5,7 @@ import { AladoServerOptions } from '@options';
 import { AladoServerLogger, Context, Response } from '@dto';
 import { Router } from '@router';
 import { httpServerFactory } from '@factory';
-import { clearRoute, validateAladoOptions } from '@helper';
+import { clearRoutePath, validateAladoOptions } from '@helper';
 
 export class AladoServer {
   private readonly router: Router;
@@ -19,7 +19,7 @@ export class AladoServer {
   constructor(options: AladoServerOptions) {
     validateAladoOptions(options);
     if (options.openApiDoc?.route) {
-      options.openApiDoc.route = `${clearRoute(options.openApiDoc.route)}`;
+      options.openApiDoc.route = `${clearRoutePath(options.openApiDoc.route)}`;
     }
     this.logger = options.logger || (console as AladoServerLogger);
     this.openApiDocObject = { ...defaultOpenApiDocObject, info: options.openApiDoc?.info || {} };
@@ -47,7 +47,10 @@ export class AladoServer {
         enableCors: options.cors?.enable,
         logger: this.logger,
       },
-      options.ssl,
+      {
+        ...options.ssl,
+        ...options.serverOptions,
+      },
     );
   }
 
@@ -79,11 +82,11 @@ export class AladoServer {
     this.router.use(HttpMethod.HEAD, path, context, handler);
   }
 
-  start(cb?: (err?: Error) => void) {
+  public start(cb?: (err?: Error) => void) {
     return this.server.listen(this.port, this.host, this.backlog, cb);
   }
 
-  stop(cb: (error?: Error) => void) {
+  public stop(cb: (error?: Error) => void) {
     return this.server.close(cb);
   }
 }
