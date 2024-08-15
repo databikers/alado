@@ -4,4 +4,7 @@ export interface CorsOptions {
   allowedMethods?: any;
   allowedHeaders?: string[];
   exposeHeaders?: string[];
+  allowedCredentials?: boolean;
+  maxAge?: number;
 }
+
