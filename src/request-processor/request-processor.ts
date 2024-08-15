@@ -12,7 +12,7 @@ import {
   clearRoutePath,
   isReadableStream,
   validateRequestFiles,
-  validateRequestPart,
+  validateRequestPart, mergeHeaders,
 } from '@helper';
 
 const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
@@ -38,7 +38,7 @@ export class RequestProcessor {
         responseBody = body;
         break;
     }
-    res.writeHead(statusCode, headers);
+    res.writeHead(statusCode, { ...this.options.headers, ...headers });
     if (isStreamBody) {
       responseBody.pipe(res);
     } else {
@@ -50,7 +50,7 @@ export class RequestProcessor {
     const { statusCode, message } = error;
     return this.respond(res, {
       statusCode,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...this.options.headers, 'Content-Type': 'application/json' },
       body: { message },
     });
   }

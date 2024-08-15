@@ -4,10 +4,11 @@ import { OpenApiDoc } from './open-api-doc';
 import { CorsOptions } from './cors-options';
 import { SecureContextOptions } from 'tls';
 
-export interface AladoServerOptions {
+export type AladoServerOptions = {
   port: number;
   cors: CorsOptions;
   openApiDoc: OpenApiDoc;
+  headers?: Record<string, string>
   serverOptions?: ServerOptions,
   host?: string;
   backlog?: number;

@@ -5,7 +5,7 @@ import { AladoServerOptions } from '@options';
 import { AladoServerLogger, Context, Response } from '@dto';
 import { Router } from '@router';
 import { httpServerFactory } from '@factory';
-import { clearRoutePath, validateAladoOptions } from '@helper';
+import { clearRoutePath, mergeHeaders, validateAladoOptions } from '@helper';
 
 export class AladoServer {
   private readonly router: Router;
@@ -43,6 +43,7 @@ export class AladoServer {
     this.server = httpServerFactory(
       {
         router: this.router,
+        headers: mergeHeaders(options.headers),
         openApiDoc: options.openApiDoc,
         enableCors: options.cors?.enable,
         logger: this.logger,
