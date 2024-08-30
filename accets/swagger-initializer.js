@@ -6,7 +6,10 @@ window.onload = function () {
     url: '/swagger.json',
     dom_id: '#swagger-ui',
     deepLinking: true,
-    presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+    presets: [
+      SwaggerUIBundle.presets.apis,
+      SwaggerUIStandalonePreset,
+    ],
     plugins: [SwaggerUIBundle.plugins.DownloadUrl],
     layout: 'StandaloneLayout',
   });

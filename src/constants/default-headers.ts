@@ -7,5 +7,5 @@ export const defaultHeaders: Record<string, string> = {
   'X-DNS-Prefetch-Control': 'off',
   'X-Frame-Options': 'SAMEORIGIN',
   'X-Permitted-Cross-Domain-Policies': 'none',
-  'X-XSS-Protection': '0'
-}
+  'X-XSS-Protection': '0',
+};

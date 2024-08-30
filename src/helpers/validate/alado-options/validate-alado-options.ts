@@ -20,7 +20,10 @@ function validateCors(cors: CorsOptions) {
     return;
   }
   //maxAge
-  if (Object.prototype.hasOwnProperty.apply(cors, ['allowedCredentials']) && typeof cors.allowedCredentials !== 'boolean') {
+  if (
+    Object.prototype.hasOwnProperty.apply(cors, ['allowedCredentials']) &&
+    typeof cors.allowedCredentials !== 'boolean'
+  ) {
     throw new Error('AladoServerOptions.cors.allowedCredentials should be a boolean');
   }
   if (Object.prototype.hasOwnProperty.apply(cors, ['maxAge']) && typeof cors.maxAge !== 'number' && cors.maxAge < 0) {

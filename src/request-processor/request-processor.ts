@@ -12,7 +12,8 @@ import {
   clearRoutePath,
   isReadableStream,
   validateRequestFiles,
-  validateRequestPart, mergeHeaders,
+  validateRequestPart,
+  mergeHeaders,
 } from '@helper';
 
 const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
@@ -65,7 +66,11 @@ export class RequestProcessor {
         if (method === HttpMethod.GET) {
           if (
             !req.url.startsWith(`/swagger.json`) &&
-            ((url.startsWith(clearRoutePath(openApiDoc?.route)) && !['', '/'].includes(openApiDoc?.route)) ||
+            ((url.startsWith(clearRoutePath(openApiDoc?.route)) &&
+              ![
+                '',
+                '/',
+              ].includes(openApiDoc?.route)) ||
               swaggerUiFiles.includes(url.replace('/', '')) ||
               url === openApiDoc?.route)
           ) {
@@ -93,7 +98,10 @@ export class RequestProcessor {
       }
       // Process API routes
 
-      const [uri, queryString] = url.split('?');
+      const [
+        uri,
+        queryString,
+      ] = url.split('?');
       const route = router.parse(method as HttpMethod, clearRoutePath(uri));
 
       if (!route) {
@@ -115,7 +123,13 @@ export class RequestProcessor {
 
         if (
           (context.request.body || context.request.files) &&
-          ([HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.POST] as string[]).includes(method)
+          (
+            [
+              HttpMethod.PUT,
+              HttpMethod.PATCH,
+              HttpMethod.POST,
+            ] as string[]
+          ).includes(method)
         ) {
           const r = await bodyParser(req);
           body = r.body;

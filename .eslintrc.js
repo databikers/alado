@@ -3,7 +3,10 @@ module.exports = {
     node: true,
     es2020: true,
   },
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+  ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 11,
@@ -31,6 +34,9 @@ module.exports = {
     '@typescript-eslint/no-inferrable-types': 'off',
     'no-useless-escape': 'off',
     'no-array-constructor': 'error',
-    'no-empty': ['error', { allowEmptyCatch: false }],
+    'no-empty': [
+      'error',
+      { allowEmptyCatch: false },
+    ],
   },
 };

@@ -1,6 +1,9 @@
 import { Context } from '../dto';
 
-const nonBinResponses = ['application/json', 'application/xml'];
+const nonBinResponses = [
+  'application/json',
+  'application/xml',
+];
 
 export function openApiDocFactory(
   openApiMethod: string,
@@ -17,7 +20,10 @@ export function openApiDocFactory(
   const { title } = context;
   if (context.auth) {
     const { inputProperty } = context.auth;
-    const [where, what] = inputProperty.split('.');
+    const [
+      where,
+      what,
+    ] = inputProperty.split('.');
     const authStrategyName: string = where.toLowerCase() + what.charAt(0).toUpperCase() + what.slice(1);
     if (!openApiDocObject.components.securitySchemes[authStrategyName]) {
       openApiDocObject.components.securitySchemes[authStrategyName] = {

@@ -60,7 +60,7 @@ const app = new AladoServer({
   },
   // https://nodejs.org/api/http.html#httpcreateserveroptions-requestlistener
   serverOptions: {
-    keepAliveTimeout: 5000
+    keepAliveTimeout: 5000,
   },
   cors: {
     enable: true,
@@ -317,7 +317,10 @@ const request: ContextRequest = {
       validation: {
         required: true,
         handler(value) {
-          return ['createdAt', 'updatedAt'].includes(value);
+          return [
+            'createdAt',
+            'updatedAt',
+          ].includes(value);
         },
         error: {
           statusCode: 400,
@@ -336,7 +339,10 @@ const request: ContextRequest = {
       validation: {
         required: true,
         handler(value) {
-          return ['asc', 'desc'].includes(value);
+          return [
+            'asc',
+            'desc',
+          ].includes(value);
         },
         error: {
           statusCode: 400,

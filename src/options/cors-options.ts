@@ -7,4 +7,3 @@ export interface CorsOptions {
   allowedCredentials?: boolean;
   maxAge?: number;
 }
-

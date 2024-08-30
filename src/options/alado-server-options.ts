@@ -8,10 +8,10 @@ export type AladoServerOptions = {
   port: number;
   cors: CorsOptions;
   openApiDoc: OpenApiDoc;
-  headers?: Record<string, string>
-  serverOptions?: ServerOptions,
+  headers?: Record<string, string>;
+  serverOptions?: ServerOptions;
   host?: string;
   backlog?: number;
   ssl?: SecureContextOptions;
   logger?: AladoServerLogger;
-}
+};

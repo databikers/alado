@@ -87,7 +87,10 @@ export class Router {
       if (this.options.cors.allowedMethods.has(optionsDataKey)) {
         this.options.cors.allowedMethods.get(optionsDataKey).push(method);
       } else {
-        this.options.cors.allowedMethods.set(optionsDataKey, [HttpMethod.OPTIONS, method]);
+        this.options.cors.allowedMethods.set(optionsDataKey, [
+          HttpMethod.OPTIONS,
+          method,
+        ]);
         const optionsRouteRegEx: RegExp = new RegExp(`^${optionsRoute.replace(/\//g, '/')}\/?$`, 'i');
         this.routes.set(optionsRouteRegEx, {
           route: optionsRouteRegEx,
@@ -117,7 +120,7 @@ export class Router {
   }
 
   public getOptionsData(key: string) {
-    return this.options.cors?.allowedMethods?.get(key)||[];
+    return this.options.cors?.allowedMethods?.get(key) || [];
   }
 
   parse(method: HttpMethod, uri: string): Route<any> {

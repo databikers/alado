@@ -5,4 +5,4 @@ export type ContextOptions = {
     operationId: string;
     tags?: string[];
   };
-}
+};

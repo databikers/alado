@@ -26,7 +26,10 @@ export async function bodyParser(req: IncomingMessage) {
         for (const item of data) {
           const element: any = {};
           Object.entries(formDataRegExp).map((entry) => {
-            const [key, regEx] = entry;
+            const [
+              key,
+              regEx,
+            ] = entry;
             const regExpMatchArray = item.match(regEx);
             element[key] = regExpMatchArray && regExpMatchArray[1] && regExpMatchArray[1];
           });
@@ -81,7 +84,10 @@ export async function bodyParser(req: IncomingMessage) {
           }
         } else if (contentType === ContentType.X_WWW_FORM_URLENCODED) {
           body.split('&').forEach((item: string) => {
-            const [key, value] = item.split('=');
+            const [
+              key,
+              value,
+            ] = item.split('=');
             result.body[key] = value;
           });
           resolve();

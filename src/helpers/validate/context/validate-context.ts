@@ -99,7 +99,12 @@ export function validateContext(context: Context<any>, useApiDoc?: boolean) {
   }
   if (context.request) {
     const { headers, path, query, body, files } = context.request;
-    for (const obj of [headers, path, query, body]) {
+    for (const obj of [
+      headers,
+      path,
+      query,
+      body,
+    ]) {
       if (obj) {
         for (const prop in obj) {
           validatePropertyDefinition(obj[prop]);
@@ -129,7 +134,14 @@ function validatePropertyDefinitionDoc(doc: PropertyDocumentation) {
   }
   // todo: move to const
   for (const key in doc.schema) {
-    if (!['type', '$ref', 'enum', 'items'].includes(key)) {
+    if (
+      ![
+        'type',
+        '$ref',
+        'enum',
+        'items',
+      ].includes(key)
+    ) {
       throw new Error(
         `propertyDefinition.openApiDoc.schema[property] - property should be one of ($ref, type, enum, items)"`,
       );

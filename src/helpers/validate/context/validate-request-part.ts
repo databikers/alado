@@ -1,6 +1,9 @@
 import { Context, ContextRequest, PropertyDefinition } from '@dto';
 
-const nonProcessingRequestParts: string[] = ['files', 'auth'];
+const nonProcessingRequestParts: string[] = [
+  'files',
+  'auth',
+];
 
 export async function validateRequestPart(
   key: keyof ContextRequest,

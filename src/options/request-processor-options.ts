@@ -6,6 +6,6 @@ export type RequestProcessorOptions = {
   router: Router;
   openApiDoc: OpenApiDoc;
   enableCors?: boolean;
-  headers?: Record<string, string>
+  headers?: Record<string, string>;
   logger?: AladoServerLogger;
-}
+};
