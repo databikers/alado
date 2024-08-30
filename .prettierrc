@@ -1,5 +1,15 @@
 {
+  "arrowParens": "always",
+  "singleAttributePerLine": true,
   "singleQuote": true,
+  "bracketSpacing": true,
   "trailingComma": "all",
-  "printWidth": 120
+  "printWidth": 120,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "multilineArraysWrapThreshold": 1,
+  "plugins": [
+    "prettier-plugin-multiline-arrays"
+  ]
 }
