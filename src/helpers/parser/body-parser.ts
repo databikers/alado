@@ -7,6 +7,7 @@ export async function bodyParser(req: IncomingMessage) {
   const result: any = {
     body: {},
     files: {},
+    rawBody: ''
   };
   let body: string = '';
   if (contentType?.match(ContentType.FORM_DATA)) {
@@ -16,6 +17,7 @@ export async function bodyParser(req: IncomingMessage) {
     await new Promise<void>((resolve, reject) => {
       req.on('data', (chunk: any) => {
         body += chunk.toString();
+        result.rawBody = body;
       });
       req.on('end', () => {
         const formData: any = {
@@ -69,6 +71,7 @@ export async function bodyParser(req: IncomingMessage) {
     await new Promise<void>((resolve, reject) => {
       req.on('data', (chunk: any) => {
         body += chunk.toString();
+        result.rawBody = body;
       });
       req.on('end', () => {
         if (contentType === ContentType.JSON) {

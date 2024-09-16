@@ -20,6 +20,7 @@ export interface Request {
   headers?: IncomingHttpHeaders;
   query?: Record<string, string | string[]>;
   body?: Record<string, any>;
+  rawBody?: string;
   files?: Record<
     string,
     {

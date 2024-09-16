@@ -118,6 +118,7 @@ export class RequestProcessor {
 
         // Process request, prepare data
         let body: any = {};
+        let rawBody: string = '';
         let query: any = {};
         let files: any = {};
 
@@ -133,6 +134,7 @@ export class RequestProcessor {
         ) {
           const r = await bodyParser(req);
           body = r.body;
+          rawBody = r.rawBody;
           files = r.files;
         }
 
@@ -156,6 +158,9 @@ export class RequestProcessor {
         };
         if (body) {
           request.body = body;
+        }
+        if (rawBody) {
+          request.rawBody = rawBody;
         }
         if (files) {
           request.files = files;
