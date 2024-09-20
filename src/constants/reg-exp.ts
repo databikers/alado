@@ -1,5 +1,5 @@
-export const inputPropertyRegexp = /^(headers|body|query|path)(\.\w+)$/;
-export const outputPropertyRegexp = /^auth(\.\w+)?$/;
+export const inputPropertyRegexp = /^(headers|body|query|path)(\.[\w-]+)$/;
+export const outputPropertyRegexp = /^auth(\.[\w-]+)?$/;
 
 export const startRouteRegexp: RegExp = /^\//;
 export const trimRouteRegexp: RegExp = /\/$/;
