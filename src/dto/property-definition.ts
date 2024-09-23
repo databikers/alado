@@ -2,9 +2,34 @@ import { AladoServerError } from './alado-server-error';
 
 export interface PropertyDefinitionSchema {
   type?: string;
+  format?: string;
+  default?: any;
   $ref?: string;
+  nullable?: boolean;
+  readOnly?: boolean;
+  writeOnly?: boolean;
+  deprecated?: boolean;
   enum?: any[];
+  oneOf?: Array<PropertyDefinitionSchema>;
+  anyOf?: Array<PropertyDefinitionSchema>;
+  allOf?: Array<PropertyDefinitionSchema>;
+  not?: Array<PropertyDefinitionSchema>;
+  properties?: Record<string, PropertyDefinitionSchema>
+  additionalProperties?: PropertyDefinitionSchema;
+  minProperties?: number;
+  maxProperties?: number;
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+  multipleOf?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
   items?: PropertyDefinitionSchema;
+  minItems?: number;
+  maxItems?: number;
+  uniqueItems?: boolean;
 }
 export interface PropertyDocumentation {
   schema: PropertyDefinitionSchema;

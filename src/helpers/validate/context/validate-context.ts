@@ -138,8 +138,33 @@ function validatePropertyDefinitionDoc(doc: PropertyDocumentation) {
       ![
         'type',
         '$ref',
+        'format',
+        'default',
+        'nullable',
+        'readOnly',
+        'writeOnly',
+        'deprecated',
+        'properties',
         'enum',
+        'oneOf',
+        'anyOf',
+        'allOf',
+        'not',
+        'additionalProperties',
+        'minProperties',
+        'maxProperties',
+        'minimum',
+        'maximum',
+        'exclusiveMinimum',
+        'exclusiveMaximum',
+        'multipleOf',
+        'minLength',
+        'maxLength',
+        'pattern',
         'items',
+        'minItems',
+        'maxItems',
+        'uniqueItems'
       ].includes(key)
     ) {
       throw new Error(
