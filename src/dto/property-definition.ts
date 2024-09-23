@@ -44,6 +44,7 @@ export interface PropertyValidation {
 }
 
 export interface PropertyDefinition {
+  isJSON?: boolean;
   validation: PropertyValidation; // apply in what context
   openApiDoc?: PropertyDocumentation;
   transform?: (value: any) => any | Promise<any>;

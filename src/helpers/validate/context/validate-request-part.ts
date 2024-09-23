@@ -17,7 +17,7 @@ export async function validateRequestPart(
     request[key] = {};
   }
   for (const property in context.request[key]) {
-    const { validation, transform } = context.request[key][property] as PropertyDefinition;
+    const { validation, transform, isJSON } = context.request[key][property] as PropertyDefinition;
     const { required, handler, error } = validation;
 
     if (required && (!request[key] || !Object.prototype.hasOwnProperty.apply(request[key], [property]))) {
@@ -27,6 +27,14 @@ export async function validateRequestPart(
     if (handler && Object.prototype.hasOwnProperty.apply(request[key], [property])) {
       try {
         let value: any = request[key][property];
+        const copiedValue: any = request[key][property];
+        if (isJSON && typeof value === 'string') {
+          try {
+            value = JSON.parse(value);
+          } catch(e) {
+            value = copiedValue
+          }
+        }
         const isValid = await handler.apply(request, [value]);
         if (!isValid) {
           return error;

@@ -175,6 +175,9 @@ function validatePropertyDefinitionDoc(doc: PropertyDocumentation) {
 }
 
 function validatePropertyDefinition(propertyDefinition: PropertyDefinition) {
+  if (propertyDefinition.isJSON !== undefined && typeof propertyDefinition.isJSON !== 'boolean') {
+    throw new Error(`PropertyDefinition.isJSON should be a boolean`);
+  }
   const { handler, error, required } = propertyDefinition.validation;
   if (!handler) {
     throw new Error(`PropertyDefinition.validation.handler is required property"`);
