@@ -7,7 +7,7 @@ export interface ContextRequest {
   headers?: Record<string, PropertyDefinition>;
   query?: Record<string, PropertyDefinition>;
   path?: Record<string, PropertyDefinition>;
-  body?: Record<string, PropertyDefinition>;
+  body?: Record<string, PropertyDefinition> | PropertyDefinition;
   files?: Record<string, FilePropertyDefinition>;
   auth?: Record<string, any>;
 }
