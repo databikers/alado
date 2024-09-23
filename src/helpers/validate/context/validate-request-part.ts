@@ -40,7 +40,7 @@ export async function validateRequestPart(
           return error;
         }
         if (transform) {
-          value = await transform.apply(request, [value]);
+          request[key][property] = await transform.apply(request, [value]);
         }
       } catch (e) {
         return {
