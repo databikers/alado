@@ -31,13 +31,10 @@ export class RequestProcessor {
     const { statusCode, headers, body } = response;
     const isStreamBody = isReadableStream(body);
     const contentType: string = headers['Content-Type'] || headers['content-type'];
-    switch (contentType) {
-      case ContentType.JSON:
-        responseBody = isStreamBody ? body : JSON.stringify(body);
-        break;
-      default:
-        responseBody = body;
-        break;
+    if (contentType.startsWith(ContentType.JSON)) {
+      responseBody = isStreamBody ? body : JSON.stringify(body);
+    } else {
+      responseBody = body;
     }
     res.writeHead(statusCode, { ...this.options.headers, ...headers });
     if (isStreamBody) {

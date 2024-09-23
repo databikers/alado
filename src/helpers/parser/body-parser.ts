@@ -10,7 +10,7 @@ export async function bodyParser(req: IncomingMessage) {
     rawBody: ''
   };
   let body: string = '';
-  if (contentType?.match(ContentType.FORM_DATA)) {
+  if (contentType?.startsWith(ContentType.FORM_DATA)) {
     req.setEncoding('binary');
     const matchingArray = /boundary=(.+)$/.exec(req.headers['content-type']);
     const boundary: string = matchingArray && matchingArray[1];
@@ -74,7 +74,7 @@ export async function bodyParser(req: IncomingMessage) {
         result.rawBody = body;
       });
       req.on('end', () => {
-        if (contentType === ContentType.JSON) {
+        if (contentType.startsWith(ContentType.JSON)) {
           try {
             result.body = JSON.parse(body, function (key, value) {
               if (!deprecatedJsonPropertiesRegExp.test(key)) {
@@ -85,7 +85,7 @@ export async function bodyParser(req: IncomingMessage) {
           } catch (e) {
             reject({ statusCode: 400, message: `Invalid JSON` });
           }
-        } else if (contentType === ContentType.X_WWW_FORM_URLENCODED) {
+        } else if (contentType.startsWith(ContentType.X_WWW_FORM_URLENCODED)) {
           body.split('&').forEach((item: string) => {
             const [
               key,
