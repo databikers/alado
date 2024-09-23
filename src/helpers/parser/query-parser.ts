@@ -1,18 +1,21 @@
-export function queryParser(queryString: string): Record<string, any> {
-  const query: any = {};
+export function queryParser(queryString: string) {
+  const query: Record<string, any> = {};
   if (queryString) {
-    queryString.split('&').forEach((s: string) => {
-      const [
-        key,
-        value,
-      ] = s.split('=');
+    decodeURIComponent(queryString).split('&').forEach((part) => {
+      const [key, value,] = part.split('=');
       if (key && value) {
+        const transformedValue: string = decodeURIComponent(value).replace(/[\n\s]/g, '');
         if (/\w+\[\]$/.test(key)) {
-          const k = key.replace(/\[\]$/, '');
+          const k: string = key.replace(/\[\]$/, '');
           query[k] = query[k] || [];
-          query[k].push(value);
+          query[k].push(transformedValue);
+        } else if (key in query) {
+          if (!Array.isArray(query[key])) {
+            query[key] = [query[key]];
+          }
+          query[key].push(transformedValue)
         } else {
-          query[key] = value;
+          query[key] = transformedValue;
         }
       }
     });
