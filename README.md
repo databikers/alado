@@ -67,6 +67,11 @@ const app = new AladoServer({
     allowedOrigin: '*',
     allowedHeaders: ['Authorization'],
     exposeHeaders: ['x-total-count'],
+    allowedCredentials: true,
+    maxAge: 3600
+  },
+  headers: {
+    'a': 'b' //any additional header
   },
   openApiDoc: {
     enable: true,
