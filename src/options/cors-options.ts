@@ -1,7 +1,7 @@
 export interface CorsOptions {
   enable: boolean;
   allowedOrigin?: string;
-  allowedMethods?: any;
+  allowedMethods?: Map<any, any>;
   allowedHeaders?: string[];
   exposeHeaders?: string[];
   allowedCredentials?: boolean;
