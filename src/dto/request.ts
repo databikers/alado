@@ -18,7 +18,7 @@ export interface Request {
   auth?: Record<string, any>;
   path?: Record<string, string>;
   headers?: IncomingHttpHeaders;
-  query?: Record<string, string | string[]>;
+  query?: Record<string, any>;
   body?: Record<string, any>;
   rawBody?: string;
   files?: Record<
