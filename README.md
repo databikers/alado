@@ -370,6 +370,11 @@ app.post('/user', context, (request: Request) => {
   //   sortOrder: 'desc'
   // }
 
+  console.log(request.ip);
+  
+  // 127.0.0.1
+
+
   return {
     statusCode: 200,
     headers: {

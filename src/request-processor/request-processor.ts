@@ -58,6 +58,7 @@ export class RequestProcessor {
       const { router, openApiDoc, enableCors } = this.options;
       const { headers, method } = req;
       const url = clearRoutePath(req.url);
+      const ip: string = req.headers['x-forwarded-for'] as string || req.socket?.remoteAddress;
       // Process Open API routes
       if (openApiDoc?.enable) {
         if (method === HttpMethod.GET) {
@@ -146,6 +147,7 @@ export class RequestProcessor {
         context.request.files = context.request.files || {};
 
         const request: Request = {
+          ip,
           method: method as HttpMethod,
           url,
           auth: {},
