@@ -13,7 +13,6 @@ import {
   isReadableStream,
   validateRequestFiles,
   validateRequestPart,
-  mergeHeaders,
 } from '@helper';
 
 const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
@@ -26,17 +25,17 @@ export class RequestProcessor {
     this.options = requestProcessorOptions;
   }
 
-  protected respond(res: ServerResponse, response: Response<any>) {
+  protected respond(res: ServerResponse, response: Response<any>, backgroundHeaders: Record<string, string> = {}) {
     let responseBody: any;
     const { statusCode, headers, body } = response;
     const isStreamBody = isReadableStream(body);
     const contentType: string = headers['Content-Type'] || headers['content-type'];
-    if (contentType.startsWith(ContentType.JSON)) {
+    if (contentType?.startsWith(ContentType.JSON)) {
       responseBody = isStreamBody ? body : JSON.stringify(body);
     } else {
       responseBody = body;
     }
-    res.writeHead(statusCode, { ...this.options.headers, ...headers });
+    res.writeHead(statusCode, { ...this.options.headers, ...backgroundHeaders, ...headers });
     if (isStreamBody) {
       responseBody.pipe(res);
     } else {
@@ -44,11 +43,11 @@ export class RequestProcessor {
     }
   }
 
-  protected respondError(res: ServerResponse, error: AladoServerError) {
+  protected respondError(res: ServerResponse, error: AladoServerError, headers: Record<string, string> = {}) {
     const { statusCode, message } = error;
     return this.respond(res, {
       statusCode,
-      headers: { ...this.options.headers, 'Content-Type': 'application/json' },
+      headers: { ...this.options.headers, ...headers, 'Content-Type': 'application/json' },
       body: { message },
     });
   }
@@ -63,8 +62,8 @@ export class RequestProcessor {
       if (openApiDoc?.enable) {
         if (method === HttpMethod.GET) {
           if (
-            !req.url.startsWith(`/swagger.json`) &&
-            ((url.startsWith(clearRoutePath(openApiDoc?.route)) &&
+            !req.url?.startsWith(`/swagger.json`) &&
+            ((url?.startsWith(clearRoutePath(openApiDoc?.route)) &&
               ![
                 '',
                 '/',
@@ -85,7 +84,7 @@ export class RequestProcessor {
                 createReadStream(filePath).pipe(res);
               }
             });
-          } else if (req.url.startsWith(`/swagger.json`)) {
+          } else if (req.url?.startsWith(`/swagger.json`)) {
             return this.respond(res, {
               statusCode: 200,
               headers: { 'Content-Type': 'application/json' },
@@ -101,15 +100,22 @@ export class RequestProcessor {
         queryString,
       ] = url.split('?');
       const route = router.parse(method as HttpMethod, clearRoutePath(uri));
+      const backgroundHeaders = {
+        'Access-Control-Allow-Origin': this.options.router.options.cors.allowedOrigin || '*',
+        'Access-Control-Allow-Methods': route.allowedMethods.join(', ') || '',
+        'Access-Control-Allow-Headers': this.options.router.options.cors.allowedHeaders?.join(', ') || '',
+        'Access-Control-Expose-Headers': this.options.router.options.cors.exposeHeaders.join(', ') || '',
+        'Access-Control-Allow-Credentials': this.options.router.options.cors.allowedCredentials ? 'true' : 'false',
+      }
 
       if (!route) {
         // Not Found
-        return this.respondError(res, { statusCode: 404, message: 'Not Found' });
+        return this.respondError(res, { statusCode: 404, message: 'Not Found' }, backgroundHeaders);
       } else {
         // CORS
         if (enableCors && method === HttpMethod.OPTIONS) {
           const response: Response<any> = await route.handler({});
-          return this.respond(res, response);
+          return this.respond(res, response, backgroundHeaders);
         }
 
         const { context, handler, path } = route;
@@ -168,32 +174,32 @@ export class RequestProcessor {
         if (context.auth) {
           const authError = await authenticate(context, request);
           if (authError) {
-            return this.respondError(res, authError);
+            return this.respondError(res, authError, backgroundHeaders);
           }
         }
         // Validate request
         for (const key in context.request) {
           const error = await validateRequestPart(key as keyof ContextRequest, context, request);
           if (error) {
-            return this.respondError(res, error);
+            return this.respondError(res, error, backgroundHeaders);
           }
         }
         // Validate request (files)
         if (context.request.files) {
           const error = await validateRequestFiles(context, request);
           if (error) {
-            return this.respondError(res, error);
+            return this.respondError(res, error, backgroundHeaders);
           }
         }
         try {
           const response: Response<any> = await handler(request);
-          return this.respond(res, response);
+          return this.respond(res, response, backgroundHeaders);
         } catch (e) {
-          return this.respondError(res, { statusCode: 500, message: e.message });
+          return this.respondError(res, { statusCode: 500, message: e.message }, backgroundHeaders);
         }
       }
     } catch (e) {
-      return this.respondError(res, { statusCode: 400, message: e.message });
+      return this.respondError(res, { statusCode: 400, message: e.message }, {});
     }
   }
 }

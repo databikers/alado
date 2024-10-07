@@ -4,4 +4,3 @@ export * from './http-method';
 export * from './http-server';
 export * from './http-status';
 export * from './reg-exp';
-export * from './default-headers';
