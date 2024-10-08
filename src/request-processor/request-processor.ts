@@ -102,7 +102,7 @@ export class RequestProcessor {
       const route = router.parse(method as HttpMethod, clearRoutePath(uri));
       const backgroundHeaders = {
         'Access-Control-Allow-Origin': this.options.router.options.cors.allowedOrigin || '*',
-        'Access-Control-Allow-Methods': route.allowedMethods.join(', ') || '',
+        'Access-Control-Allow-Methods': route?.allowedMethods?.join(', ') || '',
         'Access-Control-Allow-Headers': this.options.router.options.cors.allowedHeaders?.join(', ') || '',
         'Access-Control-Expose-Headers': this.options.router.options.cors.exposeHeaders.join(', ') || '',
         'Access-Control-Allow-Credentials': this.options.router.options.cors.allowedCredentials ? 'true' : 'false',
