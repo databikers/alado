@@ -127,7 +127,6 @@ export class RequestProcessor {
         let files: any = {};
 
         if (
-          (context.request.body || context.request.files) &&
           (
             [
               HttpMethod.PUT,
