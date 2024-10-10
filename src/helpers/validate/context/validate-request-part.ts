@@ -13,7 +13,7 @@ export async function validateRequestPart(
   if (nonProcessingRequestParts.includes(key)) {
     return;
   }
-  if (!Object.keys(context.request[key]).length && !context.options?.allowUnknownFields) {
+  if (!Object.keys(context.request[key]).length && !context.options?.allowUnknownFields && !['headers','rawBody'].includes(key)) {
     request[key] = {};
   }
   for (const property in context.request[key]) {
@@ -53,7 +53,7 @@ export async function validateRequestPart(
   if (!context.options?.allowUnknownFields) {
     for (const prop in request[key]) {
       if (
-        key !== 'headers' &&
+        !['headers','rawBody'].includes(key) &&
         (!context.request[key] || !Object.prototype.hasOwnProperty.apply(context.request[key], [prop]))
       ) {
         delete request[key][prop];
