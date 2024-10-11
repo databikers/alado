@@ -100,7 +100,7 @@ export class Router {
             return {
               statusCode: 204,
               headers: {
-                'Access-Control-Allow-Origin': this.options.cors.allowedOrigin || '*',
+                'Access-Control-Allow-Origin': this.options.cors.allowedOrigin || request.origin,
                 'Access-Control-Allow-Methods': this.getOptionsData(optionsDataKey).join(', '),
                 'Access-Control-Allow-Headers': this.options.cors.allowedHeaders?.join(', ') || '',
                 'Access-Control-Expose-Headers': this.options.cors.exposeHeaders.join(', ') || '',

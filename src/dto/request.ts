@@ -14,6 +14,7 @@ export interface ContextRequest {
 
 export interface Request {
   ip?: string;
+  origin?: string;
   method?: HttpMethod;
   url?: string;
   auth?: Record<string, any>;
