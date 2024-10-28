@@ -196,11 +196,19 @@ export class RequestProcessor {
           const response: Response<any> = await handler(request);
           return this.respond(res, response, backgroundHeaders);
         } catch (e) {
+          this.logError(e);
           return this.respondError(res, { statusCode: 500, message: e.message }, backgroundHeaders);
         }
       }
     } catch (e) {
+      this.logError(e);
       return this.respondError(res, { statusCode: 400, message: e.message }, {});
+    }
+  }
+
+  protected logError(e: Error) {
+    if (this.options.verbose) {
+      this.options.logger.error(e);
     }
   }
 }

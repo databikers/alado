@@ -41,6 +41,7 @@ const app: AladoServer = new AladoServer({
       version: '1.0.0',
     },
   },
+  verbose: true
 });
 ```
 
@@ -82,6 +83,7 @@ const app = new AladoServer({
       version: '1.0.0',
     },
   },
+  verbose: true
 });
 ```
 

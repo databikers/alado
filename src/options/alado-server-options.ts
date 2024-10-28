@@ -14,4 +14,5 @@ export type AladoServerOptions = {
   backlog?: number;
   ssl?: SecureContextOptions;
   logger?: AladoServerLogger;
+  verbose?: boolean;
 };

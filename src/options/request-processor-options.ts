@@ -8,4 +8,5 @@ export type RequestProcessorOptions = {
   enableCors?: boolean;
   headers?: Record<string, string>;
   logger?: AladoServerLogger;
+  verbose?: boolean;
 };
