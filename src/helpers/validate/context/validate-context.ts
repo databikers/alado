@@ -164,7 +164,7 @@ function validatePropertyDefinitionDoc(doc: PropertyDocumentation) {
         'items',
         'minItems',
         'maxItems',
-        'uniqueItems'
+        'uniqueItems',
       ].includes(key)
     ) {
       throw new Error(

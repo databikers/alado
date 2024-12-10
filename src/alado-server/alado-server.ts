@@ -48,7 +48,7 @@ export class AladoServer {
         openApiDoc: options.openApiDoc,
         enableCors: options.cors?.enable,
         logger: this.logger,
-        verbose: options.verbose
+        verbose: options.verbose,
       },
       {
         ...options.ssl,

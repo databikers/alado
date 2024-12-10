@@ -13,7 +13,14 @@ export async function validateRequestPart(
   if (nonProcessingRequestParts.includes(key)) {
     return;
   }
-  if (!Object.keys(context.request[key]).length && !context.options?.allowUnknownFields && !['headers','rawBody'].includes(key)) {
+  if (
+    !Object.keys(context.request[key]).length &&
+    !context.options?.allowUnknownFields &&
+    ![
+      'headers',
+      'rawBody',
+    ].includes(key)
+  ) {
     request[key] = {};
   }
   for (const property in context.request[key]) {
@@ -31,8 +38,8 @@ export async function validateRequestPart(
         if (isJSON && typeof value === 'string') {
           try {
             value = JSON.parse(value);
-          } catch(e) {
-            value = copiedValue
+          } catch (e) {
+            value = copiedValue;
           }
         }
         const isValid = await handler.apply(request, [value]);
@@ -53,7 +60,10 @@ export async function validateRequestPart(
   if (!context.options?.allowUnknownFields) {
     for (const prop in request[key]) {
       if (
-        !['headers','rawBody'].includes(key) &&
+        ![
+          'headers',
+          'rawBody',
+        ].includes(key) &&
         (!context.request[key] || !Object.prototype.hasOwnProperty.apply(context.request[key], [prop]))
       ) {
         delete request[key][prop];

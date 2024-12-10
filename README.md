@@ -41,7 +41,7 @@ const app: AladoServer = new AladoServer({
       version: '1.0.0',
     },
   },
-  verbose: true
+  verbose: true,
 });
 ```
 
@@ -69,10 +69,10 @@ const app = new AladoServer({
     allowedHeaders: ['Authorization'],
     exposeHeaders: ['x-total-count'],
     allowedCredentials: true,
-    maxAge: 3600
+    maxAge: 3600,
   },
   headers: {
-    'a': 'b' //any additional header
+    a: 'b', //any additional header
   },
   openApiDoc: {
     enable: true,
@@ -83,7 +83,7 @@ const app = new AladoServer({
       version: '1.0.0',
     },
   },
-  verbose: true
+  verbose: true,
 });
 ```
 
@@ -373,9 +373,8 @@ app.post('/user', context, (request: Request) => {
   // }
 
   console.log(request.ip);
-  
-  // 127.0.0.1
 
+  // 127.0.0.1
 
   return {
     statusCode: 200,

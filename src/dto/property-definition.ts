@@ -14,7 +14,7 @@ export interface PropertyDefinitionSchema {
   anyOf?: Array<PropertyDefinitionSchema>;
   allOf?: Array<PropertyDefinitionSchema>;
   not?: Array<PropertyDefinitionSchema>;
-  properties?: Record<string, PropertyDefinitionSchema>
+  properties?: Record<string, PropertyDefinitionSchema>;
   additionalProperties?: PropertyDefinitionSchema;
   minProperties?: number;
   maxProperties?: number;

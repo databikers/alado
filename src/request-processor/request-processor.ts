@@ -57,8 +57,8 @@ export class RequestProcessor {
       const { router, openApiDoc, enableCors } = this.options;
       const { headers, method } = req;
       const url = clearRoutePath(req.url);
-      const ip: string = req.headers['x-forwarded-for'] as string || req.socket?.remoteAddress;
-      const origin: string = req.headers.origin as string || '*';
+      const ip: string = (req.headers['x-forwarded-for'] as string) || req.socket?.remoteAddress;
+      const origin: string = (req.headers.origin as string) || '*';
       // Process Open API routes
       if (openApiDoc?.enable) {
         if (method === HttpMethod.GET) {
@@ -101,13 +101,13 @@ export class RequestProcessor {
         queryString,
       ] = url.split('?');
       const route = router.parse(method as HttpMethod, clearRoutePath(uri));
-      const backgroundHeaders : Record<string, string>= {
+      const backgroundHeaders: Record<string, string> = {
         'Access-Control-Allow-Origin': this.options.router.options.cors.allowedOrigin || origin,
         'Access-Control-Allow-Methods': route?.allowedMethods?.join(', ') || '',
         'Access-Control-Allow-Headers': this.options.router.options.cors.allowedHeaders?.join(', ') || '',
         'Access-Control-Expose-Headers': this.options.router.options.cors.exposeHeaders.join(', ') || '',
         'Access-Control-Allow-Credentials': this.options.router.options.cors.allowedCredentials ? 'true' : 'false',
-      }
+      };
 
       if (!route) {
         // Not Found

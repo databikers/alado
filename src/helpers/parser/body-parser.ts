@@ -7,7 +7,7 @@ export async function bodyParser(req: IncomingMessage) {
   const result: any = {
     body: {},
     files: {},
-    rawBody: ''
+    rawBody: '',
   };
   let body: string = '';
   if (contentType?.startsWith(ContentType.FORM_DATA)) {
