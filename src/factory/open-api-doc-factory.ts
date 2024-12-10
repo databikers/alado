@@ -1,4 +1,4 @@
-import { Context } from '../dto';
+import { Context } from '@dto';
 
 const nonBinResponses = [
   'application/json',
@@ -117,28 +117,57 @@ export function openApiDocFactory(
     const { statusCode, headers, body, description, title } = context.response;
     const responseContentType = headers['Content-Type'] || headers['content-type'];
     if (body) {
-      let bodyObject: any = {};
-      if (nonBinResponses.includes(responseContentType)) {
-        bodyObject = { properties: {} };
-        for (const prop in body) {
-          bodyObject.properties[prop] = body[prop];
+      if (Array.isArray(body)) {
+        let bodyObject: any = {};
+        if (nonBinResponses.includes(responseContentType)) {
+          bodyObject = { properties: {} };
+          for (const prop in body[0]) {
+            bodyObject.properties[prop] = body[0][prop];
+          }
+        } else {
+          bodyObject = { example: '' };
         }
-      } else {
-        bodyObject = { example: '' };
-      }
-      openApiDocObject.components.schemas[title] = bodyObject;
-      openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
-        [statusCode]: {
-          description,
-          content: {
-            [responseContentType]: {
-              schema: {
-                $ref: `#/components/schemas/${title}`,
+        openApiDocObject.components.schemas[title] = bodyObject;
+        openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
+          [statusCode]: {
+            description,
+            content: {
+              [responseContentType]: {
+                schema: {
+                  type: 'array',
+                  items: {
+                    $ref: `#/components/schemas/${title}`,
+                  }
+                },
               },
             },
           },
-        },
-      };
+        };
+      } else {
+        let bodyObject: any = {};
+        if (nonBinResponses.includes(responseContentType)) {
+          bodyObject = { properties: {} };
+          for (const prop in body) {
+            bodyObject.properties[prop] = body[prop];
+          }
+        } else {
+          bodyObject = { example: '' };
+        }
+        openApiDocObject.components.schemas[title] = bodyObject;
+        openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
+          [statusCode]: {
+            description,
+            content: {
+              [responseContentType]: {
+                schema: {
+                  $ref: `#/components/schemas/${title}`,
+                },
+              },
+            },
+          },
+        };
+      }
+
     } else {
       openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
         [statusCode]: {
