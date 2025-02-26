@@ -129,6 +129,7 @@ Here's the contract of the request context:
 interface Context<T> {
   title: string;
   auth?: RequestAuthentication;
+  isHodden?: boolean; //Just exclude some route from Your API specification
   options: ContextOptions;
   request: ContextRequest;
   response: Response<T>;
