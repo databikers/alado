@@ -76,7 +76,7 @@ export class Router {
       }
     }
 
-    if (this.options.openApiDoc?.enable) {
+    if (this.options.openApiDoc?.enable && !context?.options?.isHidden) {
       openApiDocFactory(openApiMethod, openApiRoute, context, this.openApiDocObject);
     }
 
