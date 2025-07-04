@@ -8,5 +8,5 @@ export {
   FilePropertyDefinition,
 } from '@dto';
 export { AladoServerOptions, ContextOptions, CorsOptions, OpenApiDoc } from '@options';
-export { HttpMethod, httpStatus } from '@const';
+export { HttpMethod, httpStatus, ContentType } from '@const';
 export { AladoServer } from '@alado';
