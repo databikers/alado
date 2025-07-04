@@ -115,7 +115,7 @@ export class RequestProcessor {
       } else {
         // CORS
         if (enableCors && method === HttpMethod.OPTIONS) {
-          const response: Response<any> = await route.handler({});
+          const response: Response<any> = await route.handler({ request: req });
           return this.respond(res, response, backgroundHeaders);
         }
 
@@ -153,6 +153,7 @@ export class RequestProcessor {
         context.request.files = context.request.files || {};
 
         const request: Request = {
+          request: req,
           ip,
           origin,
           method: method as HttpMethod,

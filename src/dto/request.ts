@@ -1,4 +1,4 @@
-import { IncomingHttpHeaders } from 'http';
+import { IncomingHttpHeaders, IncomingMessage } from 'http';
 import { Readable } from 'stream';
 import { FilePropertyDefinition, PropertyDefinition } from './property-definition';
 import { HttpMethod } from '@const';
@@ -13,6 +13,7 @@ export interface ContextRequest {
 }
 
 export interface Request {
+  request: IncomingMessage;
   ip?: string;
   origin?: string;
   method?: HttpMethod;
