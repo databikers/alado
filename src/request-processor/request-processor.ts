@@ -102,13 +102,18 @@ export class RequestProcessor {
       ] = url.split('?');
       const route = router.parse(method as HttpMethod, clearRoutePath(uri));
       const backgroundHeaders: Record<string, string> = {
-        'Access-Control-Allow-Origin': this.options.router.options.cors.allowedOrigin || origin,
         'Access-Control-Allow-Methods': route?.allowedMethods?.join(', ') || '',
         'Access-Control-Allow-Headers': this.options.router.options.cors.allowedHeaders?.join(', ') || '',
         'Access-Control-Expose-Headers': this.options.router.options.cors.exposeHeaders.join(', ') || '',
         'Access-Control-Allow-Credentials': this.options.router.options.cors.allowedCredentials ? 'true' : 'false',
       };
-
+      if (Array.isArray(this.options.router.options.cors.allowedOrigin)) {
+        if (this.options.router.options.cors.allowedOrigin.includes(origin)) {
+          backgroundHeaders['Access-Control-Allow-Origin'] = origin;
+        }
+      } else {
+        backgroundHeaders['Access-Control-Allow-Origin'] = this.options.router.options.cors.allowedOrigin as string || origin;
+      }
       if (!route) {
         // Not Found
         return this.respondError(res, { statusCode: 404, message: 'Not Found' }, backgroundHeaders);
