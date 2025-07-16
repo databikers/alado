@@ -32,7 +32,14 @@ function validateCors(cors: CorsOptions) {
   for (const key in cors) {
     switch (key) {
       case 'allowedOrigin':
-        if (typeof cors[key] !== 'string' || !cors[key]) {
+        if (
+          typeof cors[key] !== 'string' ||
+          !(
+            Array.isArray(cors[key]) &&
+            (cors[key] as string[]).every((origin) => typeof origin === 'string' && !!origin)
+          ) ||
+          !cors[key]
+        ) {
           throw new Error('AladoServerOptions.cors.allowedOrigin should be a non-empty string');
         }
         break;
