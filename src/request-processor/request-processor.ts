@@ -112,7 +112,8 @@ export class RequestProcessor {
           backgroundHeaders['Access-Control-Allow-Origin'] = origin;
         }
       } else {
-        backgroundHeaders['Access-Control-Allow-Origin'] = this.options.router.options.cors.allowedOrigin as string || origin;
+        backgroundHeaders['Access-Control-Allow-Origin'] =
+          (this.options.router.options.cors.allowedOrigin as string) || origin;
       }
       if (!route) {
         // Not Found

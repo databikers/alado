@@ -137,7 +137,7 @@ export function openApiDocFactory(
                   type: 'array',
                   items: {
                     $ref: `#/components/schemas/${title}`,
-                  }
+                  },
                 },
               },
             },
@@ -167,7 +167,6 @@ export function openApiDocFactory(
           },
         };
       }
-
     } else {
       openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
         [statusCode]: {

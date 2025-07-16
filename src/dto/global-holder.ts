@@ -9,4 +9,4 @@ export type GlobalHolder = {
   options: Record<string, ContextOptions>;
   request: Record<string, ContextRequest>;
   response: Record<string, Response<Record<string, any>>>;
-}
+};

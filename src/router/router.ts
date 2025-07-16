@@ -97,23 +97,23 @@ export class Router {
           path: pathData,
           context,
           handler: (request: Request) => {
-            const headers: Record<string, string> =  {
-                'Access-Control-Allow-Methods': this.getOptionsData(optionsDataKey).join(', '),
-                'Access-Control-Allow-Headers': this.options.cors.allowedHeaders?.join(', ') || '',
-                'Access-Control-Expose-Headers': this.options.cors.exposeHeaders.join(', ') || '',
-                'Access-Control-Allow-Credentials': this.options.cors.allowedCredentials ? 'true' : 'false',
-                'Access-Control-Max-Age': Math.round(this.options.cors.maxAge).toString(10) || '86400',
+            const headers: Record<string, string> = {
+              'Access-Control-Allow-Methods': this.getOptionsData(optionsDataKey).join(', '),
+              'Access-Control-Allow-Headers': this.options.cors.allowedHeaders?.join(', ') || '',
+              'Access-Control-Expose-Headers': this.options.cors.exposeHeaders.join(', ') || '',
+              'Access-Control-Allow-Credentials': this.options.cors.allowedCredentials ? 'true' : 'false',
+              'Access-Control-Max-Age': Math.round(this.options.cors.maxAge).toString(10) || '86400',
             };
             if (Array.isArray(this.options.cors.allowedOrigin)) {
               if (this.options.cors.allowedOrigin.includes(request.origin)) {
                 headers['Access-Control-Allow-Origin'] = request.origin;
               }
             } else {
-              headers['Access-Control-Allow-Origin'] = this.options.cors.allowedOrigin as string || request.origin;
+              headers['Access-Control-Allow-Origin'] = (this.options.cors.allowedOrigin as string) || request.origin;
             }
             return {
               statusCode: 204,
-              headers
+              headers,
             };
           },
         });
