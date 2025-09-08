@@ -6,3 +6,4 @@ export * from './response';
 export * from './property-definition';
 export * from './request-authentication';
 export * from './route';
+export * from './open-api-doc-object';

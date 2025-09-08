@@ -1,4 +1,5 @@
 import { Context } from '@dto';
+import { docObjectSetter } from '@helper';
 
 const nonBinResponses = [
   'application/json',
@@ -120,10 +121,8 @@ export function openApiDocFactory(
       if (Array.isArray(body)) {
         let bodyObject: any = {};
         if (nonBinResponses.includes(responseContentType)) {
-          bodyObject = { properties: {} };
-          for (const prop in body[0]) {
-            bodyObject.properties[prop] = body[0][prop];
-          }
+          bodyObject = { properties: {}, type: 'object' };
+          docObjectSetter(body[0], bodyObject);
         } else {
           bodyObject = { example: '' };
         }
@@ -146,10 +145,8 @@ export function openApiDocFactory(
       } else {
         let bodyObject: any = {};
         if (nonBinResponses.includes(responseContentType)) {
-          bodyObject = { properties: {} };
-          for (const prop in body) {
-            bodyObject.properties[prop] = body[prop];
-          }
+          bodyObject = { properties: {}, type: 'object' };
+          docObjectSetter(body, bodyObject);
         } else {
           bodyObject = { example: '' };
         }

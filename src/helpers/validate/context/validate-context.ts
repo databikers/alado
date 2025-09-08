@@ -65,7 +65,7 @@ export function validateContextOptions(context: Context<any>, useApiDoc?: boolea
     if (typeof context.options.allowUnknownFields !== 'boolean') {
       throw new Error(`Context.options.allowUnknownFields should be a boolean`);
     }
-    if (useApiDoc) {
+    if (useApiDoc && !context?.options?.isHidden) {
       if (typeof context.options.openApiDoc !== 'object' && context.options?.openApiDoc) {
         throw new Error(`Context.options.openApiDoc should be an object`);
       } else if (typeof context.options?.openApiDoc === 'object' && context.options?.openApiDoc) {
