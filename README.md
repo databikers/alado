@@ -32,7 +32,7 @@ const app: AladoServer = new AladoServer({
     allowedHeaders: ['Authorization'],
     exposeHeaders: ['x-total-count'],
   },
-  openApiDoc: {
+  documentProperty: {
     enable: true,
     route: '/open-api',
     info: {
@@ -42,6 +42,7 @@ const app: AladoServer = new AladoServer({
     },
   },
   verbose: true,
+  maxBodySizeBytes: 1024,
 });
 ```
 
@@ -74,7 +75,7 @@ const app = new AladoServer({
   headers: {
     a: 'b', //any additional header
   },
-  openApiDoc: {
+  documentProperty: {
     enable: true,
     route: '/',
     info: {
@@ -84,6 +85,7 @@ const app = new AladoServer({
     },
   },
   verbose: true,
+  maxBodySizeBytes: 1024,
 });
 ```
 
@@ -150,7 +152,7 @@ const bearerAuth: RequestAuthentication = {
   inputProperty: 'headers.authorization',
   outputProperty: 'auth.user',
   handler: async (bearer: string) => {
-    // validate header, return user
+    // validateProperty header, return user
     return {
       name: 'John Doe',
       id: 1,
@@ -213,7 +215,7 @@ const bearerAuth: RequestAuthentication = {
 ```typescript
 interface ContextOptions {
   allowUnknownFields?: boolean;
-  openApiDoc?: {
+  documentProperty?: {
     description?: string;
     operationId: string;
     tags?: string[];
@@ -223,7 +225,7 @@ interface ContextOptions {
 
 Setting "allowUnknownFields" to false protects your application from receiving unexpected properties in the request body, query, and files. It does not affect request.path, as path variables are defined at the routing level, nor does it affect request headers. Conversely, you can receive { name: 'John Doe', role: 'Admin' } when only expecting name.
 
-The "openApiDoc" property is part of the Open API route definition and is optional.
+The "documentProperty" property is part of the Open API route definition and is optional.
 
 3.2.3 Context.request
 
@@ -246,7 +248,7 @@ There's an example for request with path property only:
 const request: ContextRequest = {
   path: {
     id: {
-      openApiDoc: {
+      documentProperty: {
         schema: {
           type: 'string',
         },
@@ -282,7 +284,7 @@ The execution context of validation.handler (and validation transform) is the re
 const request: ContextRequest = {
   body: {
     role: {
-      openApiDoc: {
+      documentProperty: {
         schema: {
           type: 'string',
         },
@@ -315,7 +317,7 @@ is set to false, all non-described request properties (or non-described nested p
 const request: ContextRequest = {
   query: {
     sortBy: {
-      openApiDoc: {
+      documentProperty: {
         schema: {
           type: 'string',
         },
@@ -337,7 +339,7 @@ const request: ContextRequest = {
       },
     },
     sortOrder: {
-      openApiDoc: {
+      documentProperty: {
         schema: {
           type: 'string',
         },
@@ -514,4 +516,4 @@ app.start(() => console.log('Your awesome application has been successfully laun
 app.stop(() => console.log('Your awesome application has been successfully launched'));
 ```
 
-Don't forget to check swagger at the defined above options.openApiDoc.route
+Don't forget to check swagger at the defined above options.documentProperty.route
