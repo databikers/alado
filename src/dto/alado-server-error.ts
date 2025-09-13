@@ -1,4 +1,4 @@
-export interface AladoServerError {
+export type AladoServerError = {
   statusCode: number;
   message: string;
-}
+};
