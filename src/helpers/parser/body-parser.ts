@@ -77,8 +77,8 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
           req.removeAllListeners('end');
           reject({
             statusCode: 413,
-            message: 'Content Too Large'
-          } as AladoServerError)
+            message: 'Content Too Large',
+          } as AladoServerError);
         }
       });
       req.on('end', () => {
