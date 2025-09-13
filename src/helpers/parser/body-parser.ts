@@ -1,8 +1,9 @@
-import { IncomingMessage } from 'http';
+import { IncomingMessage, OutgoingMessage } from 'http';
 import { ContentType, deprecatedJsonPropertiesRegExp, formDataRegExp, spaceRegExp } from '@const';
 import { Readable } from 'stream';
+import { AladoServerError } from '@dto';
 
-export async function bodyParser(req: IncomingMessage) {
+export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, limit: number) {
   const contentType = req.headers['content-type'];
   const result: any = {
     body: {},
@@ -71,6 +72,14 @@ export async function bodyParser(req: IncomingMessage) {
     await new Promise<void>((resolve, reject) => {
       req.on('data', (chunk: any) => {
         body += chunk.toString();
+        if (limit && Buffer.byteLength(body, 'utf8') > limit) {
+          req.removeAllListeners('data');
+          req.removeAllListeners('end');
+          reject({
+            statusCode: 413,
+            message: 'Content Too Large'
+          } as AladoServerError)
+        }
       });
       req.on('end', () => {
         result.rawBody = body;
@@ -83,7 +92,7 @@ export async function bodyParser(req: IncomingMessage) {
             });
             resolve();
           } catch (e) {
-            reject({ statusCode: 400, message: `Invalid JSON` });
+            reject({ statusCode: 400, message: `Invalid JSON body` });
           }
         } else if (contentType?.startsWith(ContentType.X_WWW_FORM_URLENCODED)) {
           body.split('&').forEach((item: string) => {

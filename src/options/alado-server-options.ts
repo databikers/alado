@@ -16,4 +16,5 @@ export type AladoServerOptions = {
   logger?: AladoServerLogger;
   verbose?: boolean;
   appId?: string;
+  maxBodySizeBytes?: number;
 };

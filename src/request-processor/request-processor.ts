@@ -142,7 +142,7 @@ export class RequestProcessor {
             ] as string[]
           ).includes(method)
         ) {
-          const r = await bodyParser(req);
+          const r = await bodyParser(req, res, this.options.maxBodySizeBytes);
           body = r.body;
           rawBody = r.rawBody;
           files = r.files;
@@ -180,21 +180,21 @@ export class RequestProcessor {
         }
         // Authenticate
         if (context.auth) {
-          const authError = await authenticate(context, request);
+          const authError: AladoServerError = await authenticate(context, request);
           if (authError) {
             return this.respondError(res, authError, backgroundHeaders);
           }
         }
         // Validate request
         for (const key in context.request) {
-          const error = await validateRequestPart(key as keyof ContextRequest, context, request);
+          const error: AladoServerError = await validateRequestPart(key as keyof ContextRequest, context, request);
           if (error) {
             return this.respondError(res, error, backgroundHeaders);
           }
         }
         // Validate request (files)
         if (context.request.files) {
-          const error = await validateRequestFiles(context, request);
+          const error: AladoServerError = await validateRequestFiles(context, request);
           if (error) {
             return this.respondError(res, error, backgroundHeaders);
           }
@@ -209,7 +209,7 @@ export class RequestProcessor {
       }
     } catch (e) {
       this.logError(e);
-      return this.respondError(res, { statusCode: 400, message: e.message }, {});
+      return this.respondError(res, { statusCode: e.statusCode || 400, message: e.message }, {});
     }
   }
 

@@ -9,4 +9,5 @@ export type RequestProcessorOptions = {
   headers?: Record<string, string>;
   logger?: AladoServerLogger;
   verbose?: boolean;
+  maxBodySizeBytes?: number;
 };
