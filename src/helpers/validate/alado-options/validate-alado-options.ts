@@ -55,18 +55,18 @@ function validateCors(cors: CorsOptions) {
 
 function validateOpenApiDoc(openApiDoc: OpenApiDoc) {
   if (!openApiDoc || typeof openApiDoc !== 'object') {
-    throw new Error('AladoServerOptions.openApiDoc should be an object');
+    throw new Error('AladoServerOptions.documentProperty should be an object');
   }
   if (typeof openApiDoc?.enable !== 'boolean') {
-    throw new Error('AladoServerOptions.openApiDoc.enable should be a boolean');
+    throw new Error('AladoServerOptions.documentProperty.enable should be a boolean');
   } else if (!openApiDoc.enable) {
     return;
   }
   if (typeof openApiDoc.route !== 'string') {
-    throw new Error('AladoServerOptions.openApiDoc.route should be a non-empty string');
+    throw new Error('AladoServerOptions.documentProperty.route should be a non-empty string');
   }
   if (typeof openApiDoc.info !== 'object') {
-    throw new Error('AladoServerOptions.openApiDoc.info should be an object');
+    throw new Error('AladoServerOptions.documentProperty.info should be an object');
   }
   for (const key in openApiDoc.info) {
     if (typeof openApiDoc?.info[key as keyof OpenApiDocInfo] !== 'string') {
@@ -86,10 +86,27 @@ function validateLogger(logger: AladoServerLogger) {
   }
 }
 
+function validateVerbose(options: AladoServerOptions) {
+  if (Object.prototype.hasOwnProperty.apply(options, 'verbose') && typeof options.verbose !== 'boolean') {
+    throw new Error('AladoServerOptions.verbose should be a boolean');
+  }
+}
+
+function validateMaxBodySize(options: AladoServerOptions) {
+  if (
+    Object.prototype.hasOwnProperty.apply(options, 'maxBodySizeBytes') &&
+    (typeof options.maxBodySizeBytes !== 'number' || options.maxBodySizeBytes < 0)
+  ) {
+    throw new Error('AladoServerOptions.maxBodySizeBytes should be a positive number');
+  }
+}
+
 export function validateAladoOptions(options: AladoServerOptions) {
-  const { port, cors, openApiDoc, logger } = options;
+  const { port, cors, openApiDoc, logger, verbose, maxBodySizeBytes } = options;
   validatePort(port);
   validateCors(cors);
   validateOpenApiDoc(openApiDoc);
   validateLogger(logger);
+  validateVerbose(options);
+  validateMaxBodySize(options);
 }
