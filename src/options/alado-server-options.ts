@@ -15,4 +15,5 @@ export type AladoServerOptions = {
   ssl?: SecureContextOptions;
   logger?: AladoServerLogger;
   verbose?: boolean;
+  appId?: string;
 };
