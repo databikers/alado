@@ -17,7 +17,9 @@
     "paths": {
       "@alado": ["src/alado-server"],
       "@const": ["src/constants"],
+      "@decorator": ["src/decorators"],
       "@dto": ["src/dto"],
+      "@injector": ["src/injector"],
       "@helper": ["src/helpers"],
       "@options": ["src/options"],
       "@parameters": ["src/parameters"],
