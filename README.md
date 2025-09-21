@@ -5,11 +5,523 @@ Its main difference from most similar well-known frameworks is that with a minim
 it provides out-of-the-box such fully-functioning features as routing, CORS, automatic API documentation (Open API 3.0),
 parsing query and path parameters, and the request body, file uploading, request authentication, etc.
 
+# Documentation for version 2.0.0 and above:
+Version 2.0.0 comes with decorators that simplify the project structure and minimize the amount of code you need to write.
+
+
+There is an example of the API creating with Alado (version >= 2.0.0):
+[https://github.com/databikers/alado-decorators-api-example](https://github.com/databikers/alado-decorators-api-example)
+
+## Use inside controllers the next decorators:
+
+### HTTP Method Decorators
+
+```ts
+get(path: string, options: HttpDecoratorOptions = {})
+post(path: string, options: HttpDecoratorOptions = {})
+put(path: string, options: HttpDecoratorOptions = {})
+patch(path: string, options: HttpDecoratorOptions = {})
+del(path: string, options: HttpDecoratorOptions = {})
+head(path: string, options: HttpDecoratorOptions = {})
+```
+
+#### Arguments
+- **path**: Route string (e.g., `/users/:id`).
+- **options**: `HttpDecoratorOptions` object, may include:
+  - `appId`: Identifier of the application instance.
+  - `title`: A descriptive name of the endpoint.
+  - `description`: Documentation text for the endpoint.
+  - `tags`: Array of tags for grouping in OpenAPI docs.
+  - `isHidden`: Boolean flag to hide the endpoint from OpenAPI output
+
+---
+
+### `defineRequest` decorator
+
+```ts
+defineRequest(request: Partial<Record<keyof [Request](#request), AnyClass>>)
+```
+
+#### Arguments
+- **request**: A partial mapping of keys from [Request](#request) to your DTO classes.
+  - Keys can include:
+    - `headers`, `query`, `path`, `body`: each a record of property definitions.
+    - `files`: mapping of [FilePropertyDefinition](#filepropertydefinition).
+    - `auth`: authentication data mapping.
+  - Each value points to a class that uses specific DTO decorators to define how that part of the request should be validated and documented.
+
+#### `Request`
+
+```ts
+interface Request {
+  request: IncomingMessage;
+  ip?: string;
+  origin?: string;
+  method?: HttpMethod;
+  url?: string;
+  auth?: Record<string, any>;
+  path?: Record<string, string>;
+  headers?: IncomingHttpHeaders;
+  query?: Record<string, any>;
+  body?: Record<string, any>;
+  rawBody?: string;
+  files?: Record<string, { stream: Readable; size: number; mimetype: string }>;
+}
+```
+
+---
+
+### `defineResponse` decorator
+
+```ts
+defineResponse(response: [Response](#response)<any>)
+```
+
+#### Arguments
+- **response**: Response schema definition, including:
+  - `title`: Short descriptive title.
+  - `description`: Explanation of the response.
+  - `statusCode`: HTTP status code.
+  - `headers`: Mapping of header names to values.
+  - `body`: Response body object (may be an instance of some DTO or class).
+
+#### `Response`
+
+```ts
+interface Response<T> {
+  title?: string;
+  description?: string;
+  statusCode: number;
+  headers?: Record<string, string>;
+  body?: T;
+}
+```
+---
+
+### `withAuth` decorator
+
+```ts
+withAuth(requestAuthentication: [RequestAuthentication](#requestauthentication))
+```
+
+#### Arguments
+- **requestAuthentication**: Defines authentication requirements, including:
+  - `inputProperty`: Field name in request used for auth input.
+  - `outputProperty`: Field name in request to store auth result.
+  - `handler`: Function to transform/verify authentication value.
+  - `handlerContext`: Optional context object passed to handler.
+  - `required`: Boolean indicating if authentication is mandatory.
+  - `error`: Error object to use when authentication fails.
+
+#### `RequestAuthentication`
+
+```ts
+interface RequestAuthentication {
+  inputProperty: string;
+  outputProperty: string;
+  handler: (value: any) => any | Promise<any>;
+  handlerContext?: any;
+  required: boolean;
+  error: AladoServerError;
+}
+```
+
+
+```typescript
+import { RequestAuthentication } from 'alado';
+import { DataStore } from '@data-store';
+
+export const bearerAuth: RequestAuthentication = {
+  required: true,
+  inputProperty: 'headers.x-api-key',
+  outputProperty: 'auth.user',
+  handler(value: string) {
+    return DataStore.bearerAuth(value);
+  },
+  error: {
+    statusCode: 401,
+    message: 'Unauthorized',
+  },
+};
+
+```
+
+#### `AladoServerError`
+
+```ts
+type AladoServerError = {
+  statusCode: number;
+  message: string;
+};
+```
+---
+
+Example of controller:
+
+
+```ts
+export class UserController {
+  @post('/user', { tags: ['User'] })
+  @defineResponse({
+    statusCode: 201,
+    title: 'User',
+    headers: { 'Content-Type': 'application/json' },
+    body: exampleUserDto,
+  })
+  @defineRequest({ body: CredentialsDto })
+  public async create(req: Request) {
+    const { body } = req;
+    const user = DataStore.signUp(body as CredentialsDto);
+    return {
+      statusCode: 201,
+      headers: { 'Content-Type': 'application/json' },
+      body: user,
+    };
+  }
+  
+  @patch('/user/:id', { tags: ['User'] })
+  @withAuth(bearerAuth)
+  @defineResponse({
+    statusCode: 200,
+    title: 'User',
+    headers: { 'Content-Type': 'application/json' },
+    body: exampleUserDto,
+  })
+  @defineRequest({ body: UserDto, path: Id })
+  public async update(req: Request) {
+    const isMyId = this.isMyId(req);
+    if (!isMyId) {
+      return {
+        statusCode: 403,
+        headers: { 'Content-Type': 'application/json' },
+        body: { message: 'Access denied' },
+      };
+    }
+    const { path, body } = req;
+    const user = DataStore.getUser(path.id);
+    if (user) {
+      DataStore.setUser(path.id, body as UserDto);
+    }
+    return {
+      statusCode: user ? 200 : 404,
+      headers: { 'Content-Type': 'application/json' },
+      body: DataStore.getUser(path.id) || { message: 'Not Found' },
+    };
+  }
+
+  @post('/user/:id/avatar', { tags: ['User'] })
+  @withAuth(bearerAuth)
+  @defineResponse({
+    statusCode: 200,
+    title: 'User',
+    headers: { 'Content-Type': 'application/json' },
+    body: exampleUserDto,
+  })
+  @defineRequest({ path: Id, files: UserFilesDto })
+  public setAvatar(req: Request) {
+    const isMyId = this.isMyId(req);
+    if (!isMyId) {
+      return {
+        statusCode: 403,
+        headers: { 'Content-Type': 'application/json' },
+        body: { message: 'Access denied' },
+      };
+    }
+    const { path, files } = req;
+    const user = DataStore.getUser(path.id);
+    if (!user) {
+      return {
+        statusCode: 404,
+        headers: { 'Content-Type': 'application/json' },
+        body: { message: 'Not Found' },
+      };
+    }
+    const { avatar } = files;
+    const writeStream = createWriteStream(`${process.cwd()}/uploads/user-${path.id}-avatar.png`, {
+      encoding: 'latin1',
+    });
+    avatar.stream.pipe(writeStream);
+    return {
+      statusCode: 202,
+      headers: { 'Content-Type': 'application/json' },
+      body: {},
+    };
+  }
+
+}
+```
+
+---
+
+## Use these decorators inside DTO classes:
+
+### `fileUploadProperty`
+
+```ts
+fileUploadProperty(filePropertyDefinition: [FilePropertyDefinition](#filepropertydefinition))
+```
+
+#### Arguments
+- **filePropertyDefinition**: Object describing file upload rules, including:
+  - `mimetypes`: Array of allowed MIME types.
+  - `maxSize`: Maximum file size (bytes).
+  - `required`: Whether the file must be provided.
+  - `mimetypeError`, `maxSizeError`, `requiredError`: Error objects describing validation failures.
+
+#### `FilePropertyDefinition`
+
+```ts
+interface FilePropertyDefinition {
+  mimetypes: string[];
+  maxSize: number;
+  required: boolean;
+  mimetypeError: AladoServerError;
+  maxSizeError: AladoServerError;
+  requiredError: AladoServerError;
+}
+```
+
+---
+
+### `documentProperty`
+
+```ts
+documentProperty(propertyDocumentation: [PropertyDocumentation](#propertydocumentation))
+```
+
+#### Arguments
+- **propertyDocumentation**: Documentation metadata for a property, including:
+  - `schema`: JSON Schema–like definition (`type`, `format`, validation structure).
+  - `description`: Human-readable explanation.
+  - `example`: Example value.
+
+#### `PropertyDocumentation`
+
+```ts
+interface PropertyDocumentation {
+  schema: PropertyDefinitionSchema;
+  description?: string;
+  example?: any;
+}
+```
+
+#### `PropertyDefinitionSchema`
+
+```ts
+interface PropertyDefinitionSchema {
+  type?: string;
+  format?: string;
+  default?: any;
+  $ref?: string;
+  nullable?: boolean;
+  readOnly?: boolean;
+  writeOnly?: boolean;
+  deprecated?: boolean;
+  enum?: any[];
+  oneOf?: Array<PropertyDefinitionSchema>;
+  anyOf?: Array<PropertyDefinitionSchema>;
+  allOf?: Array<PropertyDefinitionSchema>;
+  not?: Array<PropertyDefinitionSchema>;
+  properties?: Record<string, PropertyDefinitionSchema>;
+  additionalProperties?: PropertyDefinitionSchema;
+  minProperties?: number;
+  maxProperties?: number;
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+  multipleOf?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  items?: PropertyDefinitionSchema;
+  minItems?: number;
+  maxItems?: number;
+  uniqueItems?: boolean;
+}
+```
+
+---
+
+### `validateProperty`
+
+```ts
+validateProperty(propertyValidation: [PropertyValidation](#propertyvalidation))
+```
+
+#### Arguments
+- **propertyValidation**: Validation rules, including:
+  - `required`: Whether the property is mandatory.
+  - `handler`: Function to validate the property value (sync or async).
+  - `error`: Error object returned when validation fails.
+
+#### `PropertyValidation`
+
+```ts
+interface PropertyValidation {
+  required?: boolean;
+  handler: (value: any) => boolean | Promise<boolean>; // throws error when returns false
+  error: AladoServerError;
+}
+```
+
+---
+DTOs examples:
+
+```typescript
+import { validateProperty, documentProperty } from 'alado';
+
+export class Id {
+  @validateProperty({
+    required: true,
+    handler: async (value: any) => idValidator(value),
+    error: {
+      statusCode: 400,
+      message: 'Invalid id',
+    },
+  })
+  @documentProperty({
+    schema: {
+      type: 'string',
+    },
+    example: '7ef5ed25-53b1-432f-96ec-8e35d830eb9c',
+    description: 'User Id',
+  })
+  id: string = '7ef5ed25-53b1-432f-96ec-8e35d830eb9c';
+}
+
+```
+
+
+```typescript
+import { fileUploadProperty } from 'alado';
+
+export class UserFilesDto {
+  @fileUploadProperty({
+    mimetypes: ['image/png'],
+    maxSize: 1048576,
+    required: true,
+    maxSizeError: {
+      statusCode: 413,
+      message: 'The avatar should not be larger than 1MB',
+    },
+    mimetypeError: {
+      statusCode: 415,
+      message: 'The avatar should be a PNG image',
+    },
+    requiredError: {
+      statusCode: 400,
+      message: 'The avatar file is required',
+    },
+  })
+  avatar: string = '/path/to/image.png';
+}
+
+```
+
+```typescript
+import { validateProperty, documentProperty } from 'alado';
+
+export class CredentialsDto {
+  @validateProperty({
+    required: true,
+    handler: async (value: any) => emailValidator(value),
+    error: {
+      statusCode: 400,
+      message: 'Invalid email',
+    },
+  })
+  @documentProperty({
+    schema: {
+      type: 'string',
+    },
+    example: 'example@example.com',
+    description: 'User email',
+  })
+  email: string = 'example@example.com';
+
+  @validateProperty({
+    required: true,
+    handler: async (value: any) => passwordValidator(value),
+    error: {
+      statusCode: 400,
+      message: 'Invalid password',
+    },
+  })
+  @documentProperty({
+    schema: {
+      type: 'string',
+    },
+    example: 'securePassword',
+    description: 'User password',
+  })
+  password: string = 'securePassword';
+}
+
+export const credentialsDto = new CredentialsDto();
+
+```
+
+---
+
+## Initialize the application
+
+Finally, use the `initializeApplication` function to get an instance you would like to run:
+
+```ts
+import { initializeApplication } from 'alado';
+import { aladoServerOptions } from '@config';
+import { UserController } from '@user';
+
+export const app = initializeApplication({
+  serverOptions: aladoServerOptions,
+  controllers: [UserController]
+});
+
+app.start(() => console.log('Application has been successfully started'));
+
+```
+
+#### Arguments
+- **initializeApplicationOptions**: Object containing:
+  - **serverOptions** ([AladoServerOptions](#aladoserveroptions)): Configuration for starting the server (e.g., `appId`, port, logger).
+  - **controllers**: Array of controller classes to initialize at startup.
+
+#### `InitializeApplicationOptions`
+
+```ts
+interface InitializeApplicationOptions {
+  serverOptions: AladoServerOptions;
+  controllers: AnyClass[];
+}
+```
+
+#### `AladoServerOptions`
+
+```ts
+interface AladoServerOptions {
+  appId?: string;
+  port?: number;
+  logger?: AladoServerLogger;
+}
+```
+
+#### `AladoServerLogger`
+
+```ts
+interface AladoServerLogger {
+  log: (...args: any[]) => void;
+  error: (error: Error) => void;
+}
+```
+
+
+
+There is an example of the API creating with Alado (version < 2.0.0):
+
 The basis of use is a combination of interface simplicity and separation of the “routine” part of writing API
 from business logic implementation - due to a declarative approach to describing all request parameters
 in the form of static reusable structures.
-
-There is an example of the API creating with Alado:
 
 [https://github.com/databikers/alado-api-example](https://github.com/databikers/alado-api-example)
 
@@ -75,7 +587,7 @@ const app = new AladoServer({
   headers: {
     a: 'b', //any additional header
   },
-  documentProperty: {
+  openApiDoc: {
     enable: true,
     route: '/',
     info: {
