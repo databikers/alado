@@ -87,14 +87,14 @@ function validateLogger(logger: AladoServerLogger) {
 }
 
 function validateVerbose(options: AladoServerOptions) {
-  if (Object.prototype.hasOwnProperty.apply(options, 'verbose') && typeof options.verbose !== 'boolean') {
+  if (Object.prototype.hasOwnProperty.apply(options, ['verbose']) && typeof options.verbose !== 'boolean') {
     throw new Error('AladoServerOptions.verbose should be a boolean');
   }
 }
 
 function validateMaxBodySize(options: AladoServerOptions) {
   if (
-    Object.prototype.hasOwnProperty.apply(options, 'maxBodySizeBytes') &&
+    Object.prototype.hasOwnProperty.apply(options, ['maxBodySizeBytes']) &&
     (typeof options.maxBodySizeBytes !== 'number' || options.maxBodySizeBytes < 0)
   ) {
     throw new Error('AladoServerOptions.maxBodySizeBytes should be a positive number');

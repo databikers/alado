@@ -15,7 +15,7 @@ export {
   initializeApplication,
   defineRequest,
   defineResponse,
-  fileUpload,
+  fileUploadProperty,
   documentProperty,
   validateProperty,
   withAuth,

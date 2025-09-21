@@ -1,7 +1,9 @@
 import { FilePropertyDefinition, PropertyDefinition } from '@dto';
 import { injector } from '@injector';
+import { initializeInjector } from './initialize-injector';
 
-export function fileUpload(filePropertyDefinition: FilePropertyDefinition) {
+export function fileUploadProperty(filePropertyDefinition: FilePropertyDefinition) {
+  initializeInjector();
   return function (...args: any[]) {
     const key = args[0].constructor.name;
     injector.injected.propertyDefinitionsMapping[key] =
