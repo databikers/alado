@@ -1,0 +1,52 @@
+name: Question
+description: Ask a general question about usage, implementation, or behavior.
+title: "[Question]: "
+labels: [question]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Need Help?
+        If you have a general question about the project, please fill out the details below.
+
+  - type: input
+    id: context
+    attributes:
+      label: What are you trying to do?
+      description: Explain what you're working on or trying to achieve.
+      placeholder: e.g. I’m trying to add user using a CLI tool...
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What is confusing or unclear?
+      description: Describe what you don't understand or what needs more explanation.
+      placeholder: I expected it to work like this... but instead...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where are you running this?
+      options:
+        - Local (Linux)
+        - Docker
+        - Other
+      multiple: false
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Anything else?
+      description: Add any other context or screenshots that might help.
+      placeholder: Logs, screenshots, error messages, etc.
+    validations:
+      required: false

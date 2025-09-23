@@ -1,0 +1,27 @@
+name: Feature Request
+description: Propose a new feature for Alado
+labels: [enhancement]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Feature Title
+      placeholder: "e.g. add some feature"
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case / Motivation
+      placeholder: Why would this be helpful?
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Optional implementation ideas
+      placeholder: How could it be done?
+    validations:
+      required: false
