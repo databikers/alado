@@ -91,11 +91,11 @@ export class AladoServer {
     this.router.use(HttpMethod.HEAD, path, context, handler);
   }
 
-  public start(cb?: (err?: Error) => void) {
-    return this.server.listen(this.port, this.host, this.backlog, cb);
+  public start(cb?: (err?: Error) => void): Server {
+    return this.listening ? this.server : this.server.listen(this.port, this.host, this.backlog, cb);
   }
 
-  public stop(cb: (error?: Error) => void) {
-    return this.server.close(cb);
+  public stop(cb: (error?: Error) => void): Server {
+    return this.listening ? this.server.close(cb) : this.server;
   }
 }
