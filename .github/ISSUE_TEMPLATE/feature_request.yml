@@ -6,7 +6,7 @@ body:
     id: title
     attributes:
       label: Feature Title
-      placeholder: "e.g. add some feature"
+      placeholder: 'e.g. add some feature'
     validations:
       required: true
 

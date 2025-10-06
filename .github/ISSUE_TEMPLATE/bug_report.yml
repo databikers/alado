@@ -6,7 +6,7 @@ body:
     id: title
     attributes:
       label: Summary
-      placeholder: "Short description of the bug"
+      placeholder: 'Short description of the bug'
     validations:
       required: true
 
@@ -14,7 +14,7 @@ body:
     id: steps
     attributes:
       label: Steps to Reproduce
-      description: "What did you do? What did you expect?"
+      description: 'What did you do? What did you expect?'
       placeholder: |
         1. Run npm start
         2. Observe crash
