@@ -29,5 +29,4 @@ export class Injector<T> {
   }
 }
 
-
 export const injector = new Injector<InjectorOptions>();

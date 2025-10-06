@@ -60,7 +60,7 @@ export class AladoServer {
   }
 
   public get listening(): boolean {
-    return this.server.listening
+    return this.server.listening;
   }
 
   public get(path: string, context: Context<any>, handler: (request: any) => Response<any> | Promise<Response<any>>) {
