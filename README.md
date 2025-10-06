@@ -6,8 +6,8 @@ it provides out-of-the-box such fully-functioning features as routing, CORS, aut
 parsing query and path parameters, and the request body, file uploading, request authentication, etc.
 
 # Documentation for version 2.0.0 and above:
-Version 2.0.0 comes with decorators that simplify the project structure and minimize the amount of code you need to write.
 
+Version 2.0.0 comes with decorators that simplify the project structure and minimize the amount of code you need to write.
 
 There is an example of the API creating with Alado (version >= 2.0.0):
 [https://github.com/databikers/alado-decorators-api-example](https://github.com/databikers/alado-decorators-api-example)
@@ -26,6 +26,7 @@ head(path: string, options: HttpDecoratorOptions = {})
 ```
 
 #### Arguments
+
 - **path**: Route string (e.g., `/users/:id`).
 - **options**: `HttpDecoratorOptions` object, may include:
   - `appId`: Identifier of the application instance.
@@ -43,6 +44,7 @@ defineRequest(request: Partial<Record<keyof [Request](#request), AnyClass>>)
 ```
 
 #### Arguments
+
 - **request**: A partial mapping of keys from [Request](#request) to your DTO classes.
   - Keys can include:
     - `headers`, `query`, `path`, `body`: each a record of property definitions.
@@ -78,6 +80,7 @@ defineResponse(response: [Response](#response)<any>)
 ```
 
 #### Arguments
+
 - **response**: Response schema definition, including:
   - `title`: Short descriptive title.
   - `description`: Explanation of the response.
@@ -96,6 +99,7 @@ interface Response<T> {
   body?: T;
 }
 ```
+
 ---
 
 ### `withAuth` decorator
@@ -105,6 +109,7 @@ withAuth(requestAuthentication: [RequestAuthentication](#requestauthentication))
 ```
 
 #### Arguments
+
 - **requestAuthentication**: Defines authentication requirements, including:
   - `inputProperty`: Field name in request used for auth input.
   - `outputProperty`: Field name in request to store auth result.
@@ -126,7 +131,6 @@ interface RequestAuthentication {
 }
 ```
 
-
 ```typescript
 import { RequestAuthentication } from 'alado';
 import { DataStore } from '@data-store';
@@ -143,7 +147,6 @@ export const bearerAuth: RequestAuthentication = {
     message: 'Unauthorized',
   },
 };
-
 ```
 
 #### `AladoServerError`
@@ -154,10 +157,10 @@ type AladoServerError = {
   message: string;
 };
 ```
+
 ---
 
 Example of controller:
-
 
 ```ts
 export class UserController {
@@ -178,7 +181,7 @@ export class UserController {
       body: user,
     };
   }
-  
+
   @patch('/user/:id', { tags: ['User'] })
   @withAuth(bearerAuth)
   @defineResponse({
@@ -247,7 +250,6 @@ export class UserController {
       body: {},
     };
   }
-
 }
 ```
 
@@ -262,6 +264,7 @@ fileUploadProperty(filePropertyDefinition: [FilePropertyDefinition](#filepropert
 ```
 
 #### Arguments
+
 - **filePropertyDefinition**: Object describing file upload rules, including:
   - `mimetypes`: Array of allowed MIME types.
   - `maxSize`: Maximum file size (bytes).
@@ -290,6 +293,7 @@ documentProperty(propertyDocumentation: [PropertyDocumentation](#propertydocumen
 ```
 
 #### Arguments
+
 - **propertyDocumentation**: Documentation metadata for a property, including:
   - `schema`: JSON Schema–like definition (`type`, `format`, validation structure).
   - `description`: Human-readable explanation.
@@ -343,6 +347,14 @@ interface PropertyDefinitionSchema {
 
 ---
 
+### `transformProperty`
+
+```ts
+transformProperty(propertyTransformer: (value:any) => any | Promise<any>)
+
+```
+
+
 ### `validateProperty`
 
 ```ts
@@ -350,6 +362,7 @@ validateProperty(propertyValidation: [PropertyValidation](#propertyvalidation))
 ```
 
 #### Arguments
+
 - **propertyValidation**: Validation rules, including:
   - `required`: Whether the property is mandatory.
   - `handler`: Function to validate the property value (sync or async).
@@ -366,6 +379,7 @@ interface PropertyValidation {
 ```
 
 ---
+
 DTOs examples:
 
 ```typescript
@@ -389,9 +403,7 @@ export class Id {
   })
   id: string = '7ef5ed25-53b1-432f-96ec-8e35d830eb9c';
 }
-
 ```
-
 
 ```typescript
 import { fileUploadProperty } from 'alado';
@@ -416,7 +428,6 @@ export class UserFilesDto {
   })
   avatar: string = '/path/to/image.png';
 }
-
 ```
 
 ```typescript
@@ -459,7 +470,6 @@ export class CredentialsDto {
 }
 
 export const credentialsDto = new CredentialsDto();
-
 ```
 
 ---
@@ -475,14 +485,14 @@ import { UserController } from '@user';
 
 export const app = initializeApplication({
   serverOptions: aladoServerOptions,
-  controllers: [UserController]
+  controllers: [UserController],
 });
 
 app.start(() => console.log('Application has been successfully started'));
-
 ```
 
 #### Arguments
+
 - **initializeApplicationOptions**: Object containing:
   - **serverOptions** ([AladoServerOptions](#aladoserveroptions)): Configuration for starting the server (e.g., `appId`, port, logger).
   - **controllers**: Array of controller classes to initialize at startup.
@@ -514,8 +524,6 @@ interface AladoServerLogger {
   error: (error: Error) => void;
 }
 ```
-
-
 
 There is an example of the API creating with Alado (version < 2.0.0):
 
