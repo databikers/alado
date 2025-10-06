@@ -18,6 +18,7 @@ export {
   fileUploadProperty,
   documentProperty,
   validateProperty,
+  transformProperty,
   withAuth,
   get,
   del,
