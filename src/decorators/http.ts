@@ -44,9 +44,9 @@ function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecor
       }
     } else {
       injector.injected.shadowAppMapping[appId] = injector.injected.shadowAppMapping[appId] || [];
-      injector.injected.shadowAppMapping[appId].push(fn)
+      injector.injected.shadowAppMapping[appId].push(fn);
     }
-  }
+  };
 }
 
 export function get(path: string, options: HttpDecoratorOptions = {}) {
