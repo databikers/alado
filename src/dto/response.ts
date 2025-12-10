@@ -1,6 +1,6 @@
 export type ResponseError = {
-  message: string
-}
+  message: string;
+};
 
 export interface Response<T> {
   title?: string;
