@@ -95,7 +95,6 @@ export class RequestProcessor {
         }
       }
       // Process API routes
-
       const [
         uri,
         queryString,
