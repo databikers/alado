@@ -354,7 +354,6 @@ transformProperty(propertyTransformer: (value:any) => any | Promise<any>)
 
 ```
 
-
 ### `validateProperty`
 
 ```ts
