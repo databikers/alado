@@ -30,7 +30,11 @@ export function setProperty(ctx: any, key: string, value: any) {
         target[keys[i]] = target[keys[i]] || {};
         target = target[keys[i]];
       } else {
-        target ? (target[keys[i]] = value) : (target = value);
+        if (target) {
+          target[keys[i]] = value;
+        } else {
+          target = value;
+        }
       }
     }
   }

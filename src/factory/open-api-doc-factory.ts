@@ -119,7 +119,7 @@ export function openApiDocFactory(
     const responseContentType = headers['Content-Type'] || headers['content-type'];
     if (body) {
       if (Array.isArray(body)) {
-        let bodyObject: any = {};
+        let bodyObject: any;
         if (nonBinResponses.includes(responseContentType)) {
           bodyObject = { properties: {}, type: 'object' };
           docObjectSetter(body[0], bodyObject);
@@ -143,7 +143,7 @@ export function openApiDocFactory(
           },
         };
       } else {
-        let bodyObject: any = {};
+        let bodyObject: any;
         if (nonBinResponses.includes(responseContentType)) {
           bodyObject = { properties: {}, type: 'object' };
           docObjectSetter(body, bodyObject);
