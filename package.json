@@ -1,6 +1,6 @@
 {
   "name": "alado",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "Extremely fast, lightweight, robust framework for HTTP applications written in Node.js",
   "keywords": [
     "HTTP",
@@ -15,7 +15,7 @@
   "author": "Pavlo Lazunko",
   "license": "MIT",
   "scripts": {
-    "build": "rm -rf dist && tsc && tsc-alias && eslint src/**/*.ts{,x}",
+    "build": "rm -rf dist && tsc && tsc-alias && eslint src/**/*.ts",
     "postinstall": "node postinstall.js",
     "eslint": "eslint src --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 0",
@@ -23,20 +23,22 @@
     "prettier-write": "prettier . --write"
   },
   "dependencies": {
-    "swagger-ui-dist": "5.17.14"
+    "swagger-ui-dist": "5.31.2"
   },
   "devDependencies": {
-    "@types/node": "20.10.6",
-    "@types/prettier": "2.6.0",
-    "@typescript-eslint/eslint-plugin": "6.17.0",
-    "@typescript-eslint/parser": "6.17.0",
-    "eslint": "8.47.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "24.10.13",
+    "@types/prettier": "3.0.0",
+    "@typescript-eslint/eslint-plugin": "8.56.1",
+    "@typescript-eslint/parser": "8.56.1",
+    "eslint": "10.0.2",
     "husky": "3.0.0",
-    "prettier": "3.3.3",
-    "prettier-plugin-multiline-arrays": "3.0.6",
+    "prettier": "3.8.1",
+    "prettier-plugin-multiline-arrays": "4.1.4",
     "ts-node": "10.9.2",
-    "tsc-alias": "1.8.10",
-    "typescript": "5.3.3"
+    "tsc-alias": "1.8.16",
+    "typescript": "5.3.3",
+    "typescript-eslint": "^8.56.1"
   },
   "husky": {
     "hooks": {
