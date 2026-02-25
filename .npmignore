@@ -2,7 +2,7 @@
 *.lock
 tsconfig.json
 .editorconfig
-.eslintrc.js
+eslint.config.js
 .prettierrc
 .gitignore
 .npmignore
