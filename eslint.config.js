@@ -8,7 +8,10 @@ export default [
 
   {
     files: ['**/*.ts'],
-    ignores: ['dist/**', 'node_modules/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+    ],
 
     languageOptions: {
       parser: tsEslint.parser,
