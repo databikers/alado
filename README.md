@@ -13,7 +13,6 @@
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
-- [tsconfig Setup](#tsconfig-setup)
 - [Application Setup](#application-setup)
 - [Controllers](#controllers)
   - [HTTP Method Decorators](#http-method-decorators)
