@@ -11,10 +11,10 @@ function verifySecureContextOptions(options: SecureContextOptions & ServerOption
 export function httpServerFactory(
   requestProcessorOptions: RequestProcessorOptions,
   options?: SecureContextOptions & ServerOptions,
-): Server<IncomingMessage, ServerResponse> {
+): Server<typeof IncomingMessage, typeof ServerResponse> {
   const requestProcessor: RequestProcessor = new RequestProcessor(requestProcessorOptions);
   const handler = requestProcessor.process.bind(requestProcessor);
   return verifySecureContextOptions(options as SecureContextOptions & ServerOptions)
     ? https.createServer(options as SecureContextOptions & ServerOptions, handler)
-    : http.createServer(handler);
+    : (http.createServer(handler) as Server<typeof IncomingMessage, typeof ServerResponse>);
 }
