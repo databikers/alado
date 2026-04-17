@@ -133,29 +133,6 @@ src/
 
 ---
 
-## tsconfig Setup
-
-Decorators require these compiler options:
-
-```json
-{
-  "compilerOptions": {
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "target": "ES2017",
-    "module": "commonjs",
-    "strict": false,
-    "baseUrl": "./src",
-    "paths": {
-      "@user": ["modules/user/index.ts"],
-      "@config": ["config/index.ts"]
-    }
-  }
-}
-```
-
----
-
 ## Application Setup
 
 ### `initializeApplication`
