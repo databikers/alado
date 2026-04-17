@@ -1,6 +1,6 @@
 import { AladoServerError } from './alado-server-error';
 
-export interface PropertyDefinitionSchema {
+export type PropertyDefinitionSchema = {
   type?: string;
   format?: string;
   default?: any;
@@ -30,31 +30,32 @@ export interface PropertyDefinitionSchema {
   minItems?: number;
   maxItems?: number;
   uniqueItems?: boolean;
-}
-export interface PropertyDocumentation {
+};
+
+export type PropertyDocumentation = {
   schema: PropertyDefinitionSchema;
   description?: string;
   example?: any;
-}
+};
 
-export interface PropertyValidation {
+export type PropertyValidation = {
   required?: boolean;
   handler: (value: any) => boolean | Promise<boolean>;
   error: AladoServerError;
-}
+};
 
-export interface PropertyDefinition {
+export type PropertyDefinition = {
   isJSON?: boolean;
   validation: PropertyValidation; // apply in what context
   openApiDoc?: PropertyDocumentation;
   transform?: (value: any) => any | Promise<any>;
-}
+};
 
-export interface FilePropertyDefinition {
+export type FilePropertyDefinition = {
   mimetypes: string[];
   maxSize: number;
   required: boolean;
   mimetypeError: AladoServerError;
   maxSizeError: AladoServerError;
   requiredError: AladoServerError;
-}
+};

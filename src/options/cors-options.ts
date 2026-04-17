@@ -1,4 +1,4 @@
-export interface CorsOptions {
+export type CorsOptions = {
   enable: boolean;
   allowedOrigin?: string | string[];
   allowedMethods?: Map<any, any>;
@@ -6,4 +6,4 @@ export interface CorsOptions {
   exposeHeaders?: string[];
   allowedCredentials?: boolean;
   maxAge?: number;
-}
+};
