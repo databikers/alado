@@ -4,6 +4,7 @@ export type ResponseError = {
 
 export type Response<T> = {
   title?: string;
+  entity?: string;
   description?: string;
   statusCode: number;
   headers?: Record<string, string>;

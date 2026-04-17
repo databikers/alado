@@ -115,7 +115,7 @@ export function openApiDocFactory(
     openApiDocObject.paths[openApiRoute][openApiMethod].requestBody = bodyObject;
   }
   if (context.response) {
-    const { statusCode, headers, body, description, title } = context.response;
+    const { statusCode, headers, body, description, title, entity } = context.response;
     const responseContentType: string | undefined = headers && (headers['Content-Type'] || headers['content-type']);
     if (body) {
       if (Array.isArray(body)) {
@@ -126,7 +126,7 @@ export function openApiDocFactory(
         } else {
           bodyObject = { example: '' };
         }
-        openApiDocObject.components.schemas[title as string] = bodyObject;
+        openApiDocObject.components.schemas[(entity as string) || (title as string)] = bodyObject;
         openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
           [statusCode]: {
             description,
@@ -135,7 +135,7 @@ export function openApiDocFactory(
                 schema: {
                   type: 'array',
                   items: {
-                    $ref: `#/components/schemas/${title}`,
+                    $ref: `#/components/schemas/${entity || title}`,
                   },
                 },
               },
@@ -150,14 +150,14 @@ export function openApiDocFactory(
         } else {
           bodyObject = { example: '' };
         }
-        openApiDocObject.components.schemas[title as string] = bodyObject;
+        openApiDocObject.components.schemas[(entity as string) || (title as string)] = bodyObject;
         openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
           [statusCode]: {
             description,
             content: {
               [responseContentType as string]: {
                 schema: {
-                  $ref: `#/components/schemas/${title}`,
+                  $ref: `#/components/schemas/${entity || title}`,
                 },
               },
             },
