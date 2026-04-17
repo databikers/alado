@@ -490,6 +490,21 @@ export const app = initializeApplication({
 app.start(() => console.log('Application has been successfully started'));
 ```
 
+There's ability to pass args to controller`s constructor:
+
+```ts
+import { initializeApplication } from 'alado';
+import { aladoServerOptions } from '@config';
+import { UserController } from '@user';
+
+export const app = initializeApplication({
+  serverOptions: aladoServerOptions,
+  controllers: [{ controller: UserController, options: [{ service: SomeService }] }],
+});
+
+app.start(() => console.log('Application has been successfully started'));
+```
+
 #### Arguments
 
 - **initializeApplicationOptions**: Object containing:
