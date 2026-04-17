@@ -167,7 +167,8 @@ export class UserController {
   @post('/user', { tags: ['User'] })
   @defineResponse({
     statusCode: 201,
-    title: 'User',
+    title: 'Created',
+    entity: 'User',
     headers: { 'Content-Type': 'application/json' },
     body: exampleUserDto,
   })
@@ -186,7 +187,8 @@ export class UserController {
   @withAuth(bearerAuth)
   @defineResponse({
     statusCode: 200,
-    title: 'User',
+    title: 'OK',
+    enity: 'User',
     headers: { 'Content-Type': 'application/json' },
     body: exampleUserDto,
   })
@@ -216,7 +218,8 @@ export class UserController {
   @withAuth(bearerAuth)
   @defineResponse({
     statusCode: 200,
-    title: 'User',
+    title: 'OK',
+    enity: 'User',
     headers: { 'Content-Type': 'application/json' },
     body: exampleUserDto,
   })
