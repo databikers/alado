@@ -29,7 +29,7 @@ export class RequestProcessor {
     let responseBody: any;
     const { statusCode, headers, body } = response;
     const isStreamBody = isReadableStream(body);
-    const contentType: string = headers['Content-Type'] || headers['content-type'];
+    const contentType: string | undefined = headers && (headers['Content-Type'] || headers['content-type']);
     if (contentType?.startsWith(ContentType.JSON)) {
       responseBody = isStreamBody ? body : JSON.stringify(body);
     } else {
@@ -56,24 +56,24 @@ export class RequestProcessor {
     try {
       const { router, openApiDoc, enableCors } = this.options;
       const { headers, method } = req;
-      const url = clearRoutePath(req.url);
-      const ip: string = (req.headers['x-forwarded-for'] as string) || req.socket?.remoteAddress;
+      const url = clearRoutePath(req.url as string);
+      const ip: string = (req.headers['x-forwarded-for'] as string) || (req.socket?.remoteAddress as string);
       const origin: string = (req.headers.origin as string) || '*';
       // Process Open API routes
       if (openApiDoc?.enable) {
         if (method === HttpMethod.GET) {
           if (
             !req.url?.startsWith(`/swagger.json`) &&
-            ((url?.startsWith(clearRoutePath(openApiDoc?.route)) &&
+            ((url?.startsWith(clearRoutePath(openApiDoc?.route as string)) &&
               ![
                 '',
                 '/',
-              ].includes(openApiDoc?.route)) ||
+              ].includes(openApiDoc?.route as string)) ||
               swaggerUiFiles.includes(url.replace('/', '')) ||
               url === openApiDoc?.route)
           ) {
-            let filePath = join(swaggerUiAssetPath, url.replace(`${clearRoutePath(openApiDoc.route)}`, ''));
-            filePath += url === clearRoutePath(openApiDoc.route) ? '/index.html' : '';
+            let filePath = join(swaggerUiAssetPath, url.replace(`${clearRoutePath(openApiDoc.route as string)}`, ''));
+            filePath += url === clearRoutePath(openApiDoc.route as string) ? '/index.html' : '';
             return access(filePath, constants.F_OK, (err) => {
               if (err) {
                 return this.respond(res, {
@@ -102,9 +102,9 @@ export class RequestProcessor {
       const route = router.parse(method as HttpMethod, clearRoutePath(uri));
       const backgroundHeaders: Record<string, string> = {
         'Access-Control-Allow-Methods': route?.allowedMethods?.join(', ') || '',
-        'Access-Control-Allow-Headers': this.options.router.options.cors.allowedHeaders?.join(', ') || '',
-        'Access-Control-Expose-Headers': this.options.router.options.cors.exposeHeaders.join(', ') || '',
-        'Access-Control-Allow-Credentials': this.options.router.options.cors.allowedCredentials ? 'true' : 'false',
+        'Access-Control-Allow-Headers': this.options.router.options.cors?.allowedHeaders?.join(', ') || '',
+        'Access-Control-Expose-Headers': this.options.router.options.cors?.exposeHeaders?.join(', ') || '',
+        'Access-Control-Allow-Credentials': this.options.router.options.cors?.allowedCredentials ? 'true' : 'false',
       };
       if (Array.isArray(this.options.router.options.cors.allowedOrigin)) {
         if (this.options.router.options.cors.allowedOrigin.includes(origin)) {
@@ -139,9 +139,9 @@ export class RequestProcessor {
               HttpMethod.PATCH,
               HttpMethod.POST,
             ] as string[]
-          ).includes(method)
+          ).includes(method as string)
         ) {
-          const r = await bodyParser(req, res, this.options.maxBodySizeBytes);
+          const r = await bodyParser(req, res, this.options.maxBodySizeBytes as number);
           body = r.body;
           rawBody = r.rawBody;
           files = r.files;
@@ -186,14 +186,18 @@ export class RequestProcessor {
         }
         // Validate request
         for (const key in context.request) {
-          const error: AladoServerError = await validateRequestPart(key as keyof ContextRequest, context, request);
+          const error: AladoServerError | undefined = await validateRequestPart(
+            key as keyof ContextRequest,
+            context,
+            request,
+          );
           if (error) {
             return this.respondError(res, error, backgroundHeaders);
           }
         }
         // Validate request (files)
         if (context.request.files) {
-          const error: AladoServerError = await validateRequestFiles(context, request);
+          const error: AladoServerError | undefined = await validateRequestFiles(context, request);
           if (error) {
             return this.respondError(res, error, backgroundHeaders);
           }
@@ -201,20 +205,20 @@ export class RequestProcessor {
         try {
           const response: Response<any> = await handler(request);
           return this.respond(res, response, backgroundHeaders);
-        } catch (e) {
+        } catch (e: any) {
           this.logError(e);
           return this.respondError(res, { statusCode: 500, message: e.message }, backgroundHeaders);
         }
       }
-    } catch (e) {
-      this.logError(e);
+    } catch (e: any) {
+      this.logError(e as Error);
       return this.respondError(res, { statusCode: e.statusCode || 400, message: e.message }, {});
     }
   }
 
   protected logError(e: Error) {
     if (this.options.verbose) {
-      this.options.logger.error(e);
+      this.options.logger?.error(e);
     }
   }
 }

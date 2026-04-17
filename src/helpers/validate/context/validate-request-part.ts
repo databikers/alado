@@ -9,12 +9,12 @@ export async function validateRequestPart(
   key: keyof ContextRequest,
   context: Context<any>,
   request: any,
-): Promise<{ statusCode: number; message: string }> {
+): Promise<{ statusCode: number; message: string } | undefined> {
   if (nonProcessingRequestParts.includes(key)) {
     return;
   }
   if (
-    !Object.keys(context.request[key]).length &&
+    !Object.keys(context?.request[key] || {}).length &&
     !context.options?.allowUnknownFields &&
     ![
       'headers',
@@ -49,7 +49,7 @@ export async function validateRequestPart(
         if (transform) {
           request[key][property] = await transform.apply(request, [value]);
         }
-      } catch (e) {
+      } catch (e: any) {
         return {
           statusCode: error.statusCode,
           message: e.message,

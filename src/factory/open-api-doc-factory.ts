@@ -42,9 +42,9 @@ export function openApiDocFactory(
         in: 'headers',
         name: header,
         required: headers[header].validation.required || false,
-        schema: headers[header].openApiDoc.schema,
-        description: headers[header].openApiDoc.description,
-        example: headers[header].openApiDoc.example,
+        schema: headers[header].openApiDoc?.schema,
+        description: headers[header].openApiDoc?.description,
+        example: headers[header].openApiDoc?.example,
       });
     }
   }
@@ -53,10 +53,10 @@ export function openApiDocFactory(
       openApiDocObject.paths[openApiRoute][openApiMethod].parameters.push({
         in: 'path',
         name: param,
-        required: path[param].validation.required || false,
-        schema: path[param].openApiDoc.schema,
-        description: path[param].openApiDoc.description,
-        example: path[param].openApiDoc.example,
+        required: path[param].validation?.required || false,
+        schema: path[param].openApiDoc?.schema,
+        description: path[param].openApiDoc?.description,
+        example: path[param].openApiDoc?.example,
       });
     }
   }
@@ -65,10 +65,10 @@ export function openApiDocFactory(
       openApiDocObject.paths[openApiRoute][openApiMethod].parameters.push({
         in: 'query',
         name: param,
-        required: query[param].validation.required || false,
-        schema: query[param].openApiDoc.schema,
-        description: query[param].openApiDoc.description,
-        example: query[param].openApiDoc.example,
+        required: query[param].validation?.required || false,
+        schema: query[param].openApiDoc?.schema,
+        description: query[param].openApiDoc?.description,
+        example: query[param].openApiDoc?.example,
       });
     }
   }
@@ -91,7 +91,7 @@ export function openApiDocFactory(
     }
     if (body) {
       for (const prop in body) {
-        uploadObject.content['multipart/form-data'].schema.properties[prop] = body[prop].openApiDoc.schema;
+        uploadObject.content['multipart/form-data'].schema.properties[prop] = body[prop].openApiDoc?.schema;
       }
     }
     openApiDocObject.paths[openApiRoute][openApiMethod].requestBody = uploadObject;
@@ -110,28 +110,28 @@ export function openApiDocFactory(
       },
     };
     for (const prop in body) {
-      bodyObject.content[contentType].schema.properties[prop] = body[prop].openApiDoc.schema;
+      bodyObject.content[contentType].schema.properties[prop] = body[prop]?.openApiDoc?.schema;
     }
     openApiDocObject.paths[openApiRoute][openApiMethod].requestBody = bodyObject;
   }
   if (context.response) {
     const { statusCode, headers, body, description, title } = context.response;
-    const responseContentType = headers['Content-Type'] || headers['content-type'];
+    const responseContentType: string | undefined = headers && (headers['Content-Type'] || headers['content-type']);
     if (body) {
       if (Array.isArray(body)) {
         let bodyObject: any;
-        if (nonBinResponses.includes(responseContentType)) {
+        if (nonBinResponses.includes(responseContentType as string)) {
           bodyObject = { properties: {}, type: 'object' };
           docObjectSetter(body[0], bodyObject);
         } else {
           bodyObject = { example: '' };
         }
-        openApiDocObject.components.schemas[title] = bodyObject;
+        openApiDocObject.components.schemas[title as string] = bodyObject;
         openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
           [statusCode]: {
             description,
             content: {
-              [responseContentType]: {
+              [responseContentType as string]: {
                 schema: {
                   type: 'array',
                   items: {
@@ -144,18 +144,18 @@ export function openApiDocFactory(
         };
       } else {
         let bodyObject: any;
-        if (nonBinResponses.includes(responseContentType)) {
+        if (nonBinResponses.includes(responseContentType as string)) {
           bodyObject = { properties: {}, type: 'object' };
           docObjectSetter(body, bodyObject);
         } else {
           bodyObject = { example: '' };
         }
-        openApiDocObject.components.schemas[title] = bodyObject;
+        openApiDocObject.components.schemas[title as string] = bodyObject;
         openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
           [statusCode]: {
             description,
             content: {
-              [responseContentType]: {
+              [responseContentType as string]: {
                 schema: {
                   $ref: `#/components/schemas/${title}`,
                 },
@@ -165,11 +165,11 @@ export function openApiDocFactory(
         };
       }
     } else {
-      openApiDocObject.paths[openApiRoute][openApiMethod].responses = {
+      openApiDocObject.paths[openApiRoute as string][openApiMethod as string].responses = {
         [statusCode]: {
           description,
           content: {
-            [responseContentType]: {
+            [responseContentType as string]: {
               example: '',
             },
           },

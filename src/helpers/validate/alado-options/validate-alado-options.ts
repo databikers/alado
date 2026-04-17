@@ -26,7 +26,10 @@ function validateCors(cors: CorsOptions) {
   ) {
     throw new Error('AladoServerOptions.cors.allowedCredentials should be a boolean');
   }
-  if (Object.prototype.hasOwnProperty.apply(cors, ['maxAge']) && typeof cors.maxAge !== 'number' && cors.maxAge < 0) {
+  if (
+    Object.prototype.hasOwnProperty.apply(cors, ['maxAge']) &&
+    (typeof cors.maxAge !== 'number' || cors?.maxAge < 0)
+  ) {
     throw new Error('AladoServerOptions.cors.maxAge should be a positive number');
   }
   for (const key in cors) {
@@ -75,7 +78,7 @@ function validateOpenApiDoc(openApiDoc: OpenApiDoc) {
   }
 }
 
-function validateLogger(logger: AladoServerLogger) {
+function validateLogger(logger: AladoServerLogger | undefined) {
   if (!logger) {
     return;
   } else if (typeof logger !== 'object') {

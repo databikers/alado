@@ -13,8 +13,8 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
   let body: string = '';
   if (contentType?.startsWith(ContentType.FORM_DATA)) {
     req.setEncoding('binary');
-    const matchingArray = /boundary=(.+)$/.exec(req.headers['content-type']);
-    const boundary: string = matchingArray && matchingArray[1];
+    const matchingArray = /boundary=(.+)$/.exec(req.headers['content-type'] as string);
+    const boundary: string | null = matchingArray && matchingArray[1];
     await new Promise<void>((resolve, reject) => {
       req.on('data', (chunk: any) => {
         body += chunk.toString();
@@ -25,7 +25,7 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
           files: [],
           fields: {},
         };
-        const data = body.split(boundary);
+        const data = boundary ? body.split(boundary) : [body];
         for (const item of data) {
           const element: any = {};
           Object.entries(formDataRegExp).map((entry) => {

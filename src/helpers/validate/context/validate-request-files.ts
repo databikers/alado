@@ -1,6 +1,6 @@
-import { Context } from '@dto';
+import { AladoServerError, Context } from '@dto';
 
-export function validateRequestFiles(context: Context<any>, request: any) {
+export function validateRequestFiles(context: Context<any>, request: any): AladoServerError | undefined {
   const { files } = context.request;
   if (files) {
     for (const file in files) {

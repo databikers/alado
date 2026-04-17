@@ -22,7 +22,7 @@ export class Router {
       openApiDoc: options.openApiDoc,
     };
     this.openApiDocObject = openApiDocObject;
-    this.logger = options.logger;
+    this.logger = options.logger as AladoServerLogger;
   }
 
   use(
@@ -65,7 +65,7 @@ export class Router {
     const openApiMethod: string = method.toLowerCase();
 
     let optionsRoute: string = `${HttpMethod.OPTIONS}${clearRoutePath(uri)}`;
-    const matches: RegExpMatchArray = route.match(pathVariableRegex);
+    const matches: RegExpMatchArray | null = route.match(pathVariableRegex);
     if (matches) {
       for (let i = 0; i < matches.length; i++) {
         const variable: string = matches[i].replace(':', '');
@@ -84,10 +84,10 @@ export class Router {
     const optionsDataKey: string = this.getOptionsDataKey(method, routeRegEx);
 
     if (this.options.cors?.enable) {
-      if (this.options.cors.allowedMethods.has(optionsDataKey)) {
-        this.options.cors.allowedMethods.get(optionsDataKey).push(method);
+      if (this.options.cors?.allowedMethods?.has(optionsDataKey)) {
+        this.options.cors?.allowedMethods?.get(optionsDataKey).push(method);
       } else {
-        this.options.cors.allowedMethods.set(optionsDataKey, [
+        this.options.cors.allowedMethods?.set(optionsDataKey, [
           HttpMethod.OPTIONS,
           method,
         ]);
@@ -99,17 +99,18 @@ export class Router {
           handler: (request: Request) => {
             const headers: Record<string, string> = {
               'Access-Control-Allow-Methods': this.getOptionsData(optionsDataKey).join(', '),
-              'Access-Control-Allow-Headers': this.options.cors.allowedHeaders?.join(', ') || '',
-              'Access-Control-Expose-Headers': this.options.cors.exposeHeaders.join(', ') || '',
-              'Access-Control-Allow-Credentials': this.options.cors.allowedCredentials ? 'true' : 'false',
-              'Access-Control-Max-Age': Math.round(this.options.cors.maxAge).toString(10) || '86400',
+              'Access-Control-Allow-Headers': this.options.cors?.allowedHeaders?.join(', ') || '',
+              'Access-Control-Expose-Headers': this.options.cors?.exposeHeaders?.join(', ') || '',
+              'Access-Control-Allow-Credentials': this.options.cors?.allowedCredentials ? 'true' : 'false',
+              'Access-Control-Max-Age': Math.round(this.options.cors?.maxAge || 86400).toString(10) || '86400',
             };
             if (Array.isArray(this.options.cors.allowedOrigin)) {
-              if (this.options.cors.allowedOrigin.includes(request.origin)) {
-                headers['Access-Control-Allow-Origin'] = request.origin;
+              if (this.options.cors.allowedOrigin.includes(request.origin as string)) {
+                headers['Access-Control-Allow-Origin'] = request.origin as string;
               }
             } else {
-              headers['Access-Control-Allow-Origin'] = (this.options.cors.allowedOrigin as string) || request.origin;
+              headers['Access-Control-Allow-Origin'] =
+                (this.options.cors.allowedOrigin as string) || (request.origin as string);
             }
             return {
               statusCode: 204,
@@ -130,21 +131,21 @@ export class Router {
     return this.options.cors?.allowedMethods?.get(key) || [];
   }
 
-  parse(method: HttpMethod, uri: string): Route<any> {
+  parse(method: HttpMethod, uri: string): Route<any> | undefined {
     uri = clearRoutePath(uri);
     const p = `${method}${uri}`;
     const keys = Array.from(this.routes.keys());
     const path: any = {};
     for (let i = 0; i < keys.length; i++) {
       const route: RegExp = keys[i];
-      const matches: RegExpMatchArray = p.match(route);
+      const matches: RegExpMatchArray | null = p.match(route);
       if (matches) {
-        const data: Route<any> = this.routes.get(route);
+        const data: Route<any> = this.routes.get(route) as Route<any>;
         for (const k in data.path) {
           path[k] = matches[data.path[k] as unknown as number];
         }
         const optionsDataKey: string = this.getOptionsDataKey(method, keys[i]);
-        const allowedMethods: HttpMethod[] = this.options.cors.allowedMethods.get(optionsDataKey);
+        const allowedMethods: HttpMethod[] = this.options.cors!.allowedMethods!.get(optionsDataKey);
         return { ...data, path, allowedMethods };
       }
     }
