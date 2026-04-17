@@ -38,7 +38,7 @@
     "prettier-plugin-multiline-arrays": "4.1.5",
     "ts-node": "10.9.2",
     "tsc-alias": "1.8.16",
-    "typescript": "5.3.3",
+    "typescript": "5.9.3",
     "typescript-eslint": "^8.56.1"
   },
   "repository": {
