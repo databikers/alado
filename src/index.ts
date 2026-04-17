@@ -11,6 +11,7 @@ export {
 } from '@dto';
 export { AladoServerOptions, ContextOptions, CorsOptions, OpenApiDoc } from '@options';
 export { HttpMethod, httpStatus, ContentType } from '@const';
+export { validate } from '@helper';
 export {
   initializeApplication,
   defineRequest,
