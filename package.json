@@ -24,7 +24,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "swagger-ui-dist": "5.31.2"
+    "swagger-ui-dist": "5.32.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
