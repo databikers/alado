@@ -108,6 +108,8 @@ app.start(() => console.log('Running on http://localhost:3000'));
 
 ---
 
+## Example API: https://github.com/databikers/alado-decorators-api-example
+
 ## Project Structure
 
 Possible layout for a decorator-based Alado project:
