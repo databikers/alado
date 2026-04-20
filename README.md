@@ -21,7 +21,7 @@
   - [withAuth](#withauth)
 - [DTOs](#dtos)
   - [validateProperty](#validateproperty)
-  - [validate](#validate)
+  - [validation](#validation)
   - [documentProperty](#documentproperty)
   - [transformProperty](#transformproperty)
   - [fileUploadProperty](#fileuploadproperty)
