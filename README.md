@@ -21,6 +21,7 @@
   - [withAuth](#withauth)
 - [DTOs](#dtos)
   - [validateProperty](#validateproperty)
+  - [validate](#validate)
   - [documentProperty](#documentproperty)
   - [transformProperty](#transformproperty)
   - [fileUploadProperty](#fileuploadproperty)
@@ -399,6 +400,196 @@ class CredentialsDto {
 - returning `false` → framework returns the configured `error` automatically
 - `handler` is called with `this` bound to the full `Request` object — you can access `this.auth`, `this.query`, etc.
 - **do not use arrow functions** if you need access to `this`
+
+---
+
+## Validation
+
+The project uses a built-in chainable validator — a lightweight Joi-like class with zero dependencies.
+
+### Basic usage
+
+```ts
+import { validate } from 'alado';
+
+const isEmail = validate.string().email().required().build();
+const isUsername = validate
+  .string()
+  .min(3)
+  .max(20)
+  .regex(/^[a-z0-9_]+$/)
+  .build();
+const isRole = validate.string().enum('admin', 'user', 'guest').required().build();
+const isAge = validate.number().integer().min(18).max(120).required().build();
+const isId = validate.objectId().required().build();
+```
+
+Each chain ends with `.build()` which returns a plain `(input: any) => boolean` function — build once, reuse anywhere.
+
+---
+
+### Available rules
+
+**Type**
+
+| Method      | Description                |
+| ----------- | -------------------------- |
+| `string()`  | Must be a string           |
+| `number()`  | Must be a number (not NaN) |
+| `boolean()` | Must be a boolean          |
+| `array()`   | Must be an array           |
+| `object()`  | Must be a plain object     |
+
+**String**
+
+| Method           | Description                               |
+| ---------------- | ----------------------------------------- |
+| `min(n)`         | Min length (string) or min value (number) |
+| `max(n)`         | Max length (string) or max value (number) |
+| `length(n)`      | Exact length                              |
+| `regex(pattern)` | Must match pattern                        |
+| `email()`        | Valid email format                        |
+| `uuid()`         | Valid UUID v4                             |
+| `objectId()`     | Valid MongoDB ObjectId (24-char hex)      |
+| `url()`          | Valid URL                                 |
+| `trim()`         | Must have no leading/trailing whitespace  |
+
+**Number**
+
+| Method       | Description        |
+| ------------ | ------------------ |
+| `integer()`  | Must be an integer |
+| `positive()` | Must be > 0        |
+| `negative()` | Must be < 0        |
+
+**Generic**
+
+| Method            | Description                                   |
+| ----------------- | --------------------------------------------- |
+| `enum(...values)` | Must be one of the provided values            |
+| `custom(fn)`      | Any custom `(value) => boolean` function      |
+| `required()`      | Reject `null`, `undefined`, and `''`          |
+| `optional()`      | Allow `null`, `undefined`, and `''` (default) |
+
+**Object**
+
+| Method          | Description                                  |
+| --------------- | -------------------------------------------- |
+| `shape(schema)` | Validate each key against a nested validator |
+
+**Array**
+
+| Method        | Description                           |
+| ------------- | ------------------------------------- |
+| `items(fn)`   | Every element must pass the validator |
+| `minItems(n)` | Minimum array length                  |
+| `maxItems(n)` | Maximum array length                  |
+| `unique()`    | No duplicate values                   |
+
+---
+
+### Object shape
+
+```ts
+const isAddress = validate
+  .object()
+  .shape({
+    street: validate.string().min(2).required().build(),
+    city: validate.string().min(2).required().build(),
+    country: validate.string().length(2).required().build(),
+    zip: validate
+      .string()
+      .regex(/^\d{4,10}$/)
+      .build(),
+  })
+  .required()
+  .build();
+```
+
+Shapes can be nested to any depth:
+
+```ts
+const isUser = validate
+  .object()
+  .shape({
+    id: validate.objectId().required().build(),
+    email: validate.string().email().required().build(),
+    role: validate.string().enum('admin', 'user').required().build(),
+    address: validate
+      .object()
+      .shape({
+        city: validate.string().required().build(),
+        country: validate.string().length(2).required().build(),
+      })
+      .build(),
+  })
+  .required()
+  .build();
+```
+
+---
+
+### Array items
+
+```ts
+const isTagList = validate
+  .array()
+  .items(validate.string().min(1).max(30).required().build())
+  .minItems(1)
+  .maxItems(10)
+  .unique()
+  .required()
+  .build();
+
+const isOrderItems = validate
+  .array()
+  .items(
+    validate
+      .object()
+      .shape({
+        productId: validate.objectId().required().build(),
+        quantity: validate.number().integer().positive().required().build(),
+        price: validate.number().positive().required().build(),
+      })
+      .required()
+      .build(),
+  )
+  .minItems(1)
+  .required()
+  .build();
+```
+
+---
+
+### Use with Alado `@validateProperty`
+
+```ts
+import { documentProperty, validateProperty, validate } from 'alado';
+
+export class CredentialsDto {
+  @validateProperty({
+    required: true,
+    handler: validate.string().email().required().build(),
+    error: { statusCode: 400, message: 'Invalid email' },
+  })
+  @documentProperty({
+    schema: { type: 'string', format: 'email' },
+    example: 'user@example.com',
+  })
+  email: string = '';
+
+  @validateProperty({
+    required: true,
+    handler: validate.string().min(8).required().build(),
+    error: { statusCode: 400, message: 'Password must be at least 8 characters' },
+  })
+  @documentProperty({
+    schema: { type: 'string', minLength: 8 },
+    example: 'securePassword',
+  })
+  password: string = '';
+}
+```
 
 ---
 
