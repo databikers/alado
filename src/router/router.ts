@@ -4,7 +4,7 @@ import { RouterOptions } from '@options';
 import { openApiDocFactory } from '@factory';
 import { clearRoutePath, validateContext } from '@helper';
 
-const pathVariableRegex = /:[a-zA-Z0-9_]+/g;
+const pathVariableRegex = /:([^/]+?)+/g;
 
 // TODO: default route 404;
 type RouterUseArgs =
@@ -71,8 +71,8 @@ export class Router {
         const variable: string = matches[i].replace(':', '');
         pathData[variable] = i + 1;
         openApiRoute = openApiRoute.replace(`:${variable}`, `{${variable}}`);
-        route = route.toString().replace(matches[i], '([a-zA-Z0-9_\\-\\.]+)');
-        optionsRoute = optionsRoute.toString().replace(matches[i], '([a-zA-Z0-9_\\-\\.]+)');
+        route = route.toString().replace(matches[i], '([^/]+?)');
+        optionsRoute = optionsRoute.toString().replace(matches[i], '([^/]+?)');
       }
     }
 
