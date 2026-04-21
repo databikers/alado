@@ -6,5 +6,7 @@ eslint.config.js
 .prettierrc
 .gitignore
 .npmignore
+.github
+.husky
 src/
 sandbox/
