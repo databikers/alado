@@ -19,26 +19,26 @@
     "postinstall": "node postinstall.js",
     "eslint": "eslint src --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 0",
-    "prettier-check": "prettier . --check",
-    "prettier-write": "prettier . --write",
+    "check-format": "prettier . --check",
+    "format": "prettier . --write",
     "prepare": "husky"
   },
   "dependencies": {
-    "swagger-ui-dist": "5.32.6"
+    "swagger-ui-dist": "5.32.8"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "24.13.1",
     "@types/prettier": "3.0.0",
-    "@typescript-eslint/eslint-plugin": "8.62.0",
-    "@typescript-eslint/parser": "8.62.0",
-    "eslint": "10.5.0",
+    "@typescript-eslint/eslint-plugin": "8.62.1",
+    "@typescript-eslint/parser": "8.62.1",
+    "eslint": "10.6.0",
     "husky": "9.1.7",
-    "prettier": "3.8.4",
+    "prettier": "3.9.4",
     "prettier-plugin-multiline-arrays": "4.1.9",
     "tsc-alias": "1.8.17",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.62.0"
+    "typescript-eslint": "^8.62.1"
   },
   "repository": {
     "type": "git",
