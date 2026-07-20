@@ -2,6 +2,7 @@ import { IncomingMessage, OutgoingMessage } from 'http';
 import { ContentType, deprecatedJsonPropertiesRegExp, formDataRegExp, spaceRegExp } from '@const';
 import { Readable } from 'stream';
 import { AladoServerError } from '@dto';
+import { xmlParser } from './xml-parser';
 
 export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, limit: number) {
   const contentType = req.headers['content-type'];
@@ -103,6 +104,17 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
             result.body[key] = value;
           });
           resolve();
+        } else if (
+          [
+            ContentType.XML.toString(),
+            ContentType.TEXT_XML.toString(),
+          ].includes(contentType)
+        ) {
+          try {
+            result.body = xmlParser(body);
+          } catch (e) {
+            reject({ statusCode: 400, message: `Invalid XML body: ${e.message}` });
+          }
         } else {
           result.body = body;
           resolve();
