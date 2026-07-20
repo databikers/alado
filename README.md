@@ -1122,7 +1122,7 @@ public getAvatar(req: Request) {
 }
 ```
 
-4. XML Request Body (>=2.6.0)
+## XML Request Body (>=2.6.0)
 
 When a request arrives with a `Content-Type` of `text/xml` or `application/xml`, Alado automatically parses the raw body into a plain JavaScript object before your handler runs — no configuration needed, and no external XML library involved. `req.body` behaves the same way it does for JSON requests.
 
