@@ -1122,6 +1122,21 @@ public getAvatar(req: Request) {
 }
 ```
 
+4. XML Request Body (>=2.6.0)
+
+When a request arrives with a `Content-Type` of `text/xml` or `application/xml`, Alado automatically parses the raw body into a plain JavaScript object before your handler runs — no configuration needed, and no external XML library involved. `req.body` behaves the same way it does for JSON requests.
+
+### How the conversion works
+
+- **Elements become object keys.** Each XML tag becomes a key in the resulting object, with its children nested underneath.
+- **Repeated sibling tags collapse into an array.** `<item>a</item><item>b</item>` becomes `item: ['a', 'b']` rather than overwriting the key.
+- **Leaf elements become plain strings.** `<name>Daniel</name>` becomes `name: 'Daniel'` — no wrapper object, no type coercion (numeric-looking text like `"10000.00"` is kept exactly as written, since silently converting it to a JS number would lose precision on monetary values).
+- **Attributes are namespaced under `@attrs`.** An element like `<amount currency="USD">100</amount>` becomes `{ '@attrs': { currency: 'USD' }, '#text': '100' }`, keeping attribute data separate from element data and text content.
+- **CDATA sections are unwrapped automatically**, and their contents treated as plain text.
+- **Namespaces resolve to local names.** For SOAP envelopes or ISO 20022 style payment messages, elements are keyed by their local name regardless of which prefix the sender used (`soapenv:Body` and `soap:Body` parse identically if they share a namespace). Each element also carries an `@ns` field with its resolved namespace URI, so elements sharing a local name across different namespaces stay distinguishable.
+
+Because the contract is identical to JSON, everything documented under [`defineRequest`](#definerequest) and [DTOs](#dtos) — `@validateProperty`, `@documentProperty`, `@transformProperty`, auto-generated OpenAPI schemas applies to XML bodies without any extra setup.
+
 ---
 
 ## OpenAPI / Swagger
