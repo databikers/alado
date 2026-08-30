@@ -12,7 +12,7 @@
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "author": "Pavlo Lazunko",
+  "author": "Pavlo Lazunko & Data Bikers Limited",
   "license": "MIT",
   "scripts": {
     "build": "rm -rf dist && tsc && tsc-alias && eslint src/**/*.ts",
@@ -30,15 +30,15 @@
     "@eslint/js": "^10.0.1",
     "@types/node": "24.13.1",
     "@types/prettier": "3.0.0",
-    "@typescript-eslint/eslint-plugin": "8.67.0",
-    "@typescript-eslint/parser": "8.67.0",
-    "eslint": "10.8.1",
+    "@typescript-eslint/eslint-plugin": "8.68.0",
+    "@typescript-eslint/parser": "8.68.0",
+    "eslint": "10.9.1",
     "husky": "9.1.7",
     "prettier": "3.9.6",
     "prettier-plugin-multiline-arrays": "4.1.11",
     "tsc-alias": "1.9.2",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.68.0"
   },
   "repository": {
     "type": "git",
