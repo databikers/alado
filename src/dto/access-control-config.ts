@@ -5,5 +5,5 @@ export type AccessControlConfig<T> = {
   transformInputProperty?: (inputPropertyValue: unknown) => T | Promise<T>;
   compareWithProperty?: string;
   expectedValue?: T;
-  accessControlHandler: (inputPropertyValue: unknown) => Promise<boolean>;
+  accessControlHandler?: (inputPropertyValue: unknown) => Promise<boolean>;
 } & AladoServerError;
