@@ -1,8 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { join } from 'path';
-import { access, constants, createReadStream, readdirSync } from 'fs';
+import { access, constants, createReadStream, readdirSync, readFileSync } from 'fs';
 
-import { ContentType, HttpMethod } from '@const';
+import { ContentType, HttpMethod, SWAGGER_INITIALIZER_FILE_NAME } from '@const';
 import { RequestProcessorOptions } from '@options';
 import { AladoServerError, ContextRequest, Request, Response } from '@dto';
 import {
@@ -15,6 +15,7 @@ import {
   validateRequestFiles,
   validateRequestPart,
 } from '@helper';
+import * as fs from 'fs';
 
 const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
 const swaggerUiFiles: string[] = readdirSync(swaggerUiAssetPath);
@@ -83,7 +84,18 @@ export class RequestProcessor {
                   body: 'Not Found',
                 });
               } else {
-                createReadStream(filePath).pipe(res);
+                if (url.replace('/', '') === SWAGGER_INITIALIZER_FILE_NAME) {
+                  const initFileContent = readFileSync(filePath)
+                    .toString()
+                    .replace('https://petstore.swagger.io/v2/swagger.json', '/swagger.json');
+                  res.writeHead(200, {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Content-Length': Buffer.byteLength(initFileContent),
+                  });
+                  res.end(initFileContent);
+                } else {
+                  createReadStream(filePath).pipe(res);
+                }
               }
             });
           } else if (req.url?.startsWith(`/swagger.json`)) {

@@ -16,7 +16,6 @@
   "license": "MIT",
   "scripts": {
     "build": "rm -rf dist && tsc && tsc-alias && eslint src/**/*.ts",
-    "postinstall": "node postinstall.js",
     "eslint": "eslint src --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 0",
     "check-format": "prettier . --check",

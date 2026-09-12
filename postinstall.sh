@@ -1,4 +1,0 @@
-#!/bin/bash
-cp assets/swagger-initializer.js ../swagger-ui-dist/swagger-initializer.js;
-chmod -R 777 ../swagger-ui-dist/swagger-initializer.js;
-echo Post-installation script completed.
