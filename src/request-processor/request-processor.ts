@@ -15,7 +15,6 @@ import {
   validateRequestFiles,
   validateRequestPart,
 } from '@helper';
-import * as fs from 'fs';
 
 const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
 const swaggerUiFiles: string[] = readdirSync(swaggerUiAssetPath);
