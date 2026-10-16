@@ -112,6 +112,7 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
         ) {
           try {
             result.body = xmlParser(body);
+            resolve();
           } catch (e) {
             reject({ statusCode: 400, message: `Invalid XML body: ${e.message}` });
           }
