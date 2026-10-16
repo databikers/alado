@@ -8,7 +8,14 @@ export function validateRequestFiles(context: Context<any>, request: any): Alado
       if (required && (!request.files || !request.files[file])) {
         return requiredError;
       }
-      const { size, mimetype } = request.files[file];
+      const uploaded = request.files?.[file];
+      if (!uploaded) {
+        if (required) {
+          return requiredError;
+        }
+        continue;
+      }
+      const { size, mimetype } = uploaded;
       if (!mimetypes.includes(mimetype)) {
         return mimetypeError;
       }
