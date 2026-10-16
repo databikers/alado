@@ -51,6 +51,7 @@ export class AladoServer {
         enableCors: options.cors?.enable,
         logger: this.logger,
         verbose: options.verbose,
+        maxBodySizeBytes: options.maxBodySizeBytes,
       },
       {
         ...options.ssl,
