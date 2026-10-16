@@ -99,16 +99,19 @@ class Validator {
   //  Object rules
 
   shape(schema: Record<string, ValidatorFn>): Validator {
-    return this.add((v, root) => {
+    return this.add(async (v) => {
       if (typeof v !== 'object' || v === null || Array.isArray(v)) {
         return false;
       }
-      return Object.entries(schema).every(
-        ([
-          key,
-          fn,
-        ]) => fn(v[key], root ?? v),
+      const results = await Promise.all(
+        Object.entries(schema).map(
+          ([
+            key,
+            fn,
+          ]) => fn(v[key], v),
+        ),
       );
+      return results.every(Boolean);
     });
   }
 
@@ -177,8 +180,15 @@ class Validator {
   //  Array rules
 
   items(fn: ValidatorFn): Validator {
-    return this.add((v) => Array.isArray(v) && v.every((item) => fn(item)));
+    return this.add(async (v) => {
+      if (!Array.isArray(v)) {
+        return false;
+      }
+      const results = await Promise.all(v.map((item) => fn(item)));
+      return results.every(Boolean);
+    });
   }
+
   minItems(n: number): Validator {
     return this.add((v) => Array.isArray(v) && v.length >= n);
   }
