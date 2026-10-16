@@ -1,4 +1,5 @@
 export {
+  AccessControlConfig,
   Context,
   ContextRequest,
   RequestAuthentication,
