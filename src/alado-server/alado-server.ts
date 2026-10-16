@@ -34,6 +34,7 @@ export class AladoServer {
           allowedMethods: new Map<any, any>(),
           exposeHeaders: options?.cors?.exposeHeaders || [],
           allowedCredentials: options?.cors?.allowedCredentials || false,
+          maxAge: options?.cors?.maxAge,
         },
         openApiDoc: options.openApiDoc,
         logger: this.logger,
