@@ -435,21 +435,34 @@ describe('XML bodies', () => {
     assert.match(r.json().message, /Invalid XML body/);
   });
 
-  it(
-    'accepts application/xml with a charset parameter',
-    {
-      todo: 'BUG: XML is matched with includes(contentType), so "application/xml; charset=utf-8" falls through to raw text',
-    },
-    async () => {
+  for (const contentType of [
+    'application/xml; charset=utf-8',
+    'text/xml;charset=UTF-8',
+    'Application/XML',
+    'application/soap+xml; charset=utf-8',
+  ]) {
+    it(`parses XML sent as ${contentType}`, async () => {
       const r = await send(port, {
         method: 'POST',
         path: '/payment',
-        headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+        headers: { 'Content-Type': contentType },
         body: '<payment><amount>1.50</amount></payment>',
       });
-      assert.equal(r.status, 200);
-    },
-  );
+      assert.equal(r.status, 200, r.text);
+      assert.equal(r.json().payment.amount, '1.50');
+    });
+  }
+
+  it('does not treat lookalike types as XML', async () => {
+    // not parsed -> body stays a string -> the XML DTO rejects it
+    const r = await send(port, {
+      method: 'POST',
+      path: '/payment',
+      headers: { 'Content-Type': 'application/xml-dtd' },
+      body: '<payment><amount>1.50</amount></payment>',
+    });
+    assert.equal(r.status, 400);
+  });
 });
 
 describe('query validation', () => {

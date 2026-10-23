@@ -4,6 +4,12 @@ import { Readable } from 'stream';
 import { AladoServerError } from '@dto';
 import { xmlParser } from './xml-parser';
 
+// "application/xml; charset=utf-8" is still XML, and so are +xml types such as SOAP 1.2's application/soap+xml
+export function isXmlContentType(contentType: string | undefined): boolean {
+  const mime: string = (contentType || '').split(';')[0].trim().toLowerCase();
+  return mime === ContentType.XML || mime === ContentType.TEXT_XML || /^application\/[\w.+-]+\+xml$/.test(mime);
+}
+
 export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, limit: number) {
   const contentType = req.headers['content-type'];
   const result: any = {
@@ -115,12 +121,7 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
             }
           }
           resolve();
-        } else if (
-          [
-            ContentType.XML.toString(),
-            ContentType.TEXT_XML.toString(),
-          ].includes(contentType)
-        ) {
+        } else if (isXmlContentType(contentType)) {
           try {
             result.body = xmlParser(body);
             resolve();
