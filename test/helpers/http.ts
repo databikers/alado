@@ -125,3 +125,57 @@ export function baseOptions(appId: string, extra: Record<string, unknown> = {}) 
     ...extra,
   } as any;
 }
+
+/**
+ * Sends one request body as several writes with a pause between them, so the
+ * server sees separate 'data' events (used to split multi-byte characters).
+ */
+export function sendInParts(
+  port: number,
+  req: { method: string; path: string; headers: Record<string, string> },
+  parts: Buffer[],
+  pauseMs: number = 30,
+): Promise<RawResponse> {
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  return new Promise((resolve, reject) => {
+    const r = http.request(
+      {
+        host: '127.0.0.1',
+        port,
+        method: req.method,
+        path: req.path,
+        headers: { ...req.headers, 'Content-Length': total },
+        agent: false,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8');
+          resolve({ status: res.statusCode as number, headers: res.headers, text, json: () => JSON.parse(text) });
+        });
+      },
+    );
+    r.setTimeout(3000, () => r.destroy(new Error(`timeout: ${req.method} ${req.path}`)));
+    r.on('error', reject);
+    r.flushHeaders();
+    let i = 0;
+    const next = () => {
+      if (i === parts.length) {
+        return r.end();
+      }
+      r.write(parts[i++]);
+      setTimeout(next, pauseMs);
+    };
+    setTimeout(next, pauseMs);
+  });
+}
+
+/** Splits `buf` right after the first byte of the first multi-byte UTF-8 character. */
+export function splitInsideMultibyte(buf: Buffer): Buffer[] {
+  const at = buf.findIndex((b) => b >= 0xc0) + 1;
+  return [
+    buf.subarray(0, at),
+    buf.subarray(at),
+  ];
+}

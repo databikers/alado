@@ -13,7 +13,16 @@ import {
   validate,
   validateProperty,
 } from '../../src';
-import { baseOptions, close, listen, multipart, send, sendJson } from '../helpers/http';
+import {
+  baseOptions,
+  close,
+  listen,
+  multipart,
+  send,
+  sendInParts,
+  sendJson,
+  splitInsideMultibyte,
+} from '../helpers/http';
 
 const appId = 'validation';
 const json = { 'Content-Type': 'application/json' };
@@ -534,5 +543,55 @@ describe('XML bodies: truncated input', () => {
     });
     assert.equal(r.status, 400);
     assert.match(r.json().message, /Invalid XML body: Unclosed element <payment>/);
+  });
+});
+
+describe('chunked request bodies', () => {
+  it('keeps a multi-byte UTF-8 character that is split across chunks (JSON)', async () => {
+    const body = Buffer.from(JSON.stringify({ email: 'josé@málaga.es', age: 30 }), 'utf8');
+    const r = await sendInParts(
+      port,
+      { method: 'POST', path: '/signup', headers: { 'Content-Type': 'application/json' } },
+      splitInsideMultibyte(body),
+    );
+    assert.equal(r.status, 201, r.text);
+    assert.equal(r.json().email, 'josé@málaga.es');
+  });
+
+  it('keeps a split multi-byte character in raw text bodies', async () => {
+    const r = await sendInParts(
+      port,
+      { method: 'POST', path: '/raw', headers: { 'Content-Type': 'text/plain' } },
+      splitInsideMultibyte(Buffer.from('Málaga → Київ', 'utf8')),
+    );
+    assert.equal(r.json().rawBody, 'Málaga → Київ');
+  });
+
+  it('keeps a split multi-byte character in XML bodies', async () => {
+    const r = await sendInParts(
+      port,
+      { method: 'POST', path: '/payment', headers: { 'Content-Type': 'application/xml' } },
+      splitInsideMultibyte(Buffer.from('<payment><amount>1.50</amount><note>café</note></payment>', 'utf8')),
+    );
+    assert.equal(r.status, 200, r.text);
+  });
+
+  it('counts the limit in bytes across chunks, not characters', async () => {
+    // LIMIT chars of 'é' = 2 * LIMIT bytes: over the byte limit, under it in characters
+    const r = await sendInParts(port, { method: 'POST', path: '/raw', headers: { 'Content-Type': 'text/plain' } }, [
+      Buffer.from('é'.repeat(LIMIT / 4), 'utf8'),
+      Buffer.from('é'.repeat(LIMIT / 4), 'utf8'),
+      Buffer.from('é'.repeat(LIMIT / 2), 'utf8'),
+    ]).catch((e) => e);
+    assert.ok(r instanceof Error || r.status === 413, `got ${r.status}`);
+  });
+
+  it('accepts a body of exactly the limit spread over several chunks', async () => {
+    const r = await sendInParts(port, { method: 'POST', path: '/raw', headers: { 'Content-Type': 'text/plain' } }, [
+      Buffer.alloc(LIMIT / 2, 'a'),
+      Buffer.alloc(LIMIT / 2, 'b'),
+    ]);
+    assert.equal(r.status, 200);
+    assert.equal(r.json().rawBody.length, LIMIT);
   });
 });
