@@ -253,23 +253,42 @@ describe('validate: object rules', () => {
     assert.equal(await v({ status: 'active', reason: 'x' }), false);
   });
 
-  it(
-    'match does not resolve case keys through Object.prototype',
-    { todo: 'BUG: cases[caseKey] reads inherited keys; status "constructor" calls Object() and passes' },
-    async () => {
-      const v = validate
-        .object()
-        .shape({
-          status: validate.string().build(),
-          reason: validate
-            .string()
-            .match('status', { banned: validate.string().min(5).build() }, () => false)
-            .build(),
-        })
-        .build();
-      assert.equal(await v({ status: 'constructor', reason: 'x' }), false);
-    },
-  );
+  it('match does not resolve case keys through Object.prototype', async () => {
+    const v = validate
+      .object()
+      .shape({
+        status: validate.string().build(),
+        reason: validate
+          .string()
+          .match('status', { banned: validate.string().min(5).build() }, () => false)
+          .build(),
+      })
+      .build();
+    for (const status of [
+      'constructor',
+      'toString',
+      'hasOwnProperty',
+      '__proto__',
+      'valueOf',
+    ]) {
+      assert.equal(await v({ status, reason: 'x' }), false, status);
+    }
+  });
+
+  it('match without a fallback passes inherited-looking keys instead of calling Object.prototype', async () => {
+    const v = validate
+      .object()
+      .shape({
+        status: validate.string().build(),
+        reason: validate
+          .string()
+          .match('status', { banned: () => false })
+          .build(),
+      })
+      .build();
+    assert.equal(await v({ status: 'constructor', reason: 'x' }), true);
+    assert.equal(await v({ status: 'banned', reason: 'x' }), false);
+  });
 });
 
 describe('validate: array rules', () => {

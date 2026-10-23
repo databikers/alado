@@ -169,7 +169,8 @@ class Validator {
         return true;
       }
       const caseKey = String(ctx[key]);
-      const fn = cases[caseKey] ?? fallback;
+      // own keys only: 'constructor', 'toString', ... must not resolve to Object.prototype
+      const fn = Object.prototype.hasOwnProperty.call(cases, caseKey) ? cases[caseKey] : fallback;
       if (!fn) {
         return true;
       }
