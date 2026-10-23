@@ -1,6 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { join } from 'path';
-import { access, constants, createReadStream, readdirSync, readFileSync } from 'fs';
+import { createReadStream, readdirSync, readFileSync } from 'fs';
 
 import { ContentType, HttpMethod, SWAGGER_INITIALIZER_FILE_NAME } from '@const';
 import { RequestProcessorOptions } from '@options';
@@ -18,7 +18,32 @@ import {
 import { options } from 'prettier-plugin-multiline-arrays';
 
 const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
-const swaggerUiFiles: string[] = readdirSync(swaggerUiAssetPath);
+// Only regular files directly inside swagger-ui-dist are ever served.
+const swaggerUiFiles: Set<string> = new Set(
+  readdirSync(swaggerUiAssetPath, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name),
+);
+
+/**
+ * Maps a request URL to a Swagger UI asset name, or undefined if it is not one.
+ * The result is always an exact entry of the swagger-ui-dist listing, so no
+ * part of the URL ever reaches the filesystem (no `..`, no subdirectories).
+ */
+export function resolveSwaggerUiFile(url: string, docsRoute: string): string | undefined {
+  const route: string = clearRoutePath(docsRoute || '');
+  const pathname: string = url.split('?')[0];
+  let name: string;
+  if (pathname === route) {
+    name = 'index.html';
+  } else if (route && pathname.startsWith(`${route}/`)) {
+    name = pathname.slice(route.length + 1);
+  } else {
+    // index.html references its assets relatively, so they are requested from the root
+    name = pathname.replace(/^\//, '');
+  }
+  return swaggerUiFiles.has(name) ? name : undefined;
+}
 
 export class RequestProcessor {
   private readonly options: RequestProcessorOptions;
@@ -64,40 +89,33 @@ export class RequestProcessor {
       // Process Open API routes
       if (openApiDoc?.enable) {
         if (method === HttpMethod.GET) {
-          if (
-            !req.url?.startsWith(`/swagger.json`) &&
-            ((url?.startsWith(clearRoutePath(openApiDoc?.route as string)) &&
-              ![
-                '',
-                '/',
-              ].includes(openApiDoc?.route as string)) ||
-              swaggerUiFiles.includes(url.replace('/', '')) ||
-              url === openApiDoc?.route)
-          ) {
-            let filePath = join(swaggerUiAssetPath, url.replace(`${clearRoutePath(openApiDoc.route as string)}`, ''));
-            filePath += url === clearRoutePath(openApiDoc.route as string) ? '/index.html' : '';
-            return access(filePath, constants.F_OK, (err) => {
-              if (err) {
-                return this.respond(res, {
-                  statusCode: 404,
-                  headers: { 'Content-Type': 'text/plain' },
-                  body: 'Not Found',
-                });
+          const swaggerFile: string | undefined = req.url?.startsWith(`/swagger.json`)
+            ? undefined
+            : resolveSwaggerUiFile(url, openApiDoc.route as string);
+          if (swaggerFile) {
+            // swaggerFile is a bare name from the swagger-ui-dist listing, never a path from the URL
+            const filePath = join(swaggerUiAssetPath, swaggerFile);
+            if (swaggerFile === SWAGGER_INITIALIZER_FILE_NAME) {
+              const initFileContent = readFileSync(filePath)
+                .toString()
+                .replace('https://petstore.swagger.io/v2/swagger.json', '/swagger.json');
+              res.writeHead(200, {
+                'Content-Type': 'application/javascript; charset=utf-8',
+                'Content-Length': Buffer.byteLength(initFileContent),
+              });
+              res.end(initFileContent);
+              return;
+            }
+            const stream = createReadStream(filePath);
+            stream.on('error', () => {
+              if (!res.headersSent) {
+                this.respond(res, { statusCode: 404, headers: { 'Content-Type': 'text/plain' }, body: 'Not Found' });
               } else {
-                if (url.replace('/', '') === SWAGGER_INITIALIZER_FILE_NAME) {
-                  const initFileContent = readFileSync(filePath)
-                    .toString()
-                    .replace('https://petstore.swagger.io/v2/swagger.json', '/swagger.json');
-                  res.writeHead(200, {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'Content-Length': Buffer.byteLength(initFileContent),
-                  });
-                  res.end(initFileContent);
-                } else {
-                  createReadStream(filePath).pipe(res);
-                }
+                res.destroy();
               }
             });
+            stream.pipe(res);
+            return;
           } else if (req.url?.startsWith(`/swagger.json`)) {
             return this.respond(res, {
               statusCode: 200,
