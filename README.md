@@ -457,7 +457,7 @@ const isAge = validate.number().integer().min(18).max(120).required().build();
 const isId = validate.string().objectId().required().build();
 ```
 
-Each chain ends with `.build()` which returns `(input: any) => Promise<boolean>` — build once, reuse anywhere. For sync-only rules use `.buildSync()` to get a plain `boolean`.
+Each chain ends with `.build()` which returns `(input: any) => Promise<boolean>` — build once, reuse anywhere.
 
 ---
 
