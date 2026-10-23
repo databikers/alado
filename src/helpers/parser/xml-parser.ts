@@ -171,6 +171,7 @@ export function xmlParser(xmlInput: string): XmlObject {
           if (end === -1) {
             throw new Error('Unterminated CDATA section');
           }
+          // CDATA is literal: no entity decoding
           textContent += xml.slice(pos + 9, end);
           pos = end + 3;
           continue;
@@ -188,7 +189,7 @@ export function xmlParser(xmlInput: string): XmlObject {
       } else {
         const nextTag = xml.indexOf('<', pos);
         const end = nextTag === -1 ? xml.length : nextTag;
-        textContent += xml.slice(pos, end);
+        textContent += decodeEntities(xml.slice(pos, end));
         pos = end;
       }
     }
@@ -197,7 +198,7 @@ export function xmlParser(xmlInput: string): XmlObject {
       throw new Error(`Unclosed element <${rawTagName}>`);
     }
 
-    const trimmedText = decodeEntities(textContent.trim());
+    const trimmedText = textContent.trim();
 
     if (sawChildElement) {
       children['@ns'] = namespaceUri as unknown as string;

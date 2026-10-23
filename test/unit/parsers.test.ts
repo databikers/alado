@@ -262,14 +262,15 @@ describe('xmlParser', () => {
     assert.throws(() => xmlParser('<a.b>1</aXb>'));
   });
 
-  it(
-    'leaves entity-like text inside CDATA untouched',
-    { todo: 'BUG: decodeEntities runs after CDATA is unwrapped, so &lt; inside CDATA becomes <' },
-    () => {
-      const r: any = xmlParser('<a><b><![CDATA[&lt;tag&gt;]]></b></a>');
-      assert.equal(r.a.b, '&lt;tag&gt;');
-    },
-  );
+  it('leaves entity-like text inside CDATA untouched', () => {
+    const r: any = xmlParser('<a><b><![CDATA[&lt;tag&gt; &amp;]]></b></a>');
+    assert.equal(r.a.b, '&lt;tag&gt; &amp;');
+  });
+
+  it('decodes entities around CDATA but not inside it', () => {
+    const r: any = xmlParser('<a><b>x&amp;<![CDATA[&amp;]]>&lt;y</b></a>');
+    assert.equal(r.a.b, 'x&&amp;<y');
+  });
 
   it(
     'does not let a <__proto__> element change an object prototype',
