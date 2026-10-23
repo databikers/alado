@@ -10,6 +10,33 @@ export function isXmlContentType(contentType: string | undefined): boolean {
   return mime === ContentType.XML || mime === ContentType.TEXT_XML || /^application\/[\w.+-]+\+xml$/.test(mime);
 }
 
+type ReceivedBody = { chunks: Buffer[]; bytes: number };
+
+function collectChunks(
+  req: IncomingMessage,
+  limit: number,
+  received: ReceivedBody,
+  reject: (error: AladoServerError) => void,
+) {
+  return (chunk: Buffer) => {
+    received.bytes += chunk.length;
+    if (limit && received.bytes > limit) {
+      req.removeAllListeners('data');
+      req.removeAllListeners('end');
+      reject({
+        statusCode: 413,
+        message: 'Content Too Large',
+      } as AladoServerError);
+      return;
+    }
+    received.chunks.push(chunk);
+  };
+}
+
+function concatChunks(received: ReceivedBody, encoding: BufferEncoding): string {
+  return Buffer.concat(received.chunks, received.bytes).toString(encoding);
+}
+
 export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, limit: number) {
   const contentType = req.headers['content-type'];
   const result: any = {
@@ -18,24 +45,15 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
     rawBody: '',
   };
   let body: string = '';
+  const received: ReceivedBody = { chunks: [], bytes: 0 };
   if (contentType?.startsWith(ContentType.FORM_DATA)) {
-    req.setEncoding('binary');
     const matchingArray = /boundary=(.+)$/.exec(req.headers['content-type'] as string);
     const boundary: string | null = matchingArray && matchingArray[1];
     await new Promise<void>((resolve, reject) => {
-      req.on('data', (chunk: any) => {
-        body += chunk.toString();
-        // binary encoding: one char per byte, so length is the byte count
-        if (limit && body.length > limit) {
-          req.removeAllListeners('data');
-          req.removeAllListeners('end');
-          reject({
-            statusCode: 413,
-            message: 'Content Too Large',
-          } as AladoServerError);
-        }
-      });
+      req.on('data', collectChunks(req, limit, received, reject));
       req.on('end', () => {
+        // multipart is parsed as a binary string: one char per byte, file bytes kept intact
+        body = concatChunks(received, 'binary');
         result.rawBody = body;
         const formData: any = {
           files: [],
@@ -86,18 +104,9 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
     });
   } else {
     await new Promise<void>((resolve, reject) => {
-      req.on('data', (chunk: any) => {
-        body += chunk.toString();
-        if (limit && Buffer.byteLength(body, 'utf8') > limit) {
-          req.removeAllListeners('data');
-          req.removeAllListeners('end');
-          reject({
-            statusCode: 413,
-            message: 'Content Too Large',
-          } as AladoServerError);
-        }
-      });
+      req.on('data', collectChunks(req, limit, received, reject));
       req.on('end', () => {
+        body = concatChunks(received, 'utf8');
         result.rawBody = body;
         if (contentType?.startsWith(ContentType.JSON)) {
           try {
