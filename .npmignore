@@ -10,3 +10,6 @@ eslint.config.js
 .husky
 src/
 sandbox/
+.test-dist
+test
+tsconfig.test.json
