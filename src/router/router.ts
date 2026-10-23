@@ -4,7 +4,25 @@ import { RouterOptions } from '@options';
 import { openApiDocFactory } from '@factory';
 import { clearRoutePath, validateContext } from '@helper';
 
-const pathVariableRegex = /:([^/]+?)+/g;
+const pathVariableRegex = /:([^/]+)/g;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function toRoutePattern(path: string): { pattern: string; params: string[] } {
+  const params: string[] = [];
+  let pattern: string = '';
+  let last: number = 0;
+  for (const match of path.matchAll(pathVariableRegex)) {
+    pattern += escapeRegExp(path.slice(last, match.index));
+    pattern += '([^/]+?)';
+    params.push(match[1]);
+    last = (match.index as number) + match[0].length;
+  }
+  pattern += escapeRegExp(path.slice(last));
+  return { pattern, params };
+}
 
 // TODO: default route 404;
 type RouterUseArgs =
@@ -68,22 +86,16 @@ export class Router {
     }
 
     const pathData: any = {};
-    let route: string = `${method}${clearRoutePath(uri)}`;
-
     let openApiRoute: string = uri;
     const openApiMethod: string = method.toLowerCase();
 
-    let optionsRoute: string = `${HttpMethod.OPTIONS}${clearRoutePath(uri)}`;
-    const matches: RegExpMatchArray | null = route.match(pathVariableRegex);
-    if (matches) {
-      for (let i = 0; i < matches.length; i++) {
-        const variable: string = matches[i].replace(':', '');
-        pathData[variable] = i + 1;
-        openApiRoute = openApiRoute.replace(`:${variable}`, `{${variable}}`);
-        route = route.toString().replace(matches[i], '([^/]+?)');
-        optionsRoute = optionsRoute.toString().replace(matches[i], '([^/]+?)');
-      }
-    }
+    const { pattern, params } = toRoutePattern(clearRoutePath(uri));
+    const route: string = `${method}${pattern}`;
+    const optionsRoute: string = `${HttpMethod.OPTIONS}${pattern}`;
+    params.forEach((variable: string, i: number) => {
+      pathData[variable] = i + 1;
+      openApiRoute = openApiRoute.replace(`:${variable}`, `{${variable}}`);
+    });
 
     if (this.options.openApiDoc?.enable && !context?.options?.isHidden) {
       openApiDocFactory(openApiMethod, openApiRoute, context, this.openApiDocObject);
