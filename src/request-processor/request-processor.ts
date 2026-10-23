@@ -15,6 +15,7 @@ import {
   validateRequestFiles,
   validateRequestPart,
 } from '@helper';
+import { options } from 'prettier-plugin-multiline-arrays';
 
 const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
 const swaggerUiFiles: string[] = readdirSync(swaggerUiAssetPath);
@@ -112,19 +113,22 @@ export class RequestProcessor {
         queryString,
       ] = url.split('?');
       const route = router.parse(method as HttpMethod, clearRoutePath(uri));
-      const backgroundHeaders: Record<string, string> = {
-        'Access-Control-Allow-Methods': route?.allowedMethods?.join(', ') || '',
-        'Access-Control-Allow-Headers': this.options.router.options.cors?.allowedHeaders?.join(', ') || '',
-        'Access-Control-Expose-Headers': this.options.router.options.cors?.exposeHeaders?.join(', ') || '',
-        'Access-Control-Allow-Credentials': this.options.router.options.cors?.allowedCredentials ? 'true' : 'false',
-      };
-      if (Array.isArray(this.options.router.options.cors.allowedOrigin)) {
-        if (this.options.router.options.cors.allowedOrigin.includes(origin)) {
-          backgroundHeaders['Access-Control-Allow-Origin'] = origin;
+      let backgroundHeaders: Record<string, string> = {};
+      if (this.options.enableCors) {
+        backgroundHeaders = {
+          'Access-Control-Allow-Methods': route?.allowedMethods?.join(', ') || '',
+          'Access-Control-Allow-Headers': this.options.router.options.cors?.allowedHeaders?.join(', ') || '',
+          'Access-Control-Expose-Headers': this.options.router.options.cors?.exposeHeaders?.join(', ') || '',
+          'Access-Control-Allow-Credentials': this.options.router.options.cors?.allowedCredentials ? 'true' : 'false',
+        };
+        if (Array.isArray(this.options.router.options.cors.allowedOrigin)) {
+          if (this.options.router.options.cors.allowedOrigin.includes(origin)) {
+            backgroundHeaders['Access-Control-Allow-Origin'] = origin;
+          }
+        } else {
+          backgroundHeaders['Access-Control-Allow-Origin'] =
+            (this.options.router.options.cors.allowedOrigin as string) || origin;
         }
-      } else {
-        backgroundHeaders['Access-Control-Allow-Origin'] =
-          (this.options.router.options.cors.allowedOrigin as string) || origin;
       }
       if (!route) {
         // Not Found
