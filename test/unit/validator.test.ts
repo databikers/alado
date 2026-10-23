@@ -345,4 +345,127 @@ describe('validate: README contract', () => {
     assert.equal(await r, true);
     assert.equal(await v('y'), true);
   });
+
+  it('buildSync() returns a plain boolean, as in the README example', () => {
+    const isValidName = validate.string().min(2).max(50).buildSync();
+    const r = isValidName('Pablo');
+    assert.equal(r, true);
+    assert.equal(typeof r, 'boolean');
+    assert.equal(isValidName('P'), false);
+  });
+});
+
+describe('validate: buildSync', () => {
+  it('applies the same required/optional semantics as build()', () => {
+    assert.equal(validate.string().email().buildSync()(''), true);
+    assert.equal(validate.string().email().required().buildSync()(''), false);
+    assert.equal(validate.number().required().buildSync()(0), true);
+  });
+
+  it('agrees with build() on every sync rule', async () => {
+    const chains = [
+      () => validate.string().email(),
+      () => validate.string().uuid(),
+      () => validate.number().integer().min(1).max(10),
+      () => validate.string().enum('a', 'b'),
+      () => validate.array().minItems(1).unique(),
+      () => validate.object().xor('email', 'phone'),
+    ];
+    const inputs = [
+      'a@b.co',
+      'x',
+      5,
+      11,
+      'a',
+      [1],
+      [
+        1,
+        1,
+      ],
+      { email: 'x' },
+      { email: 'x', phone: 'y' },
+      {},
+    ];
+    for (const chain of chains) {
+      const async = chain().build();
+      const sync = chain().buildSync();
+      for (const input of inputs) {
+        assert.equal(sync(input), await async(input), `${chain} on ${JSON.stringify(input)}`);
+      }
+    }
+  });
+
+  it('composes with nested buildSync() validators in shape() and items()', () => {
+    const v = validate
+      .object()
+      .shape({
+        email: validate.string().email().required().buildSync(),
+        tags: validate.array().items(validate.string().min(2).required().buildSync()).buildSync(),
+      })
+      .buildSync();
+    assert.equal(v({ email: 'a@b.co', tags: ['xy'] }), true);
+    assert.equal(v({ email: 'a@b.co', tags: ['x'] }), false);
+    assert.equal(v({ tags: ['xy'] }), false);
+  });
+
+  it('supports when() with sync branches', () => {
+    const v = validate
+      .object()
+      .shape({
+        type: validate.string().buildSync(),
+        contact: validate.string().when('type', 'email', validate.string().email().buildSync()).buildSync(),
+      })
+      .buildSync();
+    assert.equal(v({ type: 'email', contact: 'a@b.co' }), true);
+    assert.equal(v({ type: 'email', contact: 'nope' }), false);
+  });
+
+  it('throws when building with an async custom rule', () => {
+    assert.throws(
+      () =>
+        validate
+          .string()
+          .custom(async () => true)
+          .buildSync(),
+      { message: 'Validator contains async rules — use .build() instead of .buildSync()' },
+    );
+  });
+
+  it('throws at call time when a rule returns a Promise', () => {
+    const v = validate.object().shape({ email: validate.string().email().build() }).buildSync();
+    assert.throws(() => v({ email: 'a@b.co' }), /use \.build\(\) instead of \.buildSync\(\)/);
+  });
+
+  it('does not throw for an async chain when the input is empty', () => {
+    // nothing runs for empty input, same as build()
+    const v = validate.object().shape({ email: validate.string().email().build() }).buildSync();
+    assert.equal(v(undefined), true);
+  });
+
+  it('build() still works after shape()/items() became sync-capable', async () => {
+    const v = validate.object().shape({ email: validate.string().email().required().build() }).build();
+    assert.equal(await v({ email: 'a@b.co' }), true);
+    assert.equal(await v({ email: 'nope' }), false);
+    const arr = validate.array().items(validate.number().build()).build();
+    assert.equal(
+      await arr([
+        1,
+        2,
+      ]),
+      true,
+    );
+    assert.equal(
+      await arr([
+        1,
+        'x',
+      ]),
+      false,
+    );
+  });
+
+  it('works as a @validateProperty handler', async () => {
+    // handler may return boolean | Promise<boolean>; a plain boolean must be accepted
+    const handler = validate.string().min(3).buildSync();
+    assert.equal(await Promise.resolve(handler('abcd')), true);
+  });
 });

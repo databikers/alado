@@ -1,4 +1,24 @@
 type ValidatorFn = (input: any, root?: any) => boolean | Promise<boolean>;
+type SyncValidatorFn = (input: any, root?: any) => boolean;
+
+const ASYNC_RULE_ERROR = 'Validator contains async rules — use .build() instead of .buildSync()';
+
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return value !== null && typeof value === 'object' && typeof (value as any).then === 'function';
+}
+
+function isAsyncFunction(fn: unknown): boolean {
+  return typeof fn === 'function' && fn.constructor?.name === 'AsyncFunction';
+}
+
+// Stays synchronous when every result is synchronous, so composed
+// validators built with .buildSync() can be nested in shape() / items().
+function every(results: Array<boolean | Promise<boolean>>): boolean | Promise<boolean> {
+  if (results.some(isThenable)) {
+    return Promise.all(results).then((r) => r.every(Boolean));
+  }
+  return (results as boolean[]).every(Boolean);
+}
 
 class Validator {
   private rules: ValidatorFn[] = [];
@@ -99,11 +119,11 @@ class Validator {
   //  Object rules
 
   shape(schema: Record<string, ValidatorFn>): Validator {
-    return this.add(async (v) => {
+    return this.add((v) => {
       if (typeof v !== 'object' || v === null || Array.isArray(v)) {
         return false;
       }
-      const results = await Promise.all(
+      return every(
         Object.entries(schema).map(
           ([
             key,
@@ -111,7 +131,6 @@ class Validator {
           ]) => fn(v[key], v),
         ),
       );
-      return results.every(Boolean);
     });
   }
 
@@ -181,12 +200,11 @@ class Validator {
   //  Array rules
 
   items(fn: ValidatorFn): Validator {
-    return this.add(async (v) => {
+    return this.add((v) => {
       if (!Array.isArray(v)) {
         return false;
       }
-      const results = await Promise.all(v.map((item) => fn(item)));
-      return results.every(Boolean);
+      return every(v.map((item) => fn(item)));
     });
   }
 
@@ -212,6 +230,35 @@ class Validator {
       }
       for (const rule of rules) {
         const ok = await rule(input, root);
+        if (!ok) {
+          return false;
+        }
+      }
+      return true;
+    };
+  }
+
+  // Same semantics as build(), but returns a plain boolean. Throws if any rule
+  // is async: eagerly for async functions passed to custom()/when()/match(),
+  // and at call time for any rule that returns a Promise.
+  buildSync(): SyncValidatorFn {
+    const rules = [...this.rules];
+    const required = this._required;
+    if (rules.some(isAsyncFunction)) {
+      throw new Error(ASYNC_RULE_ERROR);
+    }
+    return (input: any, root?: any): boolean => {
+      const isEmpty = input === null || input === undefined || input === '';
+      if (isEmpty) {
+        return !required;
+      }
+      for (const rule of rules) {
+        const ok = rule(input, root);
+        if (isThenable(ok)) {
+          // avoid an unhandled rejection from the promise we are discarding
+          Promise.resolve(ok).catch((): undefined => undefined);
+          throw new Error(ASYNC_RULE_ERROR);
+        }
         if (!ok) {
           return false;
         }
