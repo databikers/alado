@@ -254,15 +254,27 @@ describe('CORS', () => {
     assert.equal(r.headers['access-control-allow-origin'], undefined);
   });
 
-  it(
-    'sends no CORS headers when CORS is disabled',
-    { todo: 'SECURITY: with cors.enable=false every response still carries Access-Control-Allow-Origin: *' },
-    async () => {
-      const r = await send(closedPort, { path: '/private', headers: { Origin: 'https://evil.example' } });
-      assert.equal(r.status, 200);
-      assert.equal(r.headers['access-control-allow-origin'], undefined);
-    },
-  );
+  it('sends no CORS headers when CORS is disabled', async () => {
+    const r = await send(closedPort, { path: '/private', headers: { Origin: 'https://evil.example' } });
+    assert.equal(r.status, 200);
+    assert.equal(r.headers['access-control-allow-origin'], undefined);
+  });
+
+  it('sends no CORS headers on a 404 when CORS is disabled', async () => {
+    const r = await send(closedPort, { path: '/nope', headers: { Origin: 'https://evil.example' } });
+    assert.equal(r.status, 404);
+    assert.equal(r.headers['access-control-allow-origin'], undefined);
+  });
+
+  it('does not answer preflights when CORS is disabled', async () => {
+    const r = await send(closedPort, {
+      method: 'OPTIONS',
+      path: '/private',
+      headers: { Origin: 'https://evil.example' },
+    });
+    assert.equal(r.status, 404);
+    assert.equal(r.headers['access-control-allow-origin'], undefined);
+  });
 });
 
 describe('OpenAPI', () => {
@@ -344,36 +356,32 @@ describe('OpenAPI', () => {
     assert.equal((await send(docsPort, { path: '/internal/health' })).status, 200);
   });
 
-  it(
-    'uses "header" (not "headers") for header parameters',
-    { todo: 'BUG: header params are emitted with in: "headers", which is invalid OpenAPI' },
-    () => {
-      for (const path of Object.values<any>(spec.paths)) {
-        for (const op of Object.values<any>(path)) {
-          for (const p of op.parameters || []) {
-            assert.notEqual(p.in, 'headers');
-          }
+  it('uses "header" (not "headers") for header parameters', () => {
+    for (const path of Object.values<any>(spec.paths)) {
+      for (const op of Object.values<any>(path)) {
+        for (const p of op.parameters || []) {
+          assert.notEqual(p.in, 'headers');
         }
       }
-      // forces the case: there is no header DTO in this app, so re-check the factory directly
-      const { openApiDocFactory } = require('../../src/factory');
-      const doc: any = { paths: {}, components: { schemas: {}, securitySchemes: {} } };
-      openApiDocFactory(
-        'get',
-        '/h',
-        {
-          title: 't',
-          options: { openApiDoc: {} },
-          request: {
-            headers: { 'x-tenant': { validation: { required: true }, openApiDoc: { schema: { type: 'string' } } } },
-          },
-          response: { statusCode: 204 },
+    }
+    // forces the case: there is no header DTO in this app, so re-check the factory directly
+    const { openApiDocFactory } = require('../../src/factory');
+    const doc: any = { paths: {}, components: { schemas: {}, securitySchemes: {} } };
+    openApiDocFactory(
+      'get',
+      '/h',
+      {
+        title: 't',
+        options: { openApiDoc: {} },
+        request: {
+          headers: { 'x-tenant': { validation: { required: true }, openApiDoc: { schema: { type: 'string' } } } },
         },
-        doc,
-      );
-      assert.equal(doc.paths['/h'].get.parameters[0].in, 'header');
-    },
-  );
+        response: { statusCode: 204 },
+      },
+      doc,
+    );
+    assert.equal(doc.paths['/h'].get.parameters[0].in, 'header');
+  });
 
   it('serves Swagger UI at the docs route', async () => {
     const r = await send(docsPort, { path: '/docs' });
@@ -392,14 +400,46 @@ describe('OpenAPI', () => {
     assert.equal((await send(docsPort, { path: '/docs/nope.js' })).status, 404);
   });
 
-  it(
-    'does not serve files outside the Swagger UI directory',
-    { todo: 'SECURITY: path traversal — /docs/../../.. is joined onto the swagger-ui-dist path and streamed' },
-    async () => {
-      const r = await send(docsPort, { path: '/docs/../../../../../../../../../../etc/passwd' });
+  for (const path of [
+    '/docs/../../../../../../../../../../etc/passwd',
+    '/docs/../../../../../../../../../../etc/passwd?x=1',
+    '/docs/..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2fetc%2fpasswd',
+    '/docs/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd',
+    '/docs/..\\..\\..\\..\\..\\..\\etc\\passwd',
+    '/../../../../../../../../../../etc/passwd',
+    '/docs//etc/passwd',
+    '/docs/../package.json',
+    '/docs/../../alado/package.json',
+  ]) {
+    it(`does not serve files outside the Swagger UI directory: ${path}`, async () => {
+      const r = await send(docsPort, { path });
       assert.doesNotMatch(r.text, /root:/);
-    },
-  );
+      assert.doesNotMatch(r.text, /"name":\s*"alado"/);
+      assert.equal(r.status, 404, `${path} -> ${r.status}`);
+    });
+  }
+
+  it('serves Swagger UI assets from the docs route and from the root', async () => {
+    for (const path of [
+      '/docs/swagger-ui.css',
+      '/swagger-ui.css',
+      '/docs/swagger-ui-bundle.js',
+    ]) {
+      assert.equal((await send(docsPort, { path })).status, 200, path);
+    }
+  });
+
+  it('does not treat a route that only shares the prefix as the docs route', async () => {
+    assert.equal((await send(docsPort, { path: '/docsswagger-ui.css' })).status, 404);
+  });
+
+  it('patches the initializer under the docs route too', async () => {
+    const r = await send(docsPort, { path: '/docs/swagger-initializer.js' });
+    assert.equal(r.status, 200);
+    assert.match(r.text, /\/swagger\.json/);
+    assert.doesNotMatch(r.text, /petstore/);
+    assert.match(r.headers['content-type'] as string, /javascript/);
+  });
 
   it('refuses to register a GET route on the docs path', () => {
     assert.throws(() =>

@@ -185,14 +185,10 @@ describe('withAuth', () => {
     assert.equal((await send(port, { path: '/service', headers: bearer('token-alice') })).status, 401);
   });
 
-  it(
-    'lets anonymous requests through when required is false',
-    { todo: 'BUG: with required:false the handler still runs and a falsy result returns the auth error' },
-    async () => {
-      const r = await send(port, { path: '/maybe' });
-      assert.equal(r.status, 200);
-    },
-  );
+  it('lets anonymous requests through when required is false', async () => {
+    const r = await send(port, { path: '/maybe' });
+    assert.equal(r.status, 200);
+  });
 
   it('still authenticates when required is false and credentials are sent', async () => {
     const r = await send(port, { path: '/maybe', headers: bearer('token-bob') });

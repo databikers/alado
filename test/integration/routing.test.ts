@@ -123,6 +123,46 @@ class RoutingController {
     throw new Error('db password is hunter2');
   }
 
+  @get('/conflict', { appId })
+  @doc
+  async conflict(): Promise<any> {
+    throw { statusCode: 409, message: 'Already exists' };
+  }
+
+  @get('/weird-status', { appId })
+  @doc
+  async weirdStatus(): Promise<any> {
+    throw Object.assign(new Error('ENOENT: /srv/secret.key'), { statusCode: 'ENOENT' });
+  }
+
+  @get('/implicit-json', { appId })
+  @doc
+  async implicitJson() {
+    return { statusCode: 200, body: { a: 1 } };
+  }
+
+  @get('/implicit-json-array', { appId })
+  @doc
+  async implicitJsonArray() {
+    return {
+      statusCode: 200,
+      body: [
+        1,
+        2,
+      ] as any,
+    };
+  }
+
+  @get('/buffer', { appId })
+  @doc
+  async buffer() {
+    return {
+      statusCode: 200,
+      headers: { 'content-type': 'application/octet-stream' },
+      body: Buffer.from('bin') as any,
+    };
+  }
+
   @get('/custom-header', { appId })
   @doc
   async customHeader() {
@@ -190,13 +230,10 @@ describe('routing', () => {
     assert.deepEqual(r.json().path, {});
   });
 
-  it(
-    'treats a dot in a route as a literal dot',
-    { todo: 'BUG: route strings are inserted into a RegExp unescaped, so /file.json also matches /fileXjson' },
-    async () => {
-      assert.equal((await send(port, { path: '/fileXjson' })).status, 404);
-    },
-  );
+  it('treats a dot in a route as a literal dot', async () => {
+    assert.equal((await send(port, { path: '/file.json' })).status, 200);
+    assert.equal((await send(port, { path: '/fileXjson' })).status, 404);
+  });
 
   for (const method of [
     'POST',
@@ -258,14 +295,73 @@ describe('routing', () => {
     assert.equal(typeof r.json().message, 'string');
   });
 
-  it(
-    'does not leak internal error messages to the client',
-    { todo: 'SECURITY: unhandled errors return e.message verbatim in the 500 body' },
-    async () => {
-      const r = await send(port, { path: '/boom' });
-      assert.doesNotMatch(r.text, /hunter2/);
-    },
-  );
+  it('does not leak internal error messages to the client', async () => {
+    const r = await send(port, { path: '/boom' });
+    assert.equal(r.status, 500);
+    assert.deepEqual(r.json(), { message: 'Internal Server Error' });
+    assert.doesNotMatch(r.text, /hunter2/);
+  });
+
+  it('keeps status and message of errors thrown with an HTTP statusCode', async () => {
+    const r = await send(port, { path: '/conflict' });
+    assert.equal(r.status, 409);
+    assert.deepEqual(r.json(), { message: 'Already exists' });
+  });
+
+  it('treats a non-HTTP statusCode on a thrown error as internal', async () => {
+    const r = await send(port, { path: '/weird-status' });
+    assert.equal(r.status, 500);
+    assert.deepEqual(r.json(), { message: 'Internal Server Error' });
+  });
+
+  it('logs the real error when verbose is on', async () => {
+    const seen: unknown[] = [];
+    class VerboseController {
+      @get('/verbose-boom', { appId: 'routing-verbose' })
+      @doc
+      async boom(): Promise<any> {
+        throw new Error('secret detail');
+      }
+    }
+    const v = initializeApplication({
+      serverOptions: baseOptions('routing-verbose', {
+        verbose: true,
+        logger: { log: () => undefined, error: (e: unknown) => seen.push(e) },
+      }),
+      controllers: [VerboseController],
+    });
+    const p = await listen(v);
+    try {
+      const r = await send(p, { path: '/verbose-boom' });
+      assert.doesNotMatch(r.text, /secret detail/);
+      assert.equal((seen[0] as Error).message, 'secret detail');
+    } finally {
+      await close(v);
+    }
+  });
+
+  it('serialises an object body as JSON when the handler sets no Content-Type', async () => {
+    const r = await send(port, { path: '/implicit-json' });
+    assert.equal(r.status, 200);
+    assert.match(r.headers['content-type'] as string, /application\/json/);
+    assert.deepEqual(r.json(), { a: 1 });
+  });
+
+  it('serialises an array body the same way', async () => {
+    assert.deepEqual(
+      (await send(port, { path: '/implicit-json-array' })).json(),
+      [
+        1,
+        2,
+      ],
+    );
+  });
+
+  it('sends Buffer bodies as-is and respects a lower-case content-type', async () => {
+    const r = await send(port, { path: '/buffer' });
+    assert.equal(r.text, 'bin');
+    assert.equal(r.headers['content-type'], 'application/octet-stream');
+  });
 
   it('keeps serving after a handler error', async () => {
     await send(port, { path: '/boom' }).catch(() => undefined);
@@ -328,6 +424,56 @@ describe('router matching order', () => {
     r.use(HttpMethod.GET, '/items/featured', ctx, () => ({ statusCode: 204 }));
     assert.ok(r.parse(HttpMethod.OPTIONS, '/items/featured'));
     assert.ok(r.parse(HttpMethod.OPTIONS, '/items/9'));
+  });
+
+  it('escapes every RegExp metacharacter in literal segments', () => {
+    const r = makeRouter();
+    for (const path of [
+      '/v1.0/status',
+      '/a+b',
+      '/c*d',
+      '/e?f',
+      '/(g)',
+      '/h|i',
+      '/[j]',
+      '/k$',
+      '/^l',
+      '/{m}',
+    ]) {
+      r.use(HttpMethod.GET, path, ctx, () => ({ statusCode: 204 }));
+      assert.ok(r.parse(HttpMethod.GET, path), `${path} should match itself`);
+    }
+    assert.equal(r.parse(HttpMethod.GET, '/v1X0/status'), undefined);
+    assert.equal(r.parse(HttpMethod.GET, '/aab'), undefined);
+    assert.equal(r.parse(HttpMethod.GET, '/cd'), undefined);
+    assert.equal(r.parse(HttpMethod.GET, '/f'), undefined);
+    assert.equal(r.parse(HttpMethod.GET, '/g'), undefined);
+    assert.equal(r.parse(HttpMethod.GET, '/h'), undefined);
+    assert.equal(r.parse(HttpMethod.GET, '/j'), undefined);
+  });
+
+  it('combines escaped literals with params', () => {
+    const r = makeRouter();
+    r.use(HttpMethod.GET, '/v1.0/users/:id/avatar.png', ctx, () => ({ statusCode: 204 }));
+    assert.deepEqual(r.parse(HttpMethod.GET, '/v1.0/users/42/avatar.png')?.path, { id: '42' });
+    assert.equal(r.parse(HttpMethod.GET, '/v1x0/users/42/avatarXpng'), undefined);
+  });
+
+  it('builds a CORS preflight route that matches the same escaped path', () => {
+    const r = new Router(
+      { cors: { enable: true, allowedMethods: new Map() }, openApiDoc: undefined, logger: { log() {} } } as any,
+      {},
+    );
+    r.use(HttpMethod.GET, '/v1.0/items/:id', ctx, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.POST, '/v1.0/items/:id', ctx, () => ({ statusCode: 204 }));
+    const pre = r.parse(HttpMethod.OPTIONS, '/v1.0/items/7');
+    assert.ok(pre);
+    assert.deepEqual([...(pre?.allowedMethods || [])].sort(), [
+      'GET',
+      'OPTIONS',
+      'POST',
+    ]);
+    assert.equal(r.parse(HttpMethod.OPTIONS, '/v1x0/items/7'), undefined);
   });
 
   it('maps param positions to names', () => {
@@ -476,24 +622,18 @@ describe('process stability', () => {
     });
   `;
 
-  it(
-    'survives a handler that returns an object body without Content-Type',
-    {
-      todo: 'BUG (crash): res.end(object) throws, respondError writes headers twice -> unhandled rejection exits the process',
-    },
-    () => {
-      const r = spawnSync(
-        process.execPath,
-        [
-          '-e',
-          script(resolvePath(__dirname, '../../src')),
-        ],
-        {
-          encoding: 'utf8',
-          timeout: 10000,
-        },
-      );
-      assert.equal(r.stdout, 'ALIVE', r.stderr.split('\n').slice(0, 3).join('\n'));
-    },
-  );
+  it('survives a handler that returns an object body without Content-Type', () => {
+    const r = spawnSync(
+      process.execPath,
+      [
+        '-e',
+        script(resolvePath(__dirname, '../../src')),
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 10000,
+      },
+    );
+    assert.equal(r.stdout, 'ALIVE', r.stderr.split('\n').slice(0, 3).join('\n'));
+  });
 });
