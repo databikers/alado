@@ -20,3 +20,6 @@ dist
 
 # coverage
 coverage
+
+# test build
+.test-dist
