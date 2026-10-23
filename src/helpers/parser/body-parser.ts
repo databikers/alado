@@ -70,7 +70,10 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
             const regExpMatchArray = item.match(regEx);
             element[key] = regExpMatchArray && regExpMatchArray[1] && regExpMatchArray[1];
           });
-          const { name, value, filename, mimetype } = element;
+          const { value, filename, mimetype } = element;
+          // the body is parsed as a binary string (one char per byte) to keep file bytes intact;
+          // text (field names and values) is UTF-8 and has to be decoded back
+          const name: string | null = element.name && Buffer.from(element.name, 'binary').toString('utf8');
           if (!name || !value) {
             continue;
           }
@@ -84,7 +87,7 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
             file.stream.push(null);
             formData.files.push(file);
           } else {
-            formData.fields[name] = value;
+            formData.fields[name] = Buffer.from(value, 'binary').toString('utf8');
           }
         }
         for (const key in formData.fields) {
