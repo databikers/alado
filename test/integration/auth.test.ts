@@ -174,6 +174,12 @@ describe('withAuth', () => {
     assert.equal(r.status, 401);
   });
 
+  it('does not leak the auth handler exception message', async () => {
+    const r = await send(port, { path: '/me', headers: bearer('explode') });
+    assert.equal(r.status, 401);
+    assert.deepEqual(r.json(), { message: 'Unauthorized' });
+  });
+
   it('calls the handler with handlerContext as `this`', async () => {
     assert.equal((await send(port, { path: '/service', headers: { authorization: 'Token abc' } })).status, 200);
     assert.equal((await send(port, { path: '/service', headers: bearer('token-alice') })).status, 401);

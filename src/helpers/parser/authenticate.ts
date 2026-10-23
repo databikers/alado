@@ -15,10 +15,8 @@ export async function authenticate(context: Context<any>, request: any): Promise
       return error;
     }
     setProperty(request, outputProperty, result);
-  } catch (e: any) {
-    return {
-      statusCode: error.statusCode,
-      message: e.message,
-    };
+  } catch {
+    // the configured error, never the exception text (it may describe internals)
+    return error;
   }
 }

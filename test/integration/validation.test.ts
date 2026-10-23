@@ -252,9 +252,11 @@ describe('body validation', () => {
     assert.equal(bad.status, 409);
   });
 
-  it('maps a throwing validator to the field error status', async () => {
+  it('maps a throwing validator to the configured field error', async () => {
     const r = await sendJson(port, 'POST', '/throwing', { value: 'x' });
     assert.equal(r.status, 400);
+    assert.deepEqual(r.json(), { message: 'Bad' });
+    assert.doesNotMatch(r.text, /exploded/);
   });
 
   it('rejects malformed JSON with 400', async () => {

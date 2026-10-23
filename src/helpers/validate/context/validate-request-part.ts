@@ -49,11 +49,9 @@ export async function validateRequestPart(
         if (transform) {
           request[key][property] = await transform.apply(request, [value]);
         }
-      } catch (e: any) {
-        return {
-          statusCode: error.statusCode,
-          message: e.message,
-        };
+      } catch {
+        // the configured error, never the exception text (it may describe internals)
+        return error;
       }
     }
   }
