@@ -3,6 +3,7 @@ import { injector } from '@injector';
 import { DEFAULT_ID } from '@const';
 import { AladoServer } from '@alado';
 import { initializeInjector } from './initialize-injector';
+import { controllerInstances } from './controller-instances';
 import { distinguishControllerBuildStrategy } from '@helper';
 
 export function initializeApplication(initializeApplicationOptions: InitializeApplicationOptions): AladoServer {
@@ -25,7 +26,7 @@ export function initializeApplication(initializeApplicationOptions: InitializeAp
         break;
     }
     if (controller) {
-      new controller(...options);
+      controllerInstances.set(controller.prototype, new controller(...options));
     }
   }
   const shadowApp = injector.injected.shadowAppMapping[serverOptions.appId || DEFAULT_ID];

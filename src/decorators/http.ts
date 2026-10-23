@@ -3,6 +3,7 @@ import { injector } from '@injector';
 import { AladoServer } from '@alado';
 import { ContextOptions, HttpDecoratorOptions } from '@options';
 import { initializeInjector } from './initialize-injector';
+import { controllerInstances } from './controller-instances';
 
 function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecoratorOptions = {}) {
   initializeInjector();
@@ -31,7 +32,9 @@ function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecor
           request: injector.injected.requestMapping[key] || {},
           response: injector.injected.responseMapping[key] || {},
         },
-        instance[method].bind(instance),
+        // `instance` is the prototype; call on the constructed controller so
+        // properties set in its constructor (injected services, options) exist
+        (request: any) => instance[method].call(controllerInstances.get(instance) ?? instance, request),
       );
     };
     if (app) {

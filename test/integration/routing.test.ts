@@ -380,38 +380,84 @@ describe('application lifecycle', () => {
 });
 
 describe('controller constructor options', () => {
-  it(
-    'binds handlers to the constructed instance so constructor options are usable',
-    { todo: 'BUG: handlers are bound to the prototype, so values set in the constructor are undefined' },
-    async () => {
-      class GreetingService {
-        greet(name: string) {
-          return `hi ${name}`;
-        }
+  it('binds handlers to the constructed instance so constructor options are usable', async () => {
+    class GreetingService {
+      greet(name: string) {
+        return `hi ${name}`;
       }
-      class GreetController {
-        constructor(private readonly service: GreetingService) {}
+    }
+    class GreetController {
+      constructor(private readonly service: GreetingService) {}
 
-        @get('/greet', { appId: 'routing-ctor' })
-        @doc
-        async greet() {
-          return { statusCode: 200, headers: json, body: { text: this.service.greet('pablo') } };
-        }
+      @get('/greet', { appId: 'routing-ctor' })
+      @doc
+      async greet() {
+        return { statusCode: 200, headers: json, body: { text: this.service.greet('pablo') } };
       }
-      const a = initializeApplication({
-        serverOptions: baseOptions('routing-ctor'),
-        controllers: [{ controller: GreetController, options: [new GreetingService()] }],
-      });
-      const p = await listen(a);
-      try {
-        const r = await send(p, { path: '/greet' });
-        assert.equal(r.status, 200);
-        assert.deepEqual(r.json(), { text: 'hi pablo' });
-      } finally {
-        await close(a);
+    }
+    const a = initializeApplication({
+      serverOptions: baseOptions('routing-ctor'),
+      controllers: [{ controller: GreetController, options: [new GreetingService()] }],
+    });
+    const p = await listen(a);
+    try {
+      const r = await send(p, { path: '/greet' });
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.json(), { text: 'hi pablo' });
+    } finally {
+      await close(a);
+    }
+  });
+
+  it('also works for routes registered after the app exists (immediate registration)', async () => {
+    const appIdLate = 'routing-ctor-late';
+    const a = initializeApplication({ serverOptions: baseOptions(appIdLate), controllers: [] });
+    class CounterController {
+      private hits = 0;
+
+      @get('/count', { appId: appIdLate })
+      @doc
+      async count() {
+        this.hits += 1;
+        return { statusCode: 200, headers: json, body: { hits: this.hits } };
       }
-    },
-  );
+    }
+    initializeApplication({ serverOptions: baseOptions(appIdLate), controllers: [CounterController] });
+    const p = await listen(a);
+    try {
+      assert.deepEqual((await send(p, { path: '/count' })).json(), { hits: 1 });
+      assert.deepEqual((await send(p, { path: '/count' })).json(), { hits: 2 });
+    } finally {
+      await close(a);
+    }
+  });
+
+  it('does not leak state between instance fields and the prototype', async () => {
+    class StatefulController {
+      private readonly label: string;
+
+      constructor(label: string) {
+        this.label = label;
+      }
+
+      @get('/label', { appId: 'routing-ctor-state' })
+      @doc
+      async show() {
+        return { statusCode: 200, headers: json, body: { label: this.label } };
+      }
+    }
+    const a = initializeApplication({
+      serverOptions: baseOptions('routing-ctor-state'),
+      controllers: [{ controller: StatefulController, options: ['from-ctor'] }],
+    });
+    const p = await listen(a);
+    try {
+      assert.deepEqual((await send(p, { path: '/label' })).json(), { label: 'from-ctor' });
+      assert.equal((StatefulController.prototype as any).label, undefined);
+    } finally {
+      await close(a);
+    }
+  });
 });
 
 describe('process stability', () => {
