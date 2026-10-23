@@ -347,6 +347,16 @@ describe('form bodies', () => {
     assert.deepEqual(r.json(), { name: 'Pablo', city: 'Bangkok' });
   });
 
+  it('decodes non-ASCII multipart text fields as UTF-8', async () => {
+    const { body, contentType } = multipart([
+      { name: 'name', value: 'Павло' },
+      { name: 'city', value: 'Málaga → 東京' },
+    ]);
+    const r = await send(port, { method: 'POST', path: '/form', headers: { 'Content-Type': contentType }, body });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.json(), { name: 'Павло', city: 'Málaga → 東京' });
+  });
+
   it('parses simple urlencoded bodies', async () => {
     const r = await send(port, {
       method: 'POST',

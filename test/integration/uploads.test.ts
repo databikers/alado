@@ -118,6 +118,16 @@ describe('file uploads', () => {
     assert.equal(b.hex, PNG_HEADER.toString('hex'));
   });
 
+  it('decodes a non-ASCII text field sent alongside a file', async () => {
+    const r = await upload([
+      { name: 'caption', value: 'фото з Málaga' },
+      { name: 'avatar', filename: 'a.png', contentType: 'image/png', value: PNG_HEADER },
+    ]);
+    assert.equal(r.status, 200);
+    assert.equal(r.json().caption, 'фото з Málaga');
+    assert.equal(r.json().hex, PNG_HEADER.toString('hex'));
+  });
+
   it('preserves every byte value (binary safe)', async () => {
     const r = await upload([
       { name: 'caption', value: 'bytes' },
