@@ -43,21 +43,21 @@ Alado sits in a unique position — it has the **simplicity of Express**, the **
 
 ### Feature Comparison
 
-| Feature                     | Alado      | Express               | Fastify               | NestJS      |
-| --------------------------- | ---------- | --------------------- | --------------------- | ----------- |
-| Zero dependencies           | ✅         | ❌                    | ❌                    | ❌          |
-| Decorator-based routing     | ✅         | ❌                    | ❌                    | ✅          |
-| Built-in request validation | ✅         | ❌                    | ✅ (schemas)          | ✅ (pipes)  |
-| Built-in auth pipeline      | ✅         | ❌                    | ❌                    | ✅ (guards) |
-| Built-in access control     | ✅         | ❌                    | ❌                    | ✅ (guards) |
-| Auto OpenAPI 3.0 docs       | ✅         | ❌                    | ✅ (plugin)           | ✅ (plugin) |
-| Built-in file upload        | ✅         | ❌                    | ❌                    | ❌          |
-| Built-in body parsing       | ✅         | ❌ (body-parser)      | ✅                    | ✅          |
-| Built-in CORS               | ✅         | ❌ (cors)             | ❌ (plugin)           | ✅          |
-| TypeScript-first            | ✅         | ⚠️ types via `@types` | ⚠️ types via `@types` | ✅          |
-| Learning curve              | 🟢 Low     | 🟢 Low                | 🟡 Medium             | 🔴 High     |
-| Boilerplate                 | 🟢 Minimal | 🟡 Medium             | 🟡 Medium             | 🔴 Heavy    |
-| Ecosystem / plugins         | 🟡 Small   | 🟢 Massive            | 🟢 Large              | 🟢 Large    |
+| Feature                     | Alado      | Express               | Fastify      | NestJS      |
+| --------------------------- | ---------- | --------------------- | ------------ | ----------- |
+| Zero dependencies           | ✅         | ❌                    | ❌           | ❌          |
+| Decorator-based routing     | ✅         | ❌                    | ❌           | ✅          |
+| Built-in request validation | ✅         | ❌                    | ✅ (schemas) | ✅ (pipes)  |
+| Built-in auth pipeline      | ✅         | ❌                    | ✅ (plugin)  | ✅ (guards) |
+| Built-in access control     | ✅         | ❌                    | ❌           | ✅ (guards) |
+| Auto OpenAPI 3.0 docs       | ✅         | ❌                    | ✅ (plugin)  | ✅ (plugin) |
+| Built-in file upload        | ✅         | ❌                    | ❌           | ❌          |
+| Built-in body parsing       | ✅         | ❌ (body-parser)      | ✅           | ✅          |
+| Built-in CORS               | ✅         | ❌ (cors)             | ✅           | ✅          |
+| TypeScript-first            | ✅         | ⚠️ types via `@types` | ✅           | ✅          |
+| Learning curve              | 🟢 Low     | 🟢 Low                | 🟡 Medium    | 🔴 High     |
+| Boilerplate                 | 🟢 Minimal | 🟡 Medium             | 🟡 Medium    | 🔴 Heavy    |
+| Ecosystem / plugins         | 🟡 Small   | 🟢 Massive            | 🟢 Large     | 🟢 Large    |
 
 ---
 
@@ -438,7 +438,7 @@ class CredentialsDto {
 
 ## Validation
 
-The project uses a built-in chainable validator — a lightweight, zero-dependency TypeScript validation library with sync and async support.
+The project uses a built-in chainable validator — a lightweight, almost zero-dependency (swagger-ui-dist only) TypeScript validation library with sync and async support.
 
 ### Basic usage
 
