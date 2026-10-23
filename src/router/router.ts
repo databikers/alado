@@ -142,6 +142,30 @@ export class Router {
       }
     }
     this.routes.set(routeRegEx, { route: routeRegEx, path: pathData, context, handler });
+    this.sortRoutes();
+  }
+
+  /**
+   * parse() returns the first match, so more specific routes must come first:
+   * fewer path params wins (/items/featured before /items/:id), ties keep
+   * registration order (Array.prototype.sort is stable).
+   */
+  protected sortRoutes() {
+    const paramCount = (route: Route<any>): number => Object.keys(route.path || {}).length;
+    this.routes = new Map(
+      [...this.routes.entries()].sort(
+        (
+          [
+            ,
+            a,
+          ],
+          [
+            ,
+            b,
+          ],
+        ) => paramCount(a) - paramCount(b),
+      ),
+    );
   }
 
   protected getOptionsDataKey(method: string, routeRegEx: RegExp) {

@@ -288,16 +288,47 @@ describe('router matching order', () => {
     assert.deepEqual(r.parse(HttpMethod.GET, '/items/featured')?.path, {});
   });
 
-  it(
-    'static route wins regardless of registration order',
-    { todo: 'BUG/footgun: first registered match wins, so /items/:id shadows a later /items/featured' },
-    () => {
-      const r = makeRouter();
-      r.use(HttpMethod.GET, '/items/:id', ctx, () => ({ statusCode: 204 }));
-      r.use(HttpMethod.GET, '/items/featured', ctx, () => ({ statusCode: 204 }));
-      assert.deepEqual(r.parse(HttpMethod.GET, '/items/featured')?.path, {});
-    },
-  );
+  it('static route wins regardless of registration order', () => {
+    const r = makeRouter();
+    r.use(HttpMethod.GET, '/items/:id', ctx, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.GET, '/items/featured', ctx, () => ({ statusCode: 204 }));
+    assert.deepEqual(r.parse(HttpMethod.GET, '/items/featured')?.path, {});
+    assert.deepEqual(r.parse(HttpMethod.GET, '/items/42')?.path, { id: '42' });
+  });
+
+  it('prefers the route with fewer params when both match', () => {
+    const r = makeRouter();
+    r.use(HttpMethod.GET, '/u/:a/:b', ctx, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.GET, '/u/:a/settings', ctx, () => ({ statusCode: 204 }));
+    assert.deepEqual(r.parse(HttpMethod.GET, '/u/1/settings')?.path, { a: '1' });
+    assert.deepEqual(r.parse(HttpMethod.GET, '/u/1/2')?.path, { a: '1', b: '2' });
+  });
+
+  it('keeps registration order between routes with the same number of params', () => {
+    const r = makeRouter();
+    let hit = '';
+    r.use(HttpMethod.GET, '/x/:a/c', ctx, () => {
+      hit = 'first';
+      return { statusCode: 204 };
+    });
+    r.use(HttpMethod.GET, '/x/b/:c', ctx, () => {
+      hit = 'second';
+      return { statusCode: 204 };
+    });
+    r.parse(HttpMethod.GET, '/x/b/c')?.handler({} as any);
+    assert.equal(hit, 'first');
+  });
+
+  it('keeps CORS preflight working after reordering', () => {
+    const r = new Router(
+      { cors: { enable: true, allowedMethods: new Map() }, openApiDoc: undefined, logger: { log() {} } } as any,
+      {},
+    );
+    r.use(HttpMethod.GET, '/items/:id', ctx, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.GET, '/items/featured', ctx, () => ({ statusCode: 204 }));
+    assert.ok(r.parse(HttpMethod.OPTIONS, '/items/featured'));
+    assert.ok(r.parse(HttpMethod.OPTIONS, '/items/9'));
+  });
 
   it('maps param positions to names', () => {
     const r = makeRouter();
