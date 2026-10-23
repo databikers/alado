@@ -296,20 +296,35 @@ describe('body validation', () => {
     assert.equal(r.json().rawBody, 'hello');
   });
 
-  it(
-    'enforces maxBodySizeBytes for multipart bodies too',
-    { todo: 'SECURITY: the multipart branch of bodyParser never checks the limit (unbounded memory)' },
-    async () => {
-      const { body, contentType } = multipart([{ name: 'name', value: 'x'.repeat(LIMIT * 4) }]);
-      const r = await send(port, {
-        method: 'POST',
-        path: '/form',
-        headers: { 'Content-Type': contentType },
-        body,
-      }).catch((e) => e);
-      assert.ok(r instanceof Error || r.status === 413, `got ${r.status}`);
-    },
-  );
+  it('enforces maxBodySizeBytes for multipart bodies too', async () => {
+    const { body, contentType } = multipart([{ name: 'name', value: 'x'.repeat(LIMIT * 4) }]);
+    const r = await send(port, { method: 'POST', path: '/form', headers: { 'Content-Type': contentType }, body }).catch(
+      (e) => e,
+    );
+    if (r instanceof Error) {
+      assert.match(r.message, /ECONNRESET|socket hang up|EPIPE/);
+    } else {
+      assert.equal(r.status, 413);
+      assert.deepEqual(r.json(), { message: 'Content Too Large' });
+    }
+  });
+
+  it('accepts a multipart body just under the limit', async () => {
+    const { body, contentType } = multipart([{ name: 'name', value: 'x'.repeat(LIMIT - 300) }]);
+    assert.ok(body.length <= LIMIT);
+    const r = await send(port, { method: 'POST', path: '/form', headers: { 'Content-Type': contentType }, body });
+    assert.equal(r.status, 200);
+  });
+
+  it('counts multipart size in bytes, not characters', async () => {
+    // 'é' is 2 bytes in UTF-8: the char count is under the limit, the byte count is over
+    const { body, contentType } = multipart([{ name: 'name', value: 'é'.repeat(Math.ceil(LIMIT / 2)) }]);
+    assert.ok(body.length > LIMIT);
+    const r = await send(port, { method: 'POST', path: '/form', headers: { 'Content-Type': contentType }, body }).catch(
+      (e) => e,
+    );
+    assert.ok(r instanceof Error || r.status === 413, `got ${r.status}`);
+  });
 });
 
 describe('form bodies', () => {

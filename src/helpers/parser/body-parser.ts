@@ -19,6 +19,15 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
     await new Promise<void>((resolve, reject) => {
       req.on('data', (chunk: any) => {
         body += chunk.toString();
+        // binary encoding: one char per byte, so length is the byte count
+        if (limit && body.length > limit) {
+          req.removeAllListeners('data');
+          req.removeAllListeners('end');
+          reject({
+            statusCode: 413,
+            message: 'Content Too Large',
+          } as AladoServerError);
+        }
       });
       req.on('end', () => {
         result.rawBody = body;
