@@ -11,7 +11,7 @@ export async function authenticate(context: Context<any>, request: any): Promise
   }
   try {
     const result = await handler.apply(handlerContext || {}, [authData]);
-    if (!result) {
+    if (!result && required) {
       return error;
     }
     setProperty(request, outputProperty, result);
