@@ -523,3 +523,16 @@ describe('header and path validation', () => {
     assert.equal(bad.status, 404);
   });
 });
+
+describe('XML bodies: truncated input', () => {
+  it('rejects a truncated XML body with 400', async () => {
+    const r = await send(port, {
+      method: 'POST',
+      path: '/payment',
+      headers: { 'Content-Type': 'application/xml' },
+      body: '<payment><amount>1.50</amount>',
+    });
+    assert.equal(r.status, 400);
+    assert.match(r.json().message, /Invalid XML body: Unclosed element <payment>/);
+  });
+});

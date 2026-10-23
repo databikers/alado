@@ -151,13 +151,17 @@ export function xmlParser(xmlInput: string): XmlObject {
     const children: XmlObject = {};
     let textContent = '';
     let sawChildElement: boolean = false;
+    let closed: boolean = false;
 
     while (pos < xml.length) {
       skipWhitespace();
 
-      const closeMatch: RegExpExecArray = new RegExp(`^</${rawTagName}\\s*>`).exec(xml.slice(pos));
+      const closeMatch: RegExpExecArray = new RegExp(
+        `^</${rawTagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*>`,
+      ).exec(xml.slice(pos));
       if (closeMatch) {
         pos += closeMatch[0].length;
+        closed = true;
         break;
       }
 
@@ -187,6 +191,10 @@ export function xmlParser(xmlInput: string): XmlObject {
         textContent += xml.slice(pos, end);
         pos = end;
       }
+    }
+
+    if (!closed) {
+      throw new Error(`Unclosed element <${rawTagName}>`);
     }
 
     const trimmedText = decodeEntities(textContent.trim());

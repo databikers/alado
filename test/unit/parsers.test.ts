@@ -252,13 +252,15 @@ describe('xmlParser', () => {
     assert.throws(() => xmlParser('<a><![CDATA[oops</a>'));
   });
 
-  it(
-    'throws on a missing closing tag',
-    { todo: 'BUG: parser stops at end of input and accepts unclosed elements' },
-    () => {
-      assert.throws(() => xmlParser('<a><b>1</b>'));
-    },
-  );
+  it('throws on a missing closing tag', () => {
+    assert.throws(() => xmlParser('<a><b>1</b>'), /Unclosed element <a>/);
+    assert.throws(() => xmlParser('<a><b>1'), /Unclosed element <b>/);
+  });
+
+  it('matches closing tags literally (a dot in a name is not a wildcard)', () => {
+    assert.deepEqual(xmlParser('<a.b>1</a.b>'), { 'a.b': '1' });
+    assert.throws(() => xmlParser('<a.b>1</aXb>'));
+  });
 
   it(
     'leaves entity-like text inside CDATA untouched',
