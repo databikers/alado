@@ -106,13 +106,19 @@ describe('getProperty / setProperty', () => {
     assert.equal(getProperty({ auth: {} }, 'auth.user'), undefined);
   });
 
-  it(
-    'returns undefined when a middle branch is missing instead of throwing',
-    { todo: 'BUG: target becomes undefined and the next step reads a property of it -> TypeError' },
-    () => {
-      assert.equal(getProperty({}, 'auth.user.id'), undefined);
-    },
-  );
+  it('returns undefined when a middle branch is missing instead of throwing', () => {
+    assert.equal(getProperty({}, 'auth.user.id'), undefined);
+    assert.equal(getProperty({ auth: null }, 'auth.user.id'), undefined);
+    assert.equal(getProperty({}, 'list[0].id'), undefined);
+    assert.equal(getProperty({ list: [] }, 'list[0].id'), undefined);
+    assert.equal(getProperty({ m: {} }, 'm[a][b]'), undefined);
+  });
+
+  it('still returns falsy leaf values', () => {
+    assert.equal(getProperty({ a: { b: 0 } }, 'a.b'), 0);
+    assert.equal(getProperty({ a: { b: false } }, 'a.b'), false);
+    assert.equal(getProperty({ a: { b: '' } }, 'a.b'), '');
+  });
 
   it('returns the whole object for an empty key', () => {
     const o = { a: 1 };
