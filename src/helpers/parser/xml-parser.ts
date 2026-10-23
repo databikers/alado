@@ -6,6 +6,14 @@ type NamespaceScope = {
   prefixes: { [prefix: string]: string };
 };
 
+// Same keys the JSON body parser drops: assigning them on a plain object can
+// replace its prototype (__proto__) or shadow built-ins.
+const unsafeKeys: Set<string> = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+]);
+
 export function xmlParser(xmlInput: string): XmlObject {
   let xml: string = xmlInput;
   let pos: number = 0;
@@ -33,7 +41,9 @@ export function xmlParser(xmlInput: string): XmlObject {
     while (match !== null) {
       const name: string = match[1] || match[3];
       const value: string = match[2] !== undefined ? match[2] : match[4];
-      attrs[name] = decodeEntities(value);
+      if (!unsafeKeys.has(name)) {
+        attrs[name] = decodeEntities(value);
+      }
       match = attrRegex.exec(tagContent);
     }
     return attrs;
@@ -94,6 +104,9 @@ export function xmlParser(xmlInput: string): XmlObject {
   }
 
   function addChild(parent: XmlObject, key: string, value: XmlValue): void {
+    if (unsafeKeys.has(key)) {
+      return;
+    }
     if (Object.prototype.hasOwnProperty.call(parent, key)) {
       const existing = parent[key];
       if (Array.isArray(existing)) {
@@ -243,7 +256,9 @@ export function xmlParser(xmlInput: string): XmlObject {
       rootName,
       rootValue,
     ] = rootElement;
-    root[rootName] = rootValue;
+    if (!unsafeKeys.has(rootName)) {
+      root[rootName] = rootValue;
+    }
   }
 
   return root;

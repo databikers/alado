@@ -272,13 +272,26 @@ describe('xmlParser', () => {
     assert.equal(r.a.b, 'x&&amp;<y');
   });
 
-  it(
-    'does not let a <__proto__> element change an object prototype',
-    { todo: 'BUG: JSON bodies strip __proto__, XML bodies do not; nested fields become inherited props' },
-    () => {
-      const r: any = xmlParser('<a><__proto__><isAdmin>true</isAdmin></__proto__></a>');
-      assert.equal(Object.getPrototypeOf(r.a), Object.prototype);
-      assert.equal(r.a.isAdmin, undefined);
-    },
-  );
+  it('does not let a <__proto__> element change an object prototype', () => {
+    const r: any = xmlParser('<a><__proto__><isAdmin>true</isAdmin></__proto__><b>1</b></a>');
+    assert.equal(Object.getPrototypeOf(r.a), Object.prototype);
+    assert.equal(r.a.isAdmin, undefined);
+    assert.equal(r.a.b, '1');
+  });
+
+  it('drops constructor / prototype elements and unsafe attribute names', () => {
+    const r: any = xmlParser(
+      '<a __proto__="x" ok="1"><constructor>1</constructor><prototype>2</prototype><b>3</b></a>',
+    );
+    assert.equal(r.a.constructor, Object);
+    assert.equal(Object.prototype.hasOwnProperty.call(r.a, 'prototype'), false);
+    assert.deepEqual(r.a['@attrs'], { ok: '1' });
+    assert.equal(Object.getPrototypeOf(r.a['@attrs']), Object.prototype);
+  });
+
+  it('returns {} for a root element named __proto__', () => {
+    const r: any = xmlParser('<__proto__><isAdmin>true</isAdmin></__proto__>');
+    assert.equal(r.isAdmin, undefined);
+    assert.equal(Object.keys(r).length, 0);
+  });
 });
