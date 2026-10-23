@@ -105,13 +105,15 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
             reject({ statusCode: 400, message: `Invalid JSON body` });
           }
         } else if (contentType?.startsWith(ContentType.X_WWW_FORM_URLENCODED)) {
-          body.split('&').forEach((item: string) => {
-            const [
-              key,
-              value,
-            ] = item.split('=');
-            result.body[key] = value;
-          });
+          // URLSearchParams decodes %XX and '+', keeps '=' inside values and never throws
+          for (const [
+            key,
+            value,
+          ] of new URLSearchParams(body)) {
+            if (key && !deprecatedJsonPropertiesRegExp.test(key)) {
+              result.body[key] = value;
+            }
+          }
           resolve();
         } else if (
           [

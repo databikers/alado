@@ -348,19 +348,47 @@ describe('form bodies', () => {
     assert.deepEqual(r.json(), { name: 'Pablo', city: 'Bangkok' });
   });
 
-  it(
-    'decodes urlencoded values',
-    { todo: 'BUG: x-www-form-urlencoded values are never decoded ("New%20York", "+" kept as-is)' },
-    async () => {
-      const r = await send(port, {
-        method: 'POST',
-        path: '/form',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'name=Pablo+L&city=New%20York',
-      });
-      assert.deepEqual(r.json(), { name: 'Pablo L', city: 'New York' });
-    },
-  );
+  it('decodes urlencoded values', async () => {
+    const r = await send(port, {
+      method: 'POST',
+      path: '/form',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'name=Pablo+L&city=New%20York',
+    });
+    assert.deepEqual(r.json(), { name: 'Pablo L', city: 'New York' });
+  });
+
+  it('keeps encoded & and = inside urlencoded values', async () => {
+    const r = await send(port, {
+      method: 'POST',
+      path: '/form',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'name=a%26b%3Dc&city=x=y',
+    });
+    assert.deepEqual(r.json(), { name: 'a&b=c', city: 'x=y' });
+  });
+
+  it('does not fail on malformed urlencoded escapes', async () => {
+    const r = await send(port, {
+      method: 'POST',
+      path: '/form',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'name=100%&city=ok',
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.json().city, 'ok');
+  });
+
+  it('ignores __proto__ keys in urlencoded bodies', async () => {
+    const r = await send(port, {
+      method: 'POST',
+      path: '/raw',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: '__proto__[polluted]=1&constructor=x&a=1',
+    });
+    assert.equal(r.status, 200);
+    assert.equal(({} as any).polluted, undefined);
+  });
 });
 
 describe('XML bodies', () => {
