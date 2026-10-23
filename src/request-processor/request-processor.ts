@@ -54,11 +54,25 @@ export class RequestProcessor {
 
   protected respond(res: ServerResponse, response: Response<any>, backgroundHeaders: Record<string, string> = {}) {
     let responseBody: any;
-    const { statusCode, headers, body } = response;
+    const { statusCode, body } = response;
+    const headers: Record<string, string> = { ...(response.headers || {}) };
     const isStreamBody = isReadableStream(body);
-    const contentType: string | undefined = headers && (headers['Content-Type'] || headers['content-type']);
+    const contentTypeKey: string | undefined = Object.keys(headers).find((h) => h.toLowerCase() === 'content-type');
+    const contentType: string | undefined = contentTypeKey ? headers[contentTypeKey] : undefined;
+    const isRawBody: boolean =
+      body === undefined ||
+      body === null ||
+      typeof body === 'string' ||
+      Buffer.isBuffer(body) ||
+      body instanceof Uint8Array;
     if (contentType?.startsWith(ContentType.JSON)) {
       responseBody = isStreamBody ? body : JSON.stringify(body);
+    } else if (!isStreamBody && !isRawBody) {
+      // res.end() only accepts strings and buffers: serialise anything else as JSON
+      if (!contentType) {
+        headers['Content-Type'] = ContentType.JSON;
+      }
+      responseBody = JSON.stringify(body);
     } else {
       responseBody = body;
     }
@@ -71,6 +85,11 @@ export class RequestProcessor {
   }
 
   protected respondError(res: ServerResponse, error: AladoServerError, headers: Record<string, string> = {}) {
+    if (res.headersSent) {
+      // too late for an error response: the status line is already on the wire
+      res.destroy();
+      return;
+    }
     const { statusCode, message } = error;
     return this.respond(res, {
       statusCode,
