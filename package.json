@@ -1,6 +1,6 @@
 {
   "name": "alado",
-  "version": "2.8.3",
+  "version": "3.0.0",
   "description": "Fast, lightweight, robust framework for HTTP applications written in Node.js",
   "keywords": [
     "HTTP",
