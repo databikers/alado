@@ -45,6 +45,20 @@ export function resolveSwaggerUiFile(url: string, docsRoute: string): string | u
   return swaggerUiFiles.has(name) ? name : undefined;
 }
 
+/**
+ * Errors that carry an HTTP status (thrown on purpose, e.g. `{ statusCode: 404,
+ * message }`, or produced by the body parser) keep their status and message.
+ * Anything else is an internal failure: the client gets a generic 500 and the
+ * details only go to the logger.
+ */
+export function toClientError(e: any): AladoServerError {
+  const statusCode: unknown = e?.statusCode;
+  if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 600 && typeof e?.message === 'string') {
+    return { statusCode, message: e.message };
+  }
+  return { statusCode: 500, message: 'Internal Server Error' };
+}
+
 export class RequestProcessor {
   private readonly options: RequestProcessorOptions;
 
@@ -268,12 +282,12 @@ export class RequestProcessor {
           return this.respond(res, response, backgroundHeaders);
         } catch (e: any) {
           this.logError(e);
-          return this.respondError(res, { statusCode: 500, message: e.message }, backgroundHeaders);
+          return this.respondError(res, toClientError(e), backgroundHeaders);
         }
       }
     } catch (e: any) {
       this.logError(e as Error);
-      return this.respondError(res, { statusCode: e.statusCode || 500, message: e.message }, {});
+      return this.respondError(res, toClientError(e), {});
     }
   }
 
