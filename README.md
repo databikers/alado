@@ -1,6 +1,6 @@
 # Alado [alado.tech](https://alado.tech/)
 
-> A fast, lightweight, zero-dependency Node.js HTTP framework with built-in routing, validation, authentication, file uploads, and automatic OpenAPI 3.0 documentation.
+> A fast, lightweight Node.js HTTP framework with built-in routing, validation, authentication, file uploads, and automatic OpenAPI 3.0 documentation. Its only runtime dependency is `swagger-ui-dist`, for the docs UI.
 
 [![npm](https://img.shields.io/npm/v/alado)](https://www.npmjs.com/package/alado)
 [![license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
@@ -37,7 +37,7 @@
 
 ## Why Alado
 
-Alado sits in a unique position — it has the **simplicity of Express**, the **performance focus of Fastify**, and the **decorator-based structure of NestJS**, but with **zero external dependencies** and a much smaller surface area.
+Alado sits in a unique position — it has the **simplicity of Express**, the **performance focus of Fastify**, and the **decorator-based structure of NestJS**, but with **a single runtime dependency** (`swagger-ui-dist`) and a much smaller surface area.
 
 ---
 
@@ -45,7 +45,7 @@ Alado sits in a unique position — it has the **simplicity of Express**, the **
 
 | Feature                     | Alado      | Express               | Fastify      | NestJS      |
 | --------------------------- | ---------- | --------------------- | ------------ | ----------- |
-| Zero dependencies           | ✅         | ❌                    | ❌           | ❌          |
+| Single runtime dependency   | ✅         | ❌                    | ❌           | ❌          |
 | Decorator-based routing     | ✅         | ❌                    | ❌           | ✅          |
 | Built-in request validation | ✅         | ❌                    | ✅ (schemas) | ✅ (pipes)  |
 | Built-in auth pipeline      | ✅         | ❌                    | ✅ (plugin)  | ✅ (guards) |
@@ -438,7 +438,7 @@ class CredentialsDto {
 
 ## Validation
 
-The project uses a built-in chainable validator — a lightweight, almost zero-dependency (swagger-ui-dist only) TypeScript validation library with sync and async support.
+The project uses a built-in chainable validator — a lightweight, dependency-free TypeScript validation library with sync and async support.
 
 ### Basic usage
 
