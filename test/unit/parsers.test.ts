@@ -55,38 +55,45 @@ describe('queryParser', () => {
     assert.deepEqual(queryParser('email=user%40example.com'), { email: 'user@example.com' });
   });
 
-  it(
-    'keeps an encoded & inside a value',
-    { todo: 'BUG: whole string is decoded before splitting, so %26 becomes a separator' },
-    () => {
-      assert.deepEqual(queryParser('q=tom%26jerry'), { q: 'tom&jerry' });
-    },
-  );
-
-  it('keeps = inside a value', { todo: 'BUG: part.split("=") drops everything after the second =' }, () => {
-    assert.deepEqual(queryParser('token=abc%3D%3D'), { token: 'abc==' });
+  it('keeps an encoded & inside a value', () => {
+    assert.deepEqual(queryParser('q=tom%26jerry&x=1'), { q: 'tom&jerry', x: '1' });
   });
 
-  it(
-    'keeps spaces inside a value',
-    { todo: 'BUG: all whitespace is stripped from values ("New York" -> "NewYork")' },
-    () => {
-      assert.deepEqual(queryParser('city=New%20York'), { city: 'New York' });
-    },
-  );
+  it('keeps = inside a value, encoded or not', () => {
+    assert.deepEqual(queryParser('token=abc%3D%3D'), { token: 'abc==' });
+    assert.deepEqual(queryParser('token=abc=='), { token: 'abc==' });
+  });
 
-  it(
-    'throws an HTTP-mappable error on malformed encoding, not a generic URIError',
-    { todo: 'BUG: decodeURIComponent throws URIError -> request ends as 500 instead of 400' },
-    () => {
-      try {
-        queryParser('a=%E0%A4%A');
-        assert.fail('expected throw');
-      } catch (e: any) {
-        assert.equal(e.statusCode, 400);
-      }
-    },
-  );
+  it('keeps spaces inside a value (%20 and +)', () => {
+    assert.deepEqual(queryParser('city=New%20York&name=Pablo+L'), { city: 'New York', name: 'Pablo L' });
+  });
+
+  it('throws an HTTP-mappable error on malformed encoding, not a generic URIError', () => {
+    assert.throws(
+      () => queryParser('a=%E0%A4%A'),
+      (e: any) => e.statusCode === 400 && /Malformed/.test(e.message),
+    );
+  });
+
+  it('decodes keys, including encoded [] suffixes', () => {
+    assert.deepEqual(queryParser('id%5B%5D=1&id%5B%5D=2&na%6De=x'), {
+      id: [
+        '1',
+        '2',
+      ],
+      name: 'x',
+    });
+  });
+
+  it('ignores __proto__ / constructor keys', () => {
+    const q = queryParser('__proto__=x&constructor=y&__proto__[]=z&ok=1');
+    assert.deepEqual(q, { ok: '1' });
+    assert.equal(Object.getPrototypeOf(q), Object.prototype);
+  });
+
+  it('turns a key named like an Object.prototype method into a normal value', () => {
+    assert.deepEqual(queryParser('toString=a&hasOwnProperty=b'), { toString: 'a', hasOwnProperty: 'b' });
+  });
 });
 
 describe('getProperty / setProperty', () => {

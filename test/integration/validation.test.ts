@@ -483,14 +483,17 @@ describe('query validation', () => {
     assert.deepEqual(r.json(), { q: 'node' });
   });
 
-  it(
-    'answers 400, not 500, for a malformed percent-encoding',
-    { todo: 'BUG: URIError from decodeURIComponent bubbles up as 500' },
-    async () => {
-      const r = await send(port, { path: '/search?q=%E0%A4%A' });
-      assert.equal(r.status, 400);
-    },
-  );
+  it('answers 400, not 500, for a malformed percent-encoding', async () => {
+    const r = await send(port, { path: '/search?q=%E0%A4%A' });
+    assert.equal(r.status, 400);
+    assert.deepEqual(r.json(), { message: 'Malformed query string' });
+  });
+
+  it('passes spaces and encoded separators through to validation', async () => {
+    const r = await send(port, { path: '/search?q=tom%26jerry+show&limit=5' });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.json(), { q: 'tom&jerry show', limit: 5 });
+  });
 });
 
 describe('header and path validation', () => {
