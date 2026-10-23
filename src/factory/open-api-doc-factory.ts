@@ -39,7 +39,7 @@ export function openApiDocFactory(
   if (headers) {
     for (const header in headers) {
       openApiDocObject.paths[openApiRoute][openApiMethod].parameters.push({
-        in: 'headers',
+        in: 'header',
         name: header,
         required: headers[header].validation.required || false,
         schema: headers[header].openApiDoc?.schema,
