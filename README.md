@@ -1,4 +1,4 @@
-# Alado
+# Alado [alado.tech](https://alado.tech/)
 
 > A fast, lightweight, zero-dependency Node.js HTTP framework with built-in routing, validation, authentication, file uploads, and automatic OpenAPI 3.0 documentation.
 
