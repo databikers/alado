@@ -17,10 +17,12 @@
   "scripts": {
     "build": "rm -rf dist && tsc && tsc-alias && eslint src/**/*.ts",
     "eslint": "eslint src --ext .ts",
-    "test": "echo \"Error: no test specified\" && exit 0",
+    "test": "npm run test:build && node --test \".test-dist/test/**/*.test.js\"",
     "check-format": "prettier . --check",
     "format": "prettier . --write",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:build": "rm -rf .test-dist && tsc -p tsconfig.test.json && tsc-alias -p tsconfig.test.json",
+    "test:coverage": "npm run test:build && node --test --experimental-test-coverage --test-coverage-include=\".test-dist/src/**\" \".test-dist/test/**/*.test.js\""
   },
   "dependencies": {
     "swagger-ui-dist": "5.33.3"
@@ -48,7 +50,7 @@
   },
   "homepage": "https://github.com/databikers/alado",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "scarfSettings": {
     "enabled": false
