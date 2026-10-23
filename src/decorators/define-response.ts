@@ -1,6 +1,7 @@
 import { injector } from '@injector';
 import { Response } from '@dto';
 import { initializeInjector } from './initialize-injector';
+import { memberKey } from './class-key';
 
 export function defineResponse(response: Response<any>) {
   initializeInjector();
@@ -12,7 +13,7 @@ export function defineResponse(response: Response<any>) {
       controller,
       method,
     ] = args;
-    const key = `${controller.constructor.name}.${method}`;
+    const key = memberKey(controller, method);
     injector.injected.responseMapping[key] = response;
   };
 }

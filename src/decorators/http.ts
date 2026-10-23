@@ -3,6 +3,7 @@ import { injector } from '@injector';
 import { AladoServer } from '@alado';
 import { ContextOptions, HttpDecoratorOptions } from '@options';
 import { initializeInjector } from './initialize-injector';
+import { memberKey } from './class-key';
 import { controllerInstances } from './controller-instances';
 
 function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecoratorOptions = {}) {
@@ -12,7 +13,7 @@ function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecor
   const appId: string = options?.appId || DEFAULT_ID;
   const app: AladoServer = injector.injected.appMapping[appId];
   return function (instance: any, method: string) {
-    const key: string = `${instance.constructor.name}.${method}`;
+    const key: string = memberKey(instance, method);
     const fn = (app: AladoServer): void => {
       app[normalizedMethod as 'post' | 'query' | 'get' | 'put' | 'patch' | 'delete' | 'head'](
         path,

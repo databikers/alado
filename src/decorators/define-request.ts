@@ -2,6 +2,7 @@ import { FilePropertyDefinition, PropertyDefinition, Request } from '@dto';
 import { injector } from '@injector';
 import { AnyClass } from '@options';
 import { initializeInjector } from './initialize-injector';
+import { classKey, memberKey } from './class-key';
 
 export function defineRequest(request: Partial<Record<keyof Request, AnyClass>>) {
   initializeInjector();
@@ -9,10 +10,11 @@ export function defineRequest(request: Partial<Record<keyof Request, AnyClass>>)
     if (!injector.injected.requestMapping) {
       injector.injected.requestMapping = {};
     }
-    const key: string = `${args[0].constructor.name}.${args[1]}`;
+    const key: string = memberKey(args[0], args[1]);
     const r: Record<string, Record<string, PropertyDefinition | FilePropertyDefinition>> = {};
     for (const k in request) {
-      const className: string = request[k as keyof Request]?.name;
+      const dto = request[k as keyof Request];
+      const className: string | undefined = dto ? classKey(dto) : undefined;
       r[k] = injector.injected.propertyDefinitionsMapping[className as string];
       injector.injected.requestMapping[key] = r;
     }
