@@ -107,12 +107,6 @@ function validateMaxBodySize(options: AladoServerOptions) {
 export function validateAladoOptions(options: AladoServerOptions) {
   const { port, cors, openApiDoc, logger, verbose, maxBodySizeBytes } = options;
   validatePort(port);
-  if (!options.cors) {
-    options.cors = { enable: false };
-  }
-  if (!options.openApiDoc) {
-    options.openApiDoc = { enable: false };
-  }
   validateCors(cors);
   validateOpenApiDoc(openApiDoc);
   validateLogger(logger);

@@ -18,6 +18,12 @@ export class AladoServer {
   private readonly logger?: AladoServerLogger;
 
   constructor(options: AladoServerOptions) {
+    if (!options.cors) {
+      options.cors = { enable: false };
+    }
+    if (!options.openApiDoc) {
+      options.openApiDoc = { enable: false };
+    }
     validateAladoOptions(options);
     this.appId = options.appId || DEFAULT_ID;
     if (options.openApiDoc?.route) {
