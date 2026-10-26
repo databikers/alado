@@ -113,11 +113,14 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
         result.rawBody = body;
         if (contentType?.startsWith(ContentType.JSON)) {
           try {
-            result.body = JSON.parse(body, function (key, value) {
-              if (!deprecatedJsonPropertiesRegExp.test(key)) {
-                return value;
-              }
-            });
+            // A reviver takes V8 off its fast JSON path, so only use it when a forbidden key can be present
+            result.body = deprecatedJsonPropertiesRegExp.test(body)
+              ? JSON.parse(body, function (key, value) {
+                  if (!deprecatedJsonPropertiesRegExp.test(key)) {
+                    return value;
+                  }
+                })
+              : JSON.parse(body);
             resolve();
           } catch (e) {
             reject({ statusCode: 400, message: `Invalid JSON body` });
