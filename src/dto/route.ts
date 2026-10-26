@@ -7,4 +7,5 @@ export type Route<T> = {
   context: Context<T>;
   handler: (request: Request) => any;
   allowedMethods?: string[];
+  optionsDataKey?: string;
 };
