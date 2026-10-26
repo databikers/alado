@@ -2,6 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { queryParser, clearRoutePath, getProperty, setProperty } from '../../src/helpers';
 import { xmlParser } from '../../src/helpers/parser/xml-parser';
+import { bodyParser } from '../../src/helpers/parser/body-parser';
+import { Readable } from 'stream';
 
 describe('clearRoutePath', () => {
   it('adds a leading slash', () => {
@@ -293,5 +295,45 @@ describe('xmlParser', () => {
     const r: any = xmlParser('<__proto__><isAdmin>true</isAdmin></__proto__>');
     assert.equal(r.isAdmin, undefined);
     assert.equal(Object.keys(r).length, 0);
+  });
+});
+
+describe('bodyParser (JSON)', () => {
+  const parseJson = async (text: string) => {
+    const req: any = Readable.from([Buffer.from(text)]);
+    req.headers = { 'content-type': 'application/json' };
+    return (await bodyParser(req, {} as any, 0)).body;
+  };
+
+  it('parses a plain JSON body', async () => {
+    assert.deepEqual(await parseJson('{"a":1,"b":[1,2],"c":{"d":"e"}}'), {
+      a: 1,
+      b: [
+        1,
+        2,
+      ],
+      c: { d: 'e' },
+    });
+  });
+
+  it('drops __proto__ / constructor / prototype / __defineGetter__ / __defineSetter__ keys at any depth', async () => {
+    const body = await parseJson(
+      '{"a":1,"__proto__":{"polluted":true},"constructor":{"prototype":{"x":1}},"prototype":1,' +
+        '"__defineGetter__":1,"__defineSetter__":2,"nested":{"b":2,"__proto__":{"y":1}}}',
+    );
+    assert.deepEqual(body, { a: 1, nested: { b: 2 } });
+    assert.equal(Object.getPrototypeOf(body), Object.prototype);
+    assert.equal(({} as any).polluted, undefined);
+  });
+
+  it('keeps string values that merely mention a forbidden key', async () => {
+    assert.deepEqual(await parseJson('{"note":"the constructor of __proto__ chains","list":["prototype"]}'), {
+      note: 'the constructor of __proto__ chains',
+      list: ['prototype'],
+    });
+  });
+
+  it('rejects malformed JSON with an HTTP-mappable 400', async () => {
+    await assert.rejects(parseJson('{"a":'), { statusCode: 400, message: 'Invalid JSON body' });
   });
 });
