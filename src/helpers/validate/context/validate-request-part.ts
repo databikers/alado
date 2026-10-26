@@ -5,16 +5,19 @@ const nonProcessingRequestParts: string[] = [
   'auth',
 ];
 
-export async function validateRequestPart(
+type RequestPartError = { statusCode: number; message: string } | undefined;
+
+export function validateRequestPart(
   key: keyof ContextRequest,
   context: Context<any>,
   request: any,
-): Promise<{ statusCode: number; message: string } | undefined> {
+): RequestPartError | Promise<RequestPartError> {
   if (nonProcessingRequestParts.includes(key)) {
     return;
   }
+  const definitions = context?.request[key] || {};
   if (
-    !Object.keys(context?.request[key] || {}).length &&
+    !Object.keys(definitions).length &&
     !context.options?.allowUnknownFields &&
     ![
       'headers',
@@ -23,6 +26,22 @@ export async function validateRequestPart(
   ) {
     request[key] = {};
   }
+  let hasDefinitions: boolean = false;
+  for (const _ in context.request[key]) {
+    hasDefinitions = true;
+    break;
+  }
+  if (!hasDefinitions) {
+    return;
+  }
+  return validateDeclaredProperties(key, context, request);
+}
+
+async function validateDeclaredProperties(
+  key: keyof ContextRequest,
+  context: Context<any>,
+  request: any,
+): Promise<RequestPartError> {
   for (const property in context.request[key]) {
     const { validation, transform, isJSON } = context.request[key][property] as PropertyDefinition;
     const { required, handler, error } = validation;
