@@ -52,6 +52,14 @@ export function toClientError(e: any): AladoServerError {
   return { statusCode: 500, message: 'Internal Server Error' };
 }
 
+// methods whose request body is read and parsed
+const bodyMethods: Set<string> = new Set<string>([
+  HttpMethod.PUT,
+  HttpMethod.PATCH,
+  HttpMethod.POST,
+  HttpMethod.QUERY,
+]);
+
 export class RequestProcessor {
   private readonly options: RequestProcessorOptions;
 
@@ -71,10 +79,16 @@ export class RequestProcessor {
   protected respond(res: ServerResponse, response: Response<any>, backgroundHeaders: Record<string, string> = {}) {
     let responseBody: any;
     const { statusCode, body } = response;
-    const headers: Record<string, string> = { ...(response.headers || {}) };
+    const responseHeaders: Record<string, string> = response.headers || {};
+    const headers: Record<string, string> = Object.assign({}, this.options.headers, backgroundHeaders, responseHeaders);
     const isStreamBody = isReadableStream(body);
-    const contentTypeKey: string | undefined = Object.keys(headers).find((h) => h.toLowerCase() === 'content-type');
-    const contentType: string | undefined = contentTypeKey ? headers[contentTypeKey] : undefined;
+    let contentType: string | undefined = responseHeaders['Content-Type'] ?? responseHeaders['content-type'];
+    if (contentType === undefined) {
+      const contentTypeKey: string | undefined = Object.keys(responseHeaders).find(
+        (h) => h.toLowerCase() === 'content-type',
+      );
+      contentType = contentTypeKey ? responseHeaders[contentTypeKey] : undefined;
+    }
     const isRawBody: boolean =
       body === undefined ||
       body === null ||
@@ -92,7 +106,7 @@ export class RequestProcessor {
     } else {
       responseBody = body;
     }
-    res.writeHead(statusCode, { ...this.options.headers, ...backgroundHeaders, ...headers });
+    res.writeHead(statusCode, headers);
     if (isStreamBody) {
       responseBody.pipe(res);
     } else {
@@ -201,16 +215,7 @@ export class RequestProcessor {
         let query: any = {};
         let files: any = {};
 
-        if (
-          (
-            [
-              HttpMethod.PUT,
-              HttpMethod.PATCH,
-              HttpMethod.POST,
-              HttpMethod.QUERY,
-            ] as string[]
-          ).includes(method as string)
-        ) {
+        if (bodyMethods.has(method as string)) {
           const r = await bodyParser(req, res, this.options.maxBodySizeBytes as number);
           body = r.body;
           rawBody = r.rawBody;
@@ -263,11 +268,9 @@ export class RequestProcessor {
         }
         // Validate request
         for (const key in context.request) {
-          const error: AladoServerError | undefined = await validateRequestPart(
-            key as keyof ContextRequest,
-            context,
-            request,
-          );
+          const result = validateRequestPart(key as keyof ContextRequest, context, request);
+          // only await when validators actually ran; a plain value needs no microtask
+          const error: AladoServerError | undefined = result instanceof Promise ? await result : result;
           if (error) {
             return this.respondError(res, error, backgroundHeaders);
           }
