@@ -18,6 +18,38 @@ describe('clearRoutePath', () => {
   it('root stays empty after trimming', () => {
     assert.equal(clearRoutePath('/'), '');
   });
+  it('matches the regex-only implementation on every input shape', () => {
+    const reference = (route: string) => {
+      if (!/^\//.test(route)) {
+        route = `/${route}`;
+      }
+      route = route.replace(/\/+/g, '/');
+      if (/\/$/.test(route)) {
+        route = route.replace(/\/$/, '');
+      }
+      return route;
+    };
+    for (const input of [
+      '',
+      '/',
+      '//',
+      '///a',
+      'a',
+      'a/',
+      '/a',
+      '/a/',
+      '/a//b',
+      '/a/b//',
+      '/a/b?x=1',
+      '/a/b/?x=1',
+      '/a/b?next=//evil',
+      '/v1.0/users/42',
+      '/USERS/42',
+      '/%2F%2F',
+    ]) {
+      assert.equal(clearRoutePath(input), reference(input), JSON.stringify(input));
+    }
+  });
 });
 
 describe('queryParser', () => {
