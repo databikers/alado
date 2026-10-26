@@ -15,16 +15,9 @@ import {
   validateRequestFiles,
   validateRequestPart,
 } from '@helper';
-import { options } from 'prettier-plugin-multiline-arrays';
 
-const swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
-// Only regular files directly inside swagger-ui-dist are ever served.
-const swaggerUiFiles: Set<string> = new Set(
-  readdirSync(swaggerUiAssetPath, { withFileTypes: true })
-    .filter((entry) => entry.isFile())
-    .map((entry) => entry.name),
-);
-
+let swaggerUiFiles: Set<string> = new Set();
+let swaggerUiAssetPath: string = '';
 /**
  * Maps a request URL to a Swagger UI asset name, or undefined if it is not one.
  * The result is always an exact entry of the swagger-ui-dist listing, so no
@@ -64,6 +57,15 @@ export class RequestProcessor {
 
   constructor(requestProcessorOptions: RequestProcessorOptions) {
     this.options = requestProcessorOptions;
+    if (requestProcessorOptions.openApiDoc?.enable) {
+      swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
+      // Only regular files directly inside swagger-ui-dist are ever served.
+      swaggerUiFiles = new Set(
+        readdirSync(swaggerUiAssetPath, { withFileTypes: true })
+          .filter((entry) => entry.isFile())
+          .map((entry) => entry.name),
+      );
+    }
   }
 
   protected respond(res: ServerResponse, response: Response<any>, backgroundHeaders: Record<string, string> = {}) {
