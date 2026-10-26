@@ -117,6 +117,7 @@ export class Router {
           route: optionsRouteRegEx,
           path: pathData,
           context,
+          optionsDataKey: this.getOptionsDataKey(HttpMethod.OPTIONS, optionsRouteRegEx),
           handler: (request: Request) => {
             const headers: Record<string, string> = {
               'Access-Control-Allow-Methods': this.getOptionsData(optionsDataKey).join(', '),
@@ -141,7 +142,7 @@ export class Router {
         });
       }
     }
-    this.routes.set(routeRegEx, { route: routeRegEx, path: pathData, context, handler });
+    this.routes.set(routeRegEx, { route: routeRegEx, path: pathData, context, handler, optionsDataKey });
     this.sortRoutes();
   }
 
@@ -179,18 +180,19 @@ export class Router {
   parse(method: HttpMethod, uri: string): Route<any> | undefined {
     uri = clearRoutePath(uri);
     const p = `${method}${uri}`;
-    const keys = Array.from(this.routes.keys());
     const path: any = {};
-    for (let i = 0; i < keys.length; i++) {
-      const route: RegExp = keys[i];
+    for (const [
+      route,
+      data,
+    ] of this.routes) {
       const matches: RegExpMatchArray | null = p.match(route);
       if (matches) {
-        const data: Route<any> = this.routes.get(route) as Route<any>;
         for (const k in data.path) {
           path[k] = matches[data.path[k] as unknown as number];
         }
-        const optionsDataKey: string = this.getOptionsDataKey(method, keys[i]);
-        const allowedMethods: HttpMethod[] = this.options.cors!.allowedMethods!.get(optionsDataKey);
+        const allowedMethods: HttpMethod[] = this.options.cors!.allowedMethods!.get(
+          data.optionsDataKey ?? this.getOptionsDataKey(method, route),
+        );
         return { ...data, path, allowedMethods };
       }
     }
