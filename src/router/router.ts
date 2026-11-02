@@ -37,8 +37,24 @@ type RouterUseArgs =
       string,
       (request: Request) => void,
     ];
+type DynamicRoute = {
+  matcher: RegExp;
+  data: Route<any>;
+  params: [
+    string,
+    number,
+  ][];
+};
+// literal: lower-cased path for routes without params, undefined otherwise
+type RouteMeta = { method: string; pattern: string; literal?: string };
+
 export class Router {
   private routes: Map<RegExp, Route<any>> = new Map<RegExp, Route<any>>();
+  // per-method lookup tables, rebuilt on every use(): exact (lower-cased) path -> route for
+  // routes without params, and an ordered list of pre-compiled matchers for the rest
+  private staticRoutes: Map<string, Map<string, Route<any>>> = new Map();
+  private dynamicRoutes: Map<string, DynamicRoute[]> = new Map();
+  private meta: Map<RegExp, RouteMeta> = new Map();
   public readonly options: RouterOptions;
   public readonly openApiDocObject: any;
   public readonly logger: AladoServerLogger;
@@ -89,7 +105,9 @@ export class Router {
     let openApiRoute: string = uri;
     const openApiMethod: string = method.toLowerCase();
 
-    const { pattern, params } = toRoutePattern(clearRoutePath(uri));
+    const cleanUri: string = clearRoutePath(uri);
+    const { pattern, params } = toRoutePattern(cleanUri);
+    const literal: string | undefined = params.length ? undefined : cleanUri.toLowerCase();
     const route: string = `${method}${pattern}`;
     const optionsRoute: string = `${HttpMethod.OPTIONS}${pattern}`;
     params.forEach((variable: string, i: number) => {
@@ -100,6 +118,14 @@ export class Router {
     if (this.options.openApiDoc?.enable && !context?.options?.isHidden) {
       openApiDocFactory(openApiMethod, openApiRoute, context, this.openApiDocObject);
     }
+
+    // after the OpenAPI doc is built; done once here rather than on every request
+    context.request = context.request || {};
+    context.request.headers = context.request.headers || {};
+    context.request.query = context.request.query || {};
+    context.request.body = context.request.body || {};
+    context.request.path = context.request.path || {};
+    context.request.files = context.request.files || {};
 
     const routeRegEx: RegExp = new RegExp(`^${route.replace(/\//g, '/')}\/?$`, 'i');
     const optionsDataKey: string = this.getOptionsDataKey(method, routeRegEx);
@@ -113,6 +139,7 @@ export class Router {
           method,
         ]);
         const optionsRouteRegEx: RegExp = new RegExp(`^${optionsRoute.replace(/\//g, '/')}\/?$`, 'i');
+        this.meta.set(optionsRouteRegEx, { method: HttpMethod.OPTIONS, pattern, literal });
         this.routes.set(optionsRouteRegEx, {
           route: optionsRouteRegEx,
           path: pathData,
@@ -142,6 +169,7 @@ export class Router {
         });
       }
     }
+    this.meta.set(routeRegEx, { method, pattern, literal });
     this.routes.set(routeRegEx, { route: routeRegEx, path: pathData, context, handler, optionsDataKey });
     this.sortRoutes();
   }
@@ -167,6 +195,37 @@ export class Router {
         ) => paramCount(a) - paramCount(b),
       ),
     );
+    this.buildIndex();
+  }
+
+  protected buildIndex() {
+    this.staticRoutes = new Map();
+    this.dynamicRoutes = new Map();
+    for (const [
+      route,
+      data,
+    ] of this.routes) {
+      const meta: RouteMeta = this.meta.get(route) as RouteMeta;
+      if (meta.literal !== undefined) {
+        const table = this.staticRoutes.get(meta.method) || new Map<string, Route<any>>();
+        // first registration wins, as with the ordered scan
+        if (!table.has(meta.literal)) {
+          table.set(meta.literal, data);
+        }
+        this.staticRoutes.set(meta.method, table);
+        continue;
+      }
+      const list: DynamicRoute[] = this.dynamicRoutes.get(meta.method) || [];
+      list.push({
+        matcher: new RegExp(`^${meta.pattern}\\/?$`, 'i'),
+        data,
+        params: Object.entries(data.path || {}) as unknown as [
+          string,
+          number,
+        ][],
+      });
+      this.dynamicRoutes.set(meta.method, list);
+    }
   }
 
   protected getOptionsDataKey(method: string, routeRegEx: RegExp) {
@@ -178,23 +237,46 @@ export class Router {
   }
 
   parse(method: HttpMethod, uri: string): Route<any> | undefined {
-    uri = clearRoutePath(uri);
-    const p = `${method}${uri}`;
-    const path: any = {};
-    for (const [
-      route,
-      data,
-    ] of this.routes) {
-      const matches: RegExpMatchArray | null = p.match(route);
-      if (matches) {
-        for (const k in data.path) {
-          path[k] = matches[data.path[k] as unknown as number];
-        }
-        const allowedMethods: HttpMethod[] = this.options.cors!.allowedMethods!.get(
-          data.optionsDataKey ?? this.getOptionsDataKey(method, route),
-        );
-        return { ...data, path, allowedMethods };
+    return this.match(method, clearRoutePath(uri));
+  }
+
+  /**
+   * Same as parse(), for a path that already went through clearRoutePath().
+   * Param-less routes are a hash lookup; only routes with params are tried as RegExps,
+   * and only those registered for the request method.
+   */
+  match(method: HttpMethod, uri: string): Route<any> | undefined {
+    const table = this.staticRoutes.get(method);
+    if (table !== undefined) {
+      const data: Route<any> | undefined = table.get(uri.toLowerCase());
+      if (data !== undefined) {
+        return this.toResult(data, {});
       }
     }
+    const list: DynamicRoute[] | undefined = this.dynamicRoutes.get(method);
+    if (list !== undefined) {
+      for (let i: number = 0; i < list.length; i++) {
+        const matches: RegExpExecArray | null = list[i].matcher.exec(uri);
+        if (matches !== null) {
+          const path: Record<string, string> = {};
+          const params = list[i].params;
+          for (let j: number = 0; j < params.length; j++) {
+            path[params[j][0]] = matches[params[j][1]];
+          }
+          return this.toResult(list[i].data, path);
+        }
+      }
+    }
+  }
+
+  protected toResult(data: Route<any>, path: Record<string, string>): Route<any> {
+    return {
+      route: data.route,
+      path,
+      context: data.context,
+      handler: data.handler,
+      optionsDataKey: data.optionsDataKey,
+      allowedMethods: this.options.cors?.allowedMethods?.get(data.optionsDataKey as string),
+    };
   }
 }
