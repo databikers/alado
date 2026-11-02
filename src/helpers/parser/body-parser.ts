@@ -34,6 +34,10 @@ function collectChunks(
 }
 
 function concatChunks(received: ReceivedBody, encoding: BufferEncoding): string {
+  // small bodies usually arrive in one chunk: decode it without copying
+  if (received.chunks.length === 1) {
+    return received.chunks[0].toString(encoding);
+  }
   return Buffer.concat(received.chunks, received.bytes).toString(encoding);
 }
 
