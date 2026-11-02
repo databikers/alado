@@ -52,6 +52,13 @@ export function toClientError(e: any): AladoServerError {
   return { statusCode: 500, message: 'Internal Server Error' };
 }
 
+function hasKeys(value: any): boolean {
+  for (const _ in value) {
+    return true;
+  }
+  return false;
+}
+
 // methods whose request body is read and parsed
 const bodyMethods: Set<string> = new Set<string>([
   HttpMethod.PUT,
@@ -62,6 +69,10 @@ const bodyMethods: Set<string> = new Set<string>([
 
 export class RequestProcessor {
   private readonly options: RequestProcessorOptions;
+
+  // CORS header values that do not depend on the request, built on first use
+  private corsStatic?: Record<string, string>;
+  private corsMethods: WeakMap<string[], { count: number; value: string }> = new WeakMap();
 
   constructor(requestProcessorOptions: RequestProcessorOptions) {
     this.options = requestProcessorOptions;
@@ -76,28 +87,44 @@ export class RequestProcessor {
     }
   }
 
-  protected respond(res: ServerResponse, response: Response<any>, backgroundHeaders: Record<string, string> = {}) {
+  protected respond(res: ServerResponse, response: Response<any>, backgroundHeaders?: Record<string, string>) {
     let responseBody: any;
     const { statusCode, body } = response;
     const responseHeaders: Record<string, string> = response.headers || {};
-    const headers: Record<string, string> = Object.assign({}, this.options.headers, backgroundHeaders, responseHeaders);
-    const isStreamBody = isReadableStream(body);
-    let contentType: string | undefined = responseHeaders['Content-Type'] ?? responseHeaders['content-type'];
-    if (contentType === undefined) {
-      const contentTypeKey: string | undefined = Object.keys(responseHeaders).find(
-        (h) => h.toLowerCase() === 'content-type',
-      );
-      contentType = contentTypeKey ? responseHeaders[contentTypeKey] : undefined;
+    const headers: Record<string, string> = {};
+    let contentType: string | undefined;
+    let hasContentLength: boolean = false;
+    for (const source of [
+      this.options.headers,
+      backgroundHeaders,
+      responseHeaders,
+    ]) {
+      for (const name in source) {
+        headers[name] = source[name];
+      }
     }
+    for (const name in responseHeaders) {
+      // only names of a matching length are lower-cased
+      const lower: string = name.length === 12 || name.length === 14 || name.length === 17 ? name.toLowerCase() : '';
+      if (lower === 'content-type' && contentType === undefined) {
+        contentType = responseHeaders[name];
+      } else if (lower === 'content-length' || lower === 'transfer-encoding') {
+        hasContentLength = true;
+      }
+    }
+    // cheapest checks first: most bodies are plain objects, strings or buffers
     const isRawBody: boolean =
       body === undefined ||
       body === null ||
       typeof body === 'string' ||
       Buffer.isBuffer(body) ||
       body instanceof Uint8Array;
-    if (contentType?.startsWith(ContentType.JSON)) {
-      responseBody = isStreamBody ? body : JSON.stringify(body);
-    } else if (!isStreamBody && !isRawBody) {
+    const isStreamBody: boolean = !isRawBody && typeof body.pipe === 'function' && isReadableStream(body);
+    if (isStreamBody) {
+      responseBody = body;
+    } else if (contentType !== undefined && contentType.startsWith(ContentType.JSON)) {
+      responseBody = JSON.stringify(body);
+    } else if (!isRawBody) {
       // res.end() only accepts strings and buffers: serialise anything else as JSON
       if (!contentType) {
         headers['Content-Type'] = ContentType.JSON;
@@ -105,6 +132,16 @@ export class RequestProcessor {
       responseBody = JSON.stringify(body);
     } else {
       responseBody = body;
+    }
+    // A known length avoids Transfer-Encoding: chunked (extra framing on every response).
+    // 1xx/204/304 must not carry one; streams keep chunked encoding.
+    if (!isStreamBody && !hasContentLength && statusCode >= 200 && statusCode !== 204 && statusCode !== 304) {
+      headers['Content-Length'] =
+        responseBody === undefined || responseBody === null
+          ? '0'
+          : typeof responseBody === 'string'
+            ? String(Buffer.byteLength(responseBody))
+            : String(responseBody.byteLength);
     }
     res.writeHead(statusCode, headers);
     if (isStreamBody) {
@@ -175,27 +212,13 @@ export class RequestProcessor {
         }
       }
       // Process API routes
-      const [
-        uri,
-        queryString,
-      ] = url.split('?');
-      const route = router.parse(method as HttpMethod, clearRoutePath(uri));
-      let backgroundHeaders: Record<string, string> = {};
-      if (this.options.enableCors) {
-        backgroundHeaders = {
-          'Access-Control-Allow-Methods': route?.allowedMethods?.join(', ') || '',
-          'Access-Control-Allow-Headers': this.options.router.options.cors?.allowedHeaders?.join(', ') || '',
-          'Access-Control-Expose-Headers': this.options.router.options.cors?.exposeHeaders?.join(', ') || '',
-          'Access-Control-Allow-Credentials': this.options.router.options.cors?.allowedCredentials ? 'true' : 'false',
-        };
-        if (Array.isArray(this.options.router.options.cors.allowedOrigin)) {
-          if (this.options.router.options.cors.allowedOrigin.includes(origin)) {
-            backgroundHeaders['Access-Control-Allow-Origin'] = origin;
-          }
-        } else {
-          backgroundHeaders['Access-Control-Allow-Origin'] =
-            (this.options.router.options.cors.allowedOrigin as string) || origin;
-        }
+      const queryIndex: number = url.indexOf('?');
+      const uri: string = queryIndex === -1 ? url : url.slice(0, queryIndex);
+      const queryString: string = queryIndex === -1 ? '' : url.slice(queryIndex + 1);
+      const route = router.match(method as HttpMethod, clearRoutePath(uri));
+      let backgroundHeaders: Record<string, string> | undefined;
+      if (enableCors) {
+        backgroundHeaders = this.corsHeaders(route?.allowedMethods, origin);
       }
       if (!route) {
         // Not Found
@@ -222,15 +245,10 @@ export class RequestProcessor {
           files = r.files;
         }
 
-        if (context.request.query) {
+        // without declared query fields the query is dropped by validation anyway
+        if (queryString && (context.options?.allowUnknownFields || hasKeys(context.request.query))) {
           query = queryParser(queryString);
         }
-
-        context.request.headers = context.request.headers || {};
-        context.request.query = context.request.query || {};
-        context.request.body = context.request.body || {};
-        context.request.path = context.request.path || {};
-        context.request.files = context.request.files || {};
 
         const request: Request = {
           request: req,
@@ -277,7 +295,7 @@ export class RequestProcessor {
         }
         // Validate request (files)
         if (context.request.files) {
-          const error: AladoServerError | undefined = await validateRequestFiles(context, request);
+          const error: AladoServerError | undefined = validateRequestFiles(context, request);
           if (error) {
             return this.respondError(res, error, backgroundHeaders);
           }
@@ -294,6 +312,39 @@ export class RequestProcessor {
       this.logError(e as Error);
       return this.respondError(res, toClientError(e), {});
     }
+  }
+
+  protected corsHeaders(allowedMethods: string[] | undefined, origin: string): Record<string, string> {
+    const cors = this.options.router.options.cors;
+    if (!this.corsStatic) {
+      this.corsStatic = {
+        'Access-Control-Allow-Headers': cors?.allowedHeaders?.join(', ') || '',
+        'Access-Control-Expose-Headers': cors?.exposeHeaders?.join(', ') || '',
+        'Access-Control-Allow-Credentials': cors?.allowedCredentials ? 'true' : 'false',
+      };
+    }
+    let methods: string = '';
+    if (allowedMethods) {
+      // the array grows while routes are registered, so the cache is keyed on its length too
+      let cached = this.corsMethods.get(allowedMethods);
+      if (!cached || cached.count !== allowedMethods.length) {
+        cached = { count: allowedMethods.length, value: allowedMethods.join(', ') };
+        this.corsMethods.set(allowedMethods, cached);
+      }
+      methods = cached.value;
+    }
+    const headers: Record<string, string> = {
+      'Access-Control-Allow-Methods': methods,
+      ...this.corsStatic,
+    };
+    if (Array.isArray(cors.allowedOrigin)) {
+      if (cors.allowedOrigin.includes(origin)) {
+        headers['Access-Control-Allow-Origin'] = origin;
+      }
+    } else {
+      headers['Access-Control-Allow-Origin'] = (cors.allowedOrigin as string) || origin;
+    }
+    return headers;
   }
 
   protected logError(e: Error) {
