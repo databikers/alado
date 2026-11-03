@@ -1186,12 +1186,13 @@ Documentation is built from:
 
 ### `AladoServerOptions`
 
-| Property | Type                   | Default | Description                         |
-| -------- | ---------------------- | ------- | ----------------------------------- |
-| `port`   | `number`               | `3000`  | HTTP port                           |
-| `appId`  | `string`               | —       | App identifier for multi-app setups |
-| `logger` | `AladoServerLogger`    | —       | Custom logger                       |
-| `ssl`    | `SecureContextOptions` | —       | TLS/HTTPS options                   |
+| Property           | Type                   | Default          | Description                                                                                           |
+| ------------------ | ---------------------- | ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `port`             | `number`               | `3000`           | HTTP port                                                                                             |
+| `appId`            | `string`               | —                | App identifier for multi-app setups                                                                   |
+| `logger`           | `AladoServerLogger`    | —                | Custom logger                                                                                         |
+| `ssl`              | `SecureContextOptions` | —                | TLS/HTTPS options                                                                                     |
+| `maxBodySizeBytes` | `number`               | `1048576` (1 MB) | Larger request bodies get `413 Content Too Large` and the connection is closed. `0` removes the limit |
 
 ### `Request`
 

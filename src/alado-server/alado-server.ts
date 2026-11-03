@@ -1,6 +1,13 @@
 import { Server } from 'http';
 
-import { HttpMethod, defaultOpenApiDocObject, defaultHost, defaultBacklog, DEFAULT_ID } from '@const';
+import {
+  HttpMethod,
+  defaultOpenApiDocObject,
+  defaultHost,
+  defaultBacklog,
+  defaultMaxBodySizeBytes,
+  DEFAULT_ID,
+} from '@const';
 import { AladoServerOptions } from '@options';
 import { AladoServerLogger, Context, Response } from '@dto';
 import { Router } from '@router';
@@ -58,7 +65,8 @@ export class AladoServer {
         enableCors: options.cors?.enable,
         logger: this.logger,
         verbose: options.verbose,
-        maxBodySizeBytes: options.maxBodySizeBytes,
+        // 0 explicitly disables the limit
+        maxBodySizeBytes: options.maxBodySizeBytes ?? defaultMaxBodySizeBytes,
       },
       {
         ...options.ssl,

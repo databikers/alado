@@ -12,8 +12,23 @@ export function isXmlContentType(contentType: string | undefined): boolean {
 
 type ReceivedBody = { chunks: Buffer[]; bytes: number };
 
+const contentTooLarge: AladoServerError = { statusCode: 413, message: 'Content Too Large' };
+
+/**
+ * Stops buffering an oversized body. The rest of it is not read: the connection is
+ * closed once the 413 response is sent, so the client cannot keep streaming into it.
+ */
+function abortOversizedBody(req: IncomingMessage, res: OutgoingMessage) {
+  req.removeAllListeners('data');
+  req.removeAllListeners('end');
+  if (!res.headersSent) {
+    res.setHeader('Connection', 'close');
+  }
+}
+
 function collectChunks(
   req: IncomingMessage,
+  res: OutgoingMessage,
   limit: number,
   received: ReceivedBody,
   reject: (error: AladoServerError) => void,
@@ -21,16 +36,17 @@ function collectChunks(
   return (chunk: Buffer) => {
     received.bytes += chunk.length;
     if (limit && received.bytes > limit) {
-      req.removeAllListeners('data');
-      req.removeAllListeners('end');
-      reject({
-        statusCode: 413,
-        message: 'Content Too Large',
-      } as AladoServerError);
+      abortOversizedBody(req, res);
+      reject(contentTooLarge);
       return;
     }
     received.chunks.push(chunk);
   };
+}
+
+// a broken or aborted upload ends the request instead of leaving it pending
+function onRequestError(reject: (error: AladoServerError) => void) {
+  return () => reject({ statusCode: 400, message: 'Bad Request' });
 }
 
 function concatChunks(received: ReceivedBody, encoding: BufferEncoding): string {
@@ -50,11 +66,18 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
   };
   let body: string = '';
   const received: ReceivedBody = { chunks: [], bytes: 0 };
+  // a declared length above the limit is refused before anything is read
+  const declaredLength: number = Number(req.headers['content-length']);
+  if (limit && declaredLength > limit) {
+    abortOversizedBody(req, res);
+    throw contentTooLarge;
+  }
   if (contentType?.startsWith(ContentType.FORM_DATA)) {
     const matchingArray = /boundary=(.+)$/.exec(req.headers['content-type'] as string);
     const boundary: string | null = matchingArray && matchingArray[1];
     await new Promise<void>((resolve, reject) => {
-      req.on('data', collectChunks(req, limit, received, reject));
+      req.on('data', collectChunks(req, res, limit, received, reject));
+      req.once('error', onRequestError(reject));
       req.on('end', () => {
         // multipart is parsed as a binary string: one char per byte, file bytes kept intact
         body = concatChunks(received, 'binary');
@@ -111,7 +134,8 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
     });
   } else {
     await new Promise<void>((resolve, reject) => {
-      req.on('data', collectChunks(req, limit, received, reject));
+      req.on('data', collectChunks(req, res, limit, received, reject));
+      req.once('error', onRequestError(reject));
       req.on('end', () => {
         body = concatChunks(received, 'utf8');
         result.rawBody = body;
