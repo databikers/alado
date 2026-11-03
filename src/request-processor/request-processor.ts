@@ -18,24 +18,41 @@ import {
 
 let swaggerUiFiles: Set<string> = new Set();
 let swaggerUiAssetPath: string = '';
+const SWAGGER_JSON_PATH: string = '/swagger.json';
+
 /**
- * Maps a request URL to a Swagger UI asset name, or undefined if it is not one.
- * The result is always an exact entry of the swagger-ui-dist listing, so no
- * part of the URL ever reaches the filesystem (no `..`, no subdirectories).
+ * Maps a request path (already through clearRoutePath, query string removed) to a Swagger UI
+ * file name, or undefined if it is not one. Files are only served under the docs route; the docs
+ * page sets <base href="<route>/"> so its relative asset URLs resolve there. Only a docs route of
+ * "/" serves files from the root. The result is always an exact entry of the swagger-ui-dist
+ * listing, so no part of the URL ever reaches the filesystem (no `..`, no subdirectories).
  */
-export function resolveSwaggerUiFile(url: string, docsRoute: string): string | undefined {
+export function resolveSwaggerUiFile(pathname: string, docsRoute: string): string | undefined {
   const route: string = clearRoutePath(docsRoute || '');
-  const pathname: string = url.split('?')[0];
-  let name: string;
-  if (pathname === route) {
+  let name: string | undefined;
+  if (pathname === route || (!route && pathname === '')) {
     name = 'index.html';
-  } else if (route && pathname.startsWith(`${route}/`)) {
+  } else if (pathname.startsWith(`${route}/`)) {
     name = pathname.slice(route.length + 1);
-  } else {
-    // index.html references its assets relatively, so they are requested from the root
-    name = pathname.replace(/^\//, '');
   }
-  return swaggerUiFiles.has(name) ? name : undefined;
+  return name !== undefined && swaggerUiFiles.has(name) ? name : undefined;
+}
+
+const swaggerContentTypes: Record<string, string> = {
+  css: 'text/css; charset=utf-8',
+  js: 'application/javascript; charset=utf-8',
+  map: 'application/json; charset=utf-8',
+  html: 'text/html; charset=utf-8',
+  png: 'image/png',
+};
+
+const htmlAttribute = (value: string): string =>
+  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Swagger UI's index.html, with a <base> so its relative asset URLs stay under the docs route. */
+export function swaggerIndexHtml(html: string, docsRoute: string): string {
+  const base: string = `<base href="${htmlAttribute(`${clearRoutePath(docsRoute || '')}/`)}" />`;
+  return html.replace(/<head([^>]*)>/i, (head: string) => `${head}\n    ${base}`);
 }
 
 /**
@@ -116,6 +133,8 @@ const bodyMethods: Set<string> = new Set<string>([
 export class RequestProcessor {
   private readonly options: RequestProcessorOptions;
 
+  private swaggerIndex: string = '';
+  private swaggerInitializer: string = '';
   // CORS header values that do not depend on the request, built on first use
   private corsStatic?: Record<string, string>;
   private corsMethods: WeakMap<string[], { count: number; value: string }> = new WeakMap();
@@ -124,11 +143,20 @@ export class RequestProcessor {
     this.options = requestProcessorOptions;
     if (requestProcessorOptions.openApiDoc?.enable) {
       swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
-      // Only regular files directly inside swagger-ui-dist are ever served.
+      // Only web assets directly inside swagger-ui-dist are ever served (not its package.json, README, LICENSE)
       swaggerUiFiles = new Set(
         readdirSync(swaggerUiAssetPath, { withFileTypes: true })
-          .filter((entry) => entry.isFile())
+          .filter((entry) => entry.isFile() && swaggerContentTypes[entry.name.slice(entry.name.lastIndexOf('.') + 1)])
           .map((entry) => entry.name),
+      );
+      // the two files that are rewritten are built once, not read from disk on every request
+      this.swaggerIndex = swaggerIndexHtml(
+        readFileSync(join(swaggerUiAssetPath, 'index.html'), 'utf8'),
+        requestProcessorOptions.openApiDoc.route as string,
+      );
+      this.swaggerInitializer = readFileSync(join(swaggerUiAssetPath, SWAGGER_INITIALIZER_FILE_NAME), 'utf8').replace(
+        'https://petstore.swagger.io/v2/swagger.json',
+        SWAGGER_JSON_PATH,
       );
     }
   }
@@ -222,42 +250,50 @@ export class RequestProcessor {
       const ip: string = clientIp(req, this.options.trustProxy);
       const origin: string = (req.headers.origin as string) || '*';
       // Process Open API routes
-      if (openApiDoc?.enable) {
-        if (method === HttpMethod.GET) {
-          const swaggerFile: string | undefined = req.url?.startsWith(`/swagger.json`)
-            ? undefined
-            : resolveSwaggerUiFile(url, openApiDoc.route as string);
-          if (swaggerFile) {
-            // swaggerFile is a bare name from the swagger-ui-dist listing, never a path from the URL
-            const filePath = join(swaggerUiAssetPath, swaggerFile);
-            if (swaggerFile === SWAGGER_INITIALIZER_FILE_NAME) {
-              const initFileContent = readFileSync(filePath)
-                .toString()
-                .replace('https://petstore.swagger.io/v2/swagger.json', '/swagger.json');
-              res.writeHead(200, {
-                'Content-Type': 'application/javascript; charset=utf-8',
-                'Content-Length': Buffer.byteLength(initFileContent),
-              });
-              res.end(initFileContent);
-              return;
+      if (openApiDoc?.enable && method === HttpMethod.GET) {
+        const queryStart: number = url.indexOf('?');
+        const pathname: string = queryStart === -1 ? url : url.slice(0, queryStart);
+        if (pathname === SWAGGER_JSON_PATH) {
+          return this.respond(res, {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: this.options.router.openApiDocObject,
+          });
+        }
+        const swaggerFile: string | undefined = resolveSwaggerUiFile(pathname, openApiDoc.route as string);
+        if (swaggerFile === 'index.html') {
+          return this.respond(res, {
+            statusCode: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+            body: this.swaggerIndex,
+          });
+        }
+        if (swaggerFile === SWAGGER_INITIALIZER_FILE_NAME) {
+          return this.respond(res, {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+            body: this.swaggerInitializer,
+          });
+        }
+        if (swaggerFile) {
+          // swaggerFile is a bare name from the swagger-ui-dist listing, never a path from the URL
+          const extension: string = swaggerFile.slice(swaggerFile.lastIndexOf('.') + 1);
+          const contentType: string | undefined = swaggerContentTypes[extension];
+          const stream = createReadStream(join(swaggerUiAssetPath, swaggerFile));
+          stream.once('open', () => {
+            if (contentType && !res.headersSent) {
+              res.setHeader('Content-Type', contentType);
             }
-            const stream = createReadStream(filePath);
-            stream.on('error', () => {
-              if (!res.headersSent) {
-                this.respond(res, { statusCode: 404, headers: { 'Content-Type': 'text/plain' }, body: 'Not Found' });
-              } else {
-                res.destroy();
-              }
-            });
-            stream.pipe(res);
-            return;
-          } else if (req.url?.startsWith(`/swagger.json`)) {
-            return this.respond(res, {
-              statusCode: 200,
-              headers: { 'Content-Type': 'application/json' },
-              body: this.options.router.openApiDocObject,
-            });
-          }
+          });
+          stream.on('error', () => {
+            if (!res.headersSent) {
+              this.respond(res, { statusCode: 404, headers: { 'Content-Type': 'text/plain' }, body: 'Not Found' });
+            } else {
+              res.destroy();
+            }
+          });
+          stream.pipe(res);
+          return;
         }
       }
       // Process API routes

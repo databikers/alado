@@ -1167,6 +1167,8 @@ const app = initializeApplication({
 
 Open `http://localhost:3000/` to view the Swagger UI.
 
+The OpenAPI document is served at `/swagger.json`. Swagger UI's own files are served only under `route` (for example `/docs/swagger-ui.css` when `route` is `/docs`), so they never take over paths of your API. Only web assets from `swagger-ui-dist` are served (no `package.json`, `README` or license files).
+
 Documentation is built from:
 
 - `@get`, `@post`, etc. → endpoint paths and methods

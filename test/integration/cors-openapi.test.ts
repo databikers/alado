@@ -389,11 +389,8 @@ describe('OpenAPI', () => {
     assert.match(r.text, /swagger-ui/i);
   });
 
-  it('points the Swagger UI initializer at /swagger.json', async () => {
-    const r = await send(docsPort, { path: '/swagger-initializer.js' });
-    assert.equal(r.status, 200);
-    assert.match(r.text, /\/swagger\.json/);
-    assert.doesNotMatch(r.text, /petstore/);
+  it('serves the Swagger UI initializer only under the docs route', async () => {
+    assert.equal((await send(docsPort, { path: '/swagger-initializer.js' })).status, 404);
   });
 
   it('returns 404 for unknown files under the docs route', async () => {
@@ -419,14 +416,14 @@ describe('OpenAPI', () => {
     });
   }
 
-  it('serves Swagger UI assets from the docs route and from the root', async () => {
+  it('serves Swagger UI assets only from the docs route', async () => {
     for (const path of [
       '/docs/swagger-ui.css',
-      '/swagger-ui.css',
       '/docs/swagger-ui-bundle.js',
     ]) {
       assert.equal((await send(docsPort, { path })).status, 200, path);
     }
+    assert.equal((await send(docsPort, { path: '/swagger-ui.css' })).status, 404);
   });
 
   it('does not treat a route that only shares the prefix as the docs route', async () => {
