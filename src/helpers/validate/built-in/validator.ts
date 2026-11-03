@@ -20,6 +20,9 @@ function every(results: Array<boolean | Promise<boolean>>): boolean | Promise<bo
   return (results as boolean[]).every(Boolean);
 }
 
+// domain labels cannot contain dots, so the pattern can only match one way (linear time)
+const emailRegExp: RegExp = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+
 class Validator {
   private rules: ValidatorFn[] = [];
   private _required = false;
@@ -73,7 +76,8 @@ class Validator {
     return this.add((v) => typeof v === 'string' && pattern.test(v));
   }
   email(): Validator {
-    return this.regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+    // capped at the RFC 5321 maximum length, so no input can make it expensive
+    return this.add((v) => typeof v === 'string' && v.length <= 254 && emailRegExp.test(v));
   }
   uuid(): Validator {
     return this.regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);

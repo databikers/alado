@@ -78,6 +78,30 @@ describe('validate: string rules', () => {
     assert.equal(await v('user@example.com'), true);
     assert.equal(await v('user@example'), false);
     assert.equal(await v('user example.com'), false);
+    assert.equal(await v('first.last+tag@mail.example.co.uk'), true);
+    assert.equal(await v('user@.example.com'), false);
+    assert.equal(await v('user@example..com'), false);
+    assert.equal(await v('user@example.com.'), false);
+  });
+
+  it('email rejects addresses longer than 254 characters', async () => {
+    const v = validate.string().email().build();
+    const domain = `${'a'.repeat(63)}.${'b'.repeat(63)}.${'c'.repeat(63)}.com`;
+    assert.equal(await v(`${'x'.repeat(254 - domain.length - 1)}@${domain}`), true);
+    assert.equal(await v(`${'x'.repeat(255 - domain.length - 1)}@${domain}`), false);
+  });
+
+  it('email runs in linear time on hostile input', () => {
+    const v = validate.string().email().buildSync();
+    // 3.3.0 needed ~4 s for this input (quadratic backtracking)
+    const hostile = `a@${'.'.repeat(80000)}@`;
+    const started = Date.now();
+    assert.equal(v(hostile), false);
+    // without the length cap the pattern alone must still be fast
+    assert.equal(/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(hostile), false);
+    assert.equal(/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(`a@${'a.'.repeat(80000)}`), false);
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < 200, `took ${elapsed} ms`);
   });
 
   it('uuid', async () => {
