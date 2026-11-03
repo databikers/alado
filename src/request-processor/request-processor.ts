@@ -83,6 +83,28 @@ export function clientIp(req: IncomingMessage, trustProxy?: boolean | number): s
   return chain[Math.max(0, chain.length - 1 - trustProxy)];
 }
 
+/**
+ * Adds a Vary token without dropping one the handler set: every spelling of the header name
+ * (Vary, vary, ...) is folded into a single Vary header, the handler's tokens first.
+ */
+function mergeVary(headers: Record<string, string>, token: string) {
+  const tokens: string[] = [];
+  for (const name of Object.keys(headers)) {
+    if (name.length === 4 && name.toLowerCase() === 'vary') {
+      if (name !== 'Vary' || headers[name] !== token) {
+        tokens.push(...String(headers[name]).split(','));
+      }
+      delete headers[name];
+    }
+  }
+  const values: string[] = tokens.map((t: string) => t.trim()).filter(Boolean);
+  const lower: string[] = values.map((t: string) => t.toLowerCase());
+  if (!lower.includes('*') && !lower.includes(token.toLowerCase())) {
+    values.push(token);
+  }
+  headers.Vary = values.join(', ');
+}
+
 // methods whose request body is read and parsed
 const bodyMethods: Set<string> = new Set<string>([
   HttpMethod.PUT,
@@ -126,6 +148,9 @@ export class RequestProcessor {
       for (const name in source) {
         headers[name] = source[name];
       }
+    }
+    if (backgroundHeaders?.Vary) {
+      mergeVary(headers, backgroundHeaders.Vary);
     }
     for (const name in responseHeaders) {
       // only names of a matching length are lower-cased
@@ -367,6 +392,11 @@ export class RequestProcessor {
       }
     } else {
       headers['Access-Control-Allow-Origin'] = (cors.allowedOrigin as string) || origin;
+    }
+    // The response depends on the Origin header whenever the allowed origin is not fixed (also when this
+    // origin is refused): without Vary, a shared cache would hand one origin's response to another.
+    if (Array.isArray(cors.allowedOrigin) || !cors.allowedOrigin) {
+      headers.Vary = 'Origin';
     }
     return headers;
   }
