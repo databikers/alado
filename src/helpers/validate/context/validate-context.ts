@@ -199,7 +199,8 @@ function validatePropertyDefinition(propertyDefinition: PropertyDefinition) {
 }
 
 function validateFilePropertyDefinition(filePropertyDefinition: FilePropertyDefinition) {
-  const { required, mimetypes, maxSize, mimetypeError, maxSizeError, requiredError } = filePropertyDefinition;
+  const { required, mimetypes, maxSize, mimetypeError, maxSizeError, requiredError, verifyContent } =
+    filePropertyDefinition;
 
   if (required !== undefined && typeof required !== 'boolean') {
     throw new Error(`FilePropertyDefinition.required should be a boolean`);
@@ -211,6 +212,10 @@ function validateFilePropertyDefinition(filePropertyDefinition: FilePropertyDefi
 
   if (typeof maxSize !== 'number' || maxSize <= 0) {
     throw new Error(`FilePropertyDefinition.maxSize should be a positive number`);
+  }
+
+  if (verifyContent !== undefined && typeof verifyContent !== 'boolean') {
+    throw new Error(`FilePropertyDefinition.verifyContent should be a boolean`);
   }
 
   validateError('FilePropertyDefinition', mimetypeError, 'mimetypeError');

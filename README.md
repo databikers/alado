@@ -882,6 +882,8 @@ export class UserFilesDto {
 }
 ```
 
+The MIME type of an upload is whatever the client declares, so for types with a fixed signature — `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `application/pdf` and `application/zip` — the first bytes of the file must match it too, or the request gets `mimetypeError`. Types without a signature (plain text, CSV, JSON, SVG...) are only checked against `mimetypes`. Set `verifyContent: false` on a field to skip the content check. Never serve an uploaded file back with the client's MIME type without your own check: an "image" can be an HTML page.
+
 ---
 
 ### Combining decorators

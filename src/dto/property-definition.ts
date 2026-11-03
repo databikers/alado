@@ -54,6 +54,8 @@ export type PropertyDefinition = {
 export type FilePropertyDefinition = {
   mimetypes: string[];
   maxSize: number;
+  // default true: for types with a known signature (PNG, JPEG, GIF, WebP, PDF, ZIP) the content must match
+  verifyContent?: boolean;
   required: boolean;
   mimetypeError: AladoServerError;
   maxSizeError: AladoServerError;

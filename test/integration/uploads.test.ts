@@ -129,12 +129,17 @@ describe('file uploads', () => {
   });
 
   it('preserves every byte value (binary safe)', async () => {
+    // a real PNG signature first, so the content check accepts it as image/png
+    const bytes = Buffer.concat([
+      PNG_HEADER,
+      ALL_BYTES,
+    ]);
     const r = await upload([
       { name: 'caption', value: 'bytes' },
-      { name: 'avatar', filename: 'a.png', contentType: 'image/png', value: ALL_BYTES },
+      { name: 'avatar', filename: 'a.png', contentType: 'image/png', value: bytes },
     ]);
     assert.equal(r.status, 200);
-    assert.equal(r.json().hex, ALL_BYTES.toString('hex'));
+    assert.equal(r.json().hex, bytes.toString('hex'));
   });
 
   it('returns requiredError when a required file is missing', async () => {

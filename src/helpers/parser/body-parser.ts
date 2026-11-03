@@ -3,6 +3,7 @@ import { ContentType, deprecatedJsonPropertiesRegExp, spaceRegExp } from '@const
 import { Readable } from 'stream';
 import { AladoServerError } from '@dto';
 import { xmlParser } from './xml-parser';
+import { FILE_SIGNATURE_BYTES, uploadedFileHeads } from '../validate/context/file-signature';
 
 // "application/xml; charset=utf-8" is still XML, and so are +xml types such as SOAP 1.2's application/soap+xml
 export function isXmlContentType(contentType: string | undefined): boolean {
@@ -142,6 +143,7 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
               continue;
             }
             const file: any = { name, mimetype };
+            file.head = Buffer.from(value.slice(0, FILE_SIGNATURE_BYTES), 'binary');
             file.stream = new Readable();
             file.stream.push(Buffer.from(value, 'binary'));
             file.stream.push(null);
@@ -161,6 +163,7 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
             size: stream._readableState.length,
             mimetype: mimetype.replace(spaceRegExp, ''),
           };
+          uploadedFileHeads.set(result.files[key], file.head);
         });
         resolve();
       });
