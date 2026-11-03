@@ -51,6 +51,7 @@ export class AladoServer {
         },
         openApiDoc: options.openApiDoc,
         logger: this.logger,
+        caseSensitiveRoutes: options.caseSensitiveRoutes ?? true,
       },
       this.openApiDocObject,
     );

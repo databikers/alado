@@ -115,6 +115,12 @@ function validateTrustProxy(options: AladoServerOptions) {
   }
 }
 
+function validateCaseSensitiveRoutes(options: AladoServerOptions) {
+  if (options.caseSensitiveRoutes !== undefined && typeof options.caseSensitiveRoutes !== 'boolean') {
+    throw new Error('AladoServerOptions.caseSensitiveRoutes should be a boolean');
+  }
+}
+
 export function validateAladoOptions(options: AladoServerOptions) {
   const { port, cors, openApiDoc, logger, verbose, maxBodySizeBytes } = options;
   validatePort(port);
@@ -124,4 +130,5 @@ export function validateAladoOptions(options: AladoServerOptions) {
   validateVerbose(options);
   validateMaxBodySize(options);
   validateTrustProxy(options);
+  validateCaseSensitiveRoutes(options);
 }

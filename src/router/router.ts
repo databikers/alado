@@ -58,12 +58,16 @@ export class Router {
   public readonly options: RouterOptions;
   public readonly openApiDocObject: any;
   public readonly logger: AladoServerLogger;
+  private readonly caseSensitive: boolean;
+  private readonly regExpFlags: string;
 
   constructor(options: RouterOptions, openApiDocObject: any) {
     this.options = {
       cors: options.cors,
       openApiDoc: options.openApiDoc,
     };
+    this.caseSensitive = options.caseSensitiveRoutes !== false;
+    this.regExpFlags = this.caseSensitive ? '' : 'i';
     this.openApiDocObject = openApiDocObject;
     this.logger = options.logger as AladoServerLogger;
   }
@@ -107,7 +111,7 @@ export class Router {
 
     const cleanUri: string = clearRoutePath(uri);
     const { pattern, params } = toRoutePattern(cleanUri);
-    const literal: string | undefined = params.length ? undefined : cleanUri.toLowerCase();
+    const literal: string | undefined = params.length ? undefined : this.routeKey(cleanUri);
     const route: string = `${method}${pattern}`;
     const optionsRoute: string = `${HttpMethod.OPTIONS}${pattern}`;
     params.forEach((variable: string, i: number) => {
@@ -127,7 +131,7 @@ export class Router {
     context.request.path = context.request.path || {};
     context.request.files = context.request.files || {};
 
-    const routeRegEx: RegExp = new RegExp(`^${route.replace(/\//g, '/')}\/?$`, 'i');
+    const routeRegEx: RegExp = new RegExp(`^${route.replace(/\//g, '/')}\/?$`, this.regExpFlags);
     const optionsDataKey: string = this.getOptionsDataKey(method, routeRegEx);
 
     if (this.options.cors?.enable) {
@@ -138,7 +142,7 @@ export class Router {
           HttpMethod.OPTIONS,
           method,
         ]);
-        const optionsRouteRegEx: RegExp = new RegExp(`^${optionsRoute.replace(/\//g, '/')}\/?$`, 'i');
+        const optionsRouteRegEx: RegExp = new RegExp(`^${optionsRoute.replace(/\//g, '/')}\/?$`, this.regExpFlags);
         this.meta.set(optionsRouteRegEx, { method: HttpMethod.OPTIONS, pattern, literal });
         this.routes.set(optionsRouteRegEx, {
           route: optionsRouteRegEx,
@@ -217,7 +221,7 @@ export class Router {
       }
       const list: DynamicRoute[] = this.dynamicRoutes.get(meta.method) || [];
       list.push({
-        matcher: new RegExp(`^${meta.pattern}\\/?$`, 'i'),
+        matcher: new RegExp(`^${meta.pattern}\\/?$`, this.regExpFlags),
         data,
         params: Object.entries(data.path || {}) as unknown as [
           string,
@@ -248,7 +252,7 @@ export class Router {
   match(method: HttpMethod, uri: string): Route<any> | undefined {
     const table = this.staticRoutes.get(method);
     if (table !== undefined) {
-      const data: Route<any> | undefined = table.get(uri.toLowerCase());
+      const data: Route<any> | undefined = table.get(this.routeKey(uri));
       if (data !== undefined) {
         return this.toResult(data, {});
       }
@@ -267,6 +271,10 @@ export class Router {
         }
       }
     }
+  }
+
+  protected routeKey(path: string): string {
+    return this.caseSensitive ? path : path.toLowerCase();
   }
 
   protected toResult(data: Route<any>, path: Record<string, string>): Route<any> {

@@ -18,4 +18,5 @@ export type AladoServerOptions = {
   appId?: string;
   maxBodySizeBytes?: number;
   trustProxy?: boolean | number;
+  caseSensitiveRoutes?: boolean;
 };

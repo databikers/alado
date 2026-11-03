@@ -201,8 +201,8 @@ describe('routing', () => {
     assert.equal((await send(port, { path: '//ping' })).status, 200);
   });
 
-  it('matches paths case-insensitively', async () => {
-    assert.equal((await send(port, { path: '/PING' })).status, 200);
+  it('matches paths case-sensitively by default', async () => {
+    assert.equal((await send(port, { path: '/PING' })).status, 404);
   });
 
   it('ignores the query string when matching', async () => {

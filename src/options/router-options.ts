@@ -6,4 +6,5 @@ export type RouterOptions = {
   cors: CorsOptions;
   openApiDoc?: OpenApiDoc;
   logger?: AladoServerLogger;
+  caseSensitiveRoutes?: boolean;
 };

@@ -174,10 +174,11 @@ describe('response framing', () => {
 });
 
 describe('static route lookup', () => {
-  it('matches param-less routes case-insensitively, as the RegExp matcher did', async () => {
-    assert.equal((await send(port, { path: '/static/path' })).status, 200);
-    assert.equal((await send(port, { path: '/STATIC/PATH/' })).status, 200);
-    assert.equal((await send(port, { path: '/static/path/more' })).status, 404);
+  it('matches param-less routes by exact case (trailing slash still optional)', async () => {
+    assert.equal((await send(port, { path: '/Static/Path' })).status, 200);
+    assert.equal((await send(port, { path: '/Static/Path/' })).status, 200);
+    assert.equal((await send(port, { path: '/static/path' })).status, 404);
+    assert.equal((await send(port, { path: '/Static/Path/more' })).status, 404);
   });
 });
 
