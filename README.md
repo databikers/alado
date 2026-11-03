@@ -1188,13 +1188,14 @@ Documentation is built from:
 
 ### `AladoServerOptions`
 
-| Property           | Type                   | Default          | Description                                                                                           |
-| ------------------ | ---------------------- | ---------------- | ----------------------------------------------------------------------------------------------------- |
-| `port`             | `number`               | `3000`           | HTTP port                                                                                             |
-| `appId`            | `string`               | —                | App identifier for multi-app setups                                                                   |
-| `logger`           | `AladoServerLogger`    | —                | Custom logger                                                                                         |
-| `ssl`              | `SecureContextOptions` | —                | TLS/HTTPS options                                                                                     |
-| `maxBodySizeBytes` | `number`               | `1048576` (1 MB) | Larger request bodies get `413 Content Too Large` and the connection is closed. `0` removes the limit |
+| Property           | Type                   | Default          | Description                                                                                                                                                                                                                                                    |
+| ------------------ | ---------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `port`             | `number`               | `3000`           | HTTP port                                                                                                                                                                                                                                                      |
+| `appId`            | `string`               | —                | App identifier for multi-app setups                                                                                                                                                                                                                            |
+| `logger`           | `AladoServerLogger`    | —                | Custom logger                                                                                                                                                                                                                                                  |
+| `ssl`              | `SecureContextOptions` | —                | TLS/HTTPS options                                                                                                                                                                                                                                              |
+| `maxBodySizeBytes` | `number`               | `1048576` (1 MB) | Larger request bodies get `413 Content Too Large` and the connection is closed. `0` removes the limit                                                                                                                                                          |
+| `trustProxy`       | `boolean \| number`    | `false`          | Source of `request.ip`. `false`: the socket address (`X-Forwarded-For` is ignored, since clients can set it). `true`: the left-most `X-Forwarded-For` address. A number: how many proxies in front of the app to trust, e.g. `1` behind a single load balancer |
 
 ### `Request`
 

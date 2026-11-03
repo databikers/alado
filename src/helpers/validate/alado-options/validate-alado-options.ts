@@ -104,6 +104,17 @@ function validateMaxBodySize(options: AladoServerOptions) {
   }
 }
 
+function validateTrustProxy(options: AladoServerOptions) {
+  const { trustProxy } = options;
+  if (
+    trustProxy !== undefined &&
+    typeof trustProxy !== 'boolean' &&
+    !(typeof trustProxy === 'number' && Number.isInteger(trustProxy) && trustProxy >= 0)
+  ) {
+    throw new Error('AladoServerOptions.trustProxy should be a boolean or a non-negative integer');
+  }
+}
+
 export function validateAladoOptions(options: AladoServerOptions) {
   const { port, cors, openApiDoc, logger, verbose, maxBodySizeBytes } = options;
   validatePort(port);
@@ -112,4 +123,5 @@ export function validateAladoOptions(options: AladoServerOptions) {
   validateLogger(logger);
   validateVerbose(options);
   validateMaxBodySize(options);
+  validateTrustProxy(options);
 }

@@ -10,4 +10,5 @@ export type RequestProcessorOptions = {
   logger?: AladoServerLogger;
   verbose?: boolean;
   maxBodySizeBytes?: number;
+  trustProxy?: boolean | number;
 };

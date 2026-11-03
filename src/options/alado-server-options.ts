@@ -17,4 +17,5 @@ export type AladoServerOptions = {
   verbose?: boolean;
   appId?: string;
   maxBodySizeBytes?: number;
+  trustProxy?: boolean | number;
 };

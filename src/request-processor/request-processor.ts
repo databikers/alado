@@ -59,6 +59,30 @@ function hasKeys(value: any): boolean {
   return false;
 }
 
+export function clientIp(req: IncomingMessage, trustProxy?: boolean | number): string {
+  const socketAddress: string = req.socket?.remoteAddress as string;
+  const header: string | string[] | undefined = req.headers['x-forwarded-for'];
+  if (!trustProxy || !header) {
+    return socketAddress;
+  }
+  const forwarded: string[] = (Array.isArray(header) ? header.join(',') : header)
+    .split(',')
+    .map((address: string) => address.trim())
+    .filter(Boolean);
+  if (!forwarded.length) {
+    return socketAddress;
+  }
+  if (trustProxy === true) {
+    return forwarded[0];
+  }
+  // [client, proxy1, ..., socket]: step back trustProxy hops from the socket, never past the client
+  const chain: string[] = [
+    ...forwarded,
+    socketAddress,
+  ];
+  return chain[Math.max(0, chain.length - 1 - trustProxy)];
+}
+
 // methods whose request body is read and parsed
 const bodyMethods: Set<string> = new Set<string>([
   HttpMethod.PUT,
@@ -170,7 +194,7 @@ export class RequestProcessor {
       const { router, openApiDoc, enableCors } = this.options;
       const { headers, method } = req;
       const url = clearRoutePath(req.url as string);
-      const ip: string = (req.headers['x-forwarded-for'] as string) || (req.socket?.remoteAddress as string);
+      const ip: string = clientIp(req, this.options.trustProxy);
       const origin: string = (req.headers.origin as string) || '*';
       // Process Open API routes
       if (openApiDoc?.enable) {

@@ -67,6 +67,7 @@ export class AladoServer {
         verbose: options.verbose,
         // 0 explicitly disables the limit
         maxBodySizeBytes: options.maxBodySizeBytes ?? defaultMaxBodySizeBytes,
+        trustProxy: options.trustProxy ?? false,
       },
       {
         ...options.ssl,
