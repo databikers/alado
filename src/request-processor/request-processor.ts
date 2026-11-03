@@ -4,7 +4,7 @@ import { createReadStream, readdirSync, readFileSync } from 'fs';
 
 import { ContentType, HttpMethod, SWAGGER_INITIALIZER_FILE_NAME } from '@const';
 import { RequestProcessorOptions } from '@options';
-import { AladoServerError, ContextRequest, Request, Response } from '@dto';
+import { AladoServerError, Context, ContextRequest, Request, Response } from '@dto';
 import {
   accessControlChecker,
   authenticate,
@@ -74,6 +74,28 @@ function hasKeys(value: any): boolean {
     return true;
   }
   return false;
+}
+
+const queryReaders: WeakMap<Context<any>, boolean> = new WeakMap();
+const queryPathRegExp: RegExp = /^query(\.|\[|$)/;
+
+function readsQuery(context: Context<any>): boolean {
+  let reads: boolean | undefined = queryReaders.get(context);
+  if (reads === undefined) {
+    const paths: string[] = [
+      context.auth?.inputProperty,
+      ...(context.accessControl || []).flatMap((rule) => [
+        rule.inputProperty,
+        rule.compareWithProperty,
+      ]),
+    ].filter((path): path is string => typeof path === 'string');
+    reads =
+      Boolean(context.options?.allowUnknownFields) ||
+      hasKeys(context.request.query) ||
+      paths.some((path: string) => queryPathRegExp.test(path));
+    queryReaders.set(context, reads);
+  }
+  return reads;
 }
 
 export function clientIp(req: IncomingMessage, trustProxy?: boolean | number): string {
@@ -330,8 +352,7 @@ export class RequestProcessor {
           files = r.files;
         }
 
-        // without declared query fields the query is dropped by validation anyway
-        if (queryString && (context.options?.allowUnknownFields || hasKeys(context.request.query))) {
+        if (queryString && readsQuery(context)) {
           query = queryParser(queryString);
         }
 
