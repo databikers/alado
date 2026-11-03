@@ -1,6 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { join } from 'path';
 import { createReadStream, readdirSync, readFileSync } from 'fs';
+import { Readable, pipeline } from 'stream';
 
 import { ContentType, HttpMethod, SWAGGER_INITIALIZER_FILE_NAME } from '@const';
 import { RequestProcessorOptions } from '@options';
@@ -242,12 +243,45 @@ export class RequestProcessor {
             ? String(Buffer.byteLength(responseBody))
             : String(responseBody.byteLength);
     }
-    res.writeHead(statusCode, headers);
     if (isStreamBody) {
-      responseBody.pipe(res);
-    } else {
-      res.end(responseBody);
+      this.sendStream(res, statusCode, headers, responseBody, backgroundHeaders);
+      return;
     }
+    res.writeHead(statusCode, headers);
+    res.end(responseBody);
+  }
+
+  protected sendStream(
+    res: ServerResponse,
+    statusCode: number,
+    headers: Record<string, string>,
+    stream: Readable,
+    backgroundHeaders?: Record<string, string>,
+  ) {
+    const start = (): void => {
+      stream.removeListener('error', failBeforeStart);
+      res.writeHead(statusCode, headers);
+      pipeline(stream, res, (error?: Error | null) => {
+        if (error) {
+          this.logError(error);
+        }
+      });
+    };
+    const failBeforeStart = (error: NodeJS.ErrnoException): void => {
+      stream.removeListener('ready', start);
+      this.logError(error);
+      this.respondError(
+        res,
+        error.code === 'ENOENT' ? { statusCode: 404, message: 'Not Found' } : toClientError(error),
+        backgroundHeaders,
+      );
+    };
+    if ((stream as Readable & { pending?: boolean }).pending === true) {
+      stream.once('ready', start);
+      stream.once('error', failBeforeStart);
+      return;
+    }
+    start();
   }
 
   protected respondError(res: ServerResponse, error: AladoServerError, headers: Record<string, string> = {}) {
@@ -300,22 +334,11 @@ export class RequestProcessor {
         if (swaggerFile) {
           // swaggerFile is a bare name from the swagger-ui-dist listing, never a path from the URL
           const extension: string = swaggerFile.slice(swaggerFile.lastIndexOf('.') + 1);
-          const contentType: string | undefined = swaggerContentTypes[extension];
-          const stream = createReadStream(join(swaggerUiAssetPath, swaggerFile));
-          stream.once('open', () => {
-            if (contentType && !res.headersSent) {
-              res.setHeader('Content-Type', contentType);
-            }
+          return this.respond(res, {
+            statusCode: 200,
+            headers: { 'Content-Type': swaggerContentTypes[extension] },
+            body: createReadStream(join(swaggerUiAssetPath, swaggerFile)),
           });
-          stream.on('error', () => {
-            if (!res.headersSent) {
-              this.respond(res, { statusCode: 404, headers: { 'Content-Type': 'text/plain' }, body: 'Not Found' });
-            } else {
-              res.destroy();
-            }
-          });
-          stream.pipe(res);
-          return;
         }
       }
       // Process API routes

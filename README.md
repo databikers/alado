@@ -1127,6 +1127,8 @@ public getAvatar(req: Request) {
 }
 ```
 
+If a file stream cannot be opened, the response is `404 Not Found` for a missing file and `500` for any other error. A stream that fails after the response has started closes that connection, and a client that disconnects mid-download closes the stream.
+
 ### `xml-request-body`
 
 When a request arrives with a `Content-Type` of `text/xml` or `application/xml`, Alado automatically parses the raw body into a plain JavaScript object before your handler runs — no configuration needed, and no external XML library involved. `req.body` behaves the same way it does for JSON requests.
