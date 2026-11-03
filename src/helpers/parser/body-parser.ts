@@ -1,5 +1,5 @@
 import { IncomingMessage, OutgoingMessage } from 'http';
-import { ContentType, deprecatedJsonPropertiesRegExp, formDataRegExp, spaceRegExp } from '@const';
+import { ContentType, deprecatedJsonPropertiesRegExp, spaceRegExp } from '@const';
 import { Readable } from 'stream';
 import { AladoServerError } from '@dto';
 import { xmlParser } from './xml-parser';
@@ -8,6 +8,45 @@ import { xmlParser } from './xml-parser';
 export function isXmlContentType(contentType: string | undefined): boolean {
   const mime: string = (contentType || '').split(';')[0].trim().toLowerCase();
   return mime === ContentType.XML || mime === ContentType.TEXT_XML || /^application\/[\w.+-]+\+xml$/.test(mime);
+}
+
+type MultipartPart = { name: string | null; value: string | null; filename: string | null; mimetype: string | null };
+
+const partNameRegExp: RegExp = /(?:^|[;\s])name="([^"]*)"/i;
+const partFilenameRegExp: RegExp = /(?:^|[;\s])filename="([^"]*)"/i;
+const partContentTypeRegExp: RegExp = /^content-type:([^\r\n]*)$/im;
+
+/**
+ * Splits one multipart part (the text between two boundaries) into its headers and value,
+ * in linear time: headers end at the first blank line, and the value runs up to the
+ * "\r\n--" that precedes the next boundary. Header fields are read from the headers only.
+ */
+export function parseMultipartPart(item: string): MultipartPart | null {
+  const headerEnd: number = item.indexOf('\r\n\r\n');
+  if (headerEnd === -1) {
+    return null;
+  }
+  const valueStart: number = headerEnd + 4;
+  const valueEnd: number = item.length - 4;
+  const value: string | null =
+    valueEnd >= valueStart && item.endsWith('\r\n--') ? item.slice(valueStart, valueEnd) : null;
+  const headers: string = item.slice(0, headerEnd);
+  const pick = (regExp: RegExp): string | null => {
+    const match: RegExpExecArray | null = regExp.exec(headers);
+    return match && match[1] ? match[1] : null;
+  };
+  return {
+    name: pick(partNameRegExp),
+    value: value || null,
+    filename: pick(partFilenameRegExp),
+    mimetype: pick(partContentTypeRegExp),
+  };
+}
+
+// boundary parameter of a multipart Content-Type, unquoted and without the parameters after it
+export function multipartBoundary(contentType: string): string | null {
+  const match: RegExpExecArray | null = /;\s*boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(contentType || '');
+  return match ? match[1] || match[2] : null;
 }
 
 type ReceivedBody = { chunks: Buffer[]; bytes: number };
@@ -73,8 +112,7 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
     throw contentTooLarge;
   }
   if (contentType?.startsWith(ContentType.FORM_DATA)) {
-    const matchingArray = /boundary=(.+)$/.exec(req.headers['content-type'] as string);
-    const boundary: string | null = matchingArray && matchingArray[1];
+    const boundary: string | null = multipartBoundary(req.headers['content-type'] as string);
     await new Promise<void>((resolve, reject) => {
       req.on('data', collectChunks(req, res, limit, received, reject));
       req.once('error', onRequestError(reject));
@@ -88,15 +126,10 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
         };
         const data = boundary ? body.split(boundary) : [body];
         for (const item of data) {
-          const element: any = {};
-          Object.entries(formDataRegExp).map((entry) => {
-            const [
-              key,
-              regEx,
-            ] = entry;
-            const regExpMatchArray = item.match(regEx);
-            element[key] = regExpMatchArray && regExpMatchArray[1] && regExpMatchArray[1];
-          });
+          const element = parseMultipartPart(item);
+          if (!element) {
+            continue;
+          }
           const { value, filename, mimetype } = element;
           // the body is parsed as a binary string (one char per byte) to keep file bytes intact;
           // text (field names and values) is UTF-8 and has to be decoded back
