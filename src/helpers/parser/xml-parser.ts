@@ -83,7 +83,7 @@ export function xmlParser(xmlInput: string): XmlObject {
   ): { scope: NamespaceScope; dataAttrs: { [key: string]: string } } {
     const scope: NamespaceScope = {
       defaultUri: parentScope.defaultUri,
-      prefixes: { ...parentScope.prefixes },
+      prefixes: parentScope.prefixes,
     };
     const dataAttrs: { [key: string]: string } = {};
 
@@ -95,6 +95,9 @@ export function xmlParser(xmlInput: string): XmlObject {
         scope.defaultUri = value;
       } else if (key.startsWith('xmlns:')) {
         const prefix = key.slice('xmlns:'.length);
+        if (scope.prefixes === parentScope.prefixes) {
+          scope.prefixes = Object.create(parentScope.prefixes);
+        }
         scope.prefixes[prefix] = value;
       } else {
         dataAttrs[key] = value;
@@ -265,7 +268,7 @@ export function xmlParser(xmlInput: string): XmlObject {
     ];
   }
 
-  const rootScope: NamespaceScope = { defaultUri: null, prefixes: {} };
+  const rootScope: NamespaceScope = { defaultUri: null, prefixes: Object.create(null) };
   const root: XmlObject = {};
   const rootElement = parseElement(rootScope);
 
