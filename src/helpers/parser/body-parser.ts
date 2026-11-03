@@ -97,7 +97,12 @@ function concatChunks(received: ReceivedBody, encoding: BufferEncoding): string 
   return Buffer.concat(received.chunks, received.bytes).toString(encoding);
 }
 
-export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, limit: number) {
+export async function bodyParser(
+  req: IncomingMessage,
+  res: OutgoingMessage,
+  limit: number,
+  acceptFiles: boolean = true,
+) {
   const contentType = req.headers['content-type'];
   const result: any = {
     body: {},
@@ -139,7 +144,7 @@ export async function bodyParser(req: IncomingMessage, res: OutgoingMessage, lim
             continue;
           }
           if (filename) {
-            if (!mimetype) {
+            if (!mimetype || !acceptFiles) {
               continue;
             }
             const file: any = { name, mimetype };

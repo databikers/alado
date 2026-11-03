@@ -369,7 +369,12 @@ export class RequestProcessor {
         let files: any = {};
 
         if (bodyMethods.has(method as string)) {
-          const r = await bodyParser(req, res, this.options.maxBodySizeBytes as number);
+          const r = await bodyParser(
+            req,
+            res,
+            this.options.maxBodySizeBytes as number,
+            Boolean(context.options?.allowUnknownFields) || hasKeys(context.request.files),
+          );
           body = r.body;
           rawBody = r.rawBody;
           files = r.files;
