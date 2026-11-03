@@ -1017,6 +1017,8 @@ export type AccessControlConfig<T> = {
 
 Either provide `compareWithProperty` to compare two request values, or `expectedValue` to check against a fixed value or `accessControlHandler` to implement complex logic.
 
+With `compareWithProperty`, access is denied when either value is missing (`undefined` or `null`), before or after `transformInputProperty`: two missing values never count as a match.
+
 ### Usage Example
 
 ```typescript
