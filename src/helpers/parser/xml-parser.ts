@@ -14,12 +14,31 @@ const unsafeKeys: Set<string> = new Set([
   'prototype',
 ]);
 
+function removeSections(input: string, open: string, close: string, keepContent: boolean): string {
+  let output: string = '';
+  let from: number = 0;
+  let start: number = input.indexOf(open);
+  while (start !== -1) {
+    const end: number = input.indexOf(close, start + open.length);
+    if (end === -1) {
+      break;
+    }
+    output += input.slice(from, start);
+    if (keepContent) {
+      output += input.slice(start + open.length, end);
+    }
+    from = end + close.length;
+    start = input.indexOf(open, from);
+  }
+  return output + input.slice(from);
+}
+
 export function xmlParser(xmlInput: string): XmlObject {
   let xml: string = xmlInput;
   let pos: number = 0;
 
   xml = xml.replace(/<\?xml[^?]*\?>/g, '');
-  xml = xml.replace(/<!--[\s\S]*?-->/g, '');
+  xml = removeSections(xml, '<!--', '-->', false);
   xml = xml.trim();
 
   if (!xml) {
@@ -50,8 +69,7 @@ export function xmlParser(xmlInput: string): XmlObject {
   }
 
   function decodeEntities(str: string): string {
-    return str
-      .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    return removeSections(str, '<![CDATA[', ']]>', true)
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
