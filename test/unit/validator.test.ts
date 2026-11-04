@@ -73,6 +73,31 @@ describe('validate: string rules', () => {
     assert.equal(await v('Not OK'), false);
   });
 
+  it('regex gives the same answer on every call for /g and /y patterns', async () => {
+    for (const pattern of [
+      /^[a-z_]+$/g,
+      /[a-z]+/y,
+      /^[A-Z_]+$/gi,
+    ]) {
+      const v = validate.string().regex(pattern).buildSync();
+      assert.deepEqual(
+        [
+          v('ok_name'),
+          v('ok_name'),
+          v('ok_name'),
+        ],
+        [
+          true,
+          true,
+          true,
+        ],
+        String(pattern),
+      );
+      assert.equal(v('NOT OK!'), false);
+      assert.equal(pattern.lastIndex, 0);
+    }
+  });
+
   it('email', async () => {
     const v = validate.string().email().build();
     assert.equal(await v('user@example.com'), true);
