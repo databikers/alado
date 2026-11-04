@@ -302,13 +302,18 @@ export class RequestProcessor {
     try {
       const { router, openApiDoc, enableCors } = this.options;
       const { headers, method } = req;
-      const url = clearRoutePath(req.url as string);
+      // only the path is normalised: the query string reaches the parser byte for byte
+      // (collapsing '//' or dropping a trailing '/' would change values such as URLs or base64 tokens)
+      const rawUrl: string = req.url as string;
+      const queryIndex: number = rawUrl.indexOf('?');
+      const uri: string = clearRoutePath(queryIndex === -1 ? rawUrl : rawUrl.slice(0, queryIndex));
+      const queryString: string = queryIndex === -1 ? '' : rawUrl.slice(queryIndex + 1);
+      const url: string = queryIndex === -1 ? uri : `${uri || '/'}?${queryString}`;
       const ip: string = clientIp(req, this.options.trustProxy);
       const origin: string = (req.headers.origin as string) || '*';
       // Process Open API routes
       if (openApiDoc?.enable && method === HttpMethod.GET) {
-        const queryStart: number = url.indexOf('?');
-        const pathname: string = queryStart === -1 ? url : url.slice(0, queryStart);
+        const pathname: string = uri;
         if (pathname === SWAGGER_JSON_PATH) {
           return this.respond(res, {
             statusCode: 200,
@@ -342,10 +347,7 @@ export class RequestProcessor {
         }
       }
       // Process API routes
-      const queryIndex: number = url.indexOf('?');
-      const uri: string = queryIndex === -1 ? url : url.slice(0, queryIndex);
-      const queryString: string = queryIndex === -1 ? '' : url.slice(queryIndex + 1);
-      const route = router.match(method as HttpMethod, clearRoutePath(uri));
+      const route = router.match(method as HttpMethod, uri);
       let backgroundHeaders: Record<string, string> | undefined;
       if (enableCors) {
         backgroundHeaders = this.corsHeaders(route?.allowedMethods, origin);
