@@ -149,8 +149,10 @@ export async function bodyParser(
             }
             const file: any = { name, mimetype };
             file.head = Buffer.from(value.slice(0, FILE_SIGNATURE_BYTES), 'binary');
+            const content: Buffer = Buffer.from(value, 'binary');
+            file.size = content.length;
             file.stream = new Readable();
-            file.stream.push(Buffer.from(value, 'binary'));
+            file.stream.push(content);
             file.stream.push(null);
             formData.files.push(file);
           } else if (!deprecatedJsonPropertiesRegExp.test(name)) {
@@ -162,7 +164,7 @@ export async function bodyParser(
           result.body[key] = formData.fields[key];
         }
         formData.files.forEach((file: any) => {
-          const { name, stream, mimetype } = file;
+          const { name, stream, mimetype, size } = file;
           const key = name.replace(spaceRegExp, '');
           // a file named __proto__ would otherwise replace the prototype of request.files
           if (deprecatedJsonPropertiesRegExp.test(key)) {
@@ -170,7 +172,8 @@ export async function bodyParser(
           }
           result.files[key] = {
             stream: stream,
-            size: stream._readableState.length,
+            // byte length of the content, not a private field of the stream
+            size,
             mimetype: mimetype.replace(spaceRegExp, ''),
           };
           uploadedFileHeads.set(result.files[key], file.head);
