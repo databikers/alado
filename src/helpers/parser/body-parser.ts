@@ -1,5 +1,5 @@
 import { IncomingMessage, OutgoingMessage } from 'http';
-import { ContentType, deprecatedJsonPropertiesRegExp, spaceRegExp } from '@const';
+import { ContentType, deprecatedJsonPropertiesHintRegExp, deprecatedJsonPropertiesRegExp, spaceRegExp } from '@const';
 import { Readable } from 'stream';
 import { AladoServerError } from '@dto';
 import { xmlParser } from './xml-parser';
@@ -188,7 +188,7 @@ export async function bodyParser(
         if (contentType?.startsWith(ContentType.JSON)) {
           try {
             // A reviver takes V8 off its fast JSON path, so only use it when a forbidden key can be present
-            result.body = deprecatedJsonPropertiesRegExp.test(body)
+            result.body = deprecatedJsonPropertiesHintRegExp.test(body)
               ? JSON.parse(body, function (key, value) {
                   if (!deprecatedJsonPropertiesRegExp.test(key)) {
                     return value;

@@ -13,4 +13,8 @@ export const formDataRegExp: Record<string, RegExp> = {
   mimetype: /Content-Type:(.*?)\r\n/,
 };
 
-export const deprecatedJsonPropertiesRegExp = /\.?(__(proto|defineGetter|defineSetter)__|(prototype|constructor))/;
+// keys never copied from a request body (__proto__ would replace the prototype, the others shadow built-ins);
+// anchored, so fields such as "prototypeUrl" or "constructorId" are kept
+export const deprecatedJsonPropertiesRegExp = /^(__proto__|__defineGetter__|__defineSetter__|prototype|constructor)$/;
+// cheap test on the raw JSON text: whether one of those keys can be present at all
+export const deprecatedJsonPropertiesHintRegExp = /__proto__|__define[GS]etter__|prototype|constructor/;
