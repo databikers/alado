@@ -153,7 +153,8 @@ export async function bodyParser(
             file.stream.push(Buffer.from(value, 'binary'));
             file.stream.push(null);
             formData.files.push(file);
-          } else {
+          } else if (!deprecatedJsonPropertiesRegExp.test(name)) {
+            // same keys the JSON and urlencoded parsers drop (__proto__, constructor, ...)
             formData.fields[name] = Buffer.from(value, 'binary').toString('utf8');
           }
         }
@@ -163,6 +164,10 @@ export async function bodyParser(
         formData.files.forEach((file: any) => {
           const { name, stream, mimetype } = file;
           const key = name.replace(spaceRegExp, '');
+          // a file named __proto__ would otherwise replace the prototype of request.files
+          if (deprecatedJsonPropertiesRegExp.test(key)) {
+            return;
+          }
           result.files[key] = {
             stream: stream,
             size: stream._readableState.length,
