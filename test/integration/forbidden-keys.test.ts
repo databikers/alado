@@ -49,6 +49,16 @@ describe('forbidden body keys', () => {
     assert.deepEqual(res.json(), { body: { keep: 1 }, ownProto: false });
   });
 
+  it('drops __proto__ and constructor written with \\u escapes', async () => {
+    const res = await send(port, {
+      method: 'POST',
+      path: '/b',
+      headers: json,
+      body: '{"\\u005f_proto__":{"isAdmin":true},"\\u0063onstructor":{"x":1},"caf\\u00e9":1}',
+    });
+    assert.deepEqual(res.json(), { body: { 'caf\u00e9': 1 }, ownProto: false });
+  });
+
   it('keeps urlencoded fields that only contain "prototype" or "constructor"', async () => {
     const res = await send(port, {
       method: 'POST',
