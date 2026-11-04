@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { xmlParser } from '../../src/helpers/parser/xml-parser';
+import { MAX_XML_DEPTH, xmlParser } from '../../src/helpers/parser/xml-parser';
 
 function elapsed(fn: () => unknown): number {
   const started = Date.now();
@@ -12,13 +12,15 @@ describe('xmlParser namespace scopes', () => {
   it('does not copy declared prefixes into every nested element', () => {
     // 3.5.0 spent ~6.6 s on this 75 KB body
     const prefixes = Array.from({ length: 4000 }, (_, i) => `xmlns:p${i}="urn:${i}"`).join(' ');
-    const xml = `<a ${prefixes}>` + '<b>'.repeat(2000) + '</b>'.repeat(2000) + '</a>';
+    // nested as deep as the parser allows (the root counts as one level)
+    const depth = MAX_XML_DEPTH - 1;
+    const xml = `<a ${prefixes}>` + '<b>'.repeat(depth) + '</b>'.repeat(depth) + '</a>';
     const ms = elapsed(() => xmlParser(xml));
     assert.ok(ms < 500, `took ${ms} ms`);
   });
 
   it('stays fast when every nested element declares and uses its own prefix', () => {
-    const depth = 2000;
+    const depth = MAX_XML_DEPTH;
     let xml = '';
     for (let i = 0; i < depth; i++) {
       xml += `<p${i}:e xmlns:p${i}="urn:${i}">`;
