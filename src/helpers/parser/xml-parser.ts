@@ -14,6 +14,10 @@ const unsafeKeys: Set<string> = new Set([
   'prototype',
 ]);
 
+// Elements are parsed recursively: without a limit, deep nesting ends in a RangeError whose
+// message ("Maximum call stack size exceeded") reaches the client. Real documents stay far below it.
+export const MAX_XML_DEPTH: number = 256;
+
 function removeSections(input: string, open: string, close: string, keepContent: boolean): string {
   let output: string = '';
   let from: number = 0;
@@ -143,7 +147,24 @@ export function xmlParser(xmlInput: string): XmlObject {
     }
   }
 
-  function parseElement(parentScope: NamespaceScope):
+  // length of `</tagName>` (whitespace allowed before '>') at pos, or 0. Compared as a string:
+  // compiling a RegExp per element costs a regexp compilation for every distinct tag name, and
+  // when that compilation runs out of stack V8 aborts the process instead of throwing.
+  function closingTagLength(tagName: string): number {
+    if (!xml.startsWith('</', pos) || !xml.startsWith(tagName, pos + 2)) {
+      return 0;
+    }
+    let end: number = pos + 2 + tagName.length;
+    while (end < xml.length && /\s/.test(xml[end])) {
+      end++;
+    }
+    return xml[end] === '>' ? end + 1 - pos : 0;
+  }
+
+  function parseElement(
+    parentScope: NamespaceScope,
+    depth: number = 1,
+  ):
     | [
         string,
         XmlValue,
@@ -153,6 +174,9 @@ export function xmlParser(xmlInput: string): XmlObject {
 
     if (xml[pos] !== '<') {
       return null;
+    }
+    if (depth > MAX_XML_DEPTH) {
+      throw new Error(`Elements are nested deeper than ${MAX_XML_DEPTH} levels`);
     }
 
     const tagMatch = /^<([a-zA-Z_:][\w:.-]*)((?:\s+[^>]*?)?)(\/?)>/.exec(xml.slice(pos));
@@ -190,11 +214,9 @@ export function xmlParser(xmlInput: string): XmlObject {
     while (pos < xml.length) {
       skipWhitespace();
 
-      const closeMatch: RegExpExecArray = new RegExp(
-        `^</${rawTagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*>`,
-      ).exec(xml.slice(pos));
-      if (closeMatch) {
-        pos += closeMatch[0].length;
+      const closeLength: number = closingTagLength(rawTagName);
+      if (closeLength) {
+        pos += closeLength;
         closed = true;
         break;
       }
@@ -211,7 +233,7 @@ export function xmlParser(xmlInput: string): XmlObject {
           continue;
         }
 
-        const child = parseElement(scope);
+        const child = parseElement(scope, depth + 1);
         if (child) {
           const [
             childName,
