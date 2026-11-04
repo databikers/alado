@@ -70,10 +70,8 @@ export class AladoServer {
         maxBodySizeBytes: options.maxBodySizeBytes ?? defaultMaxBodySizeBytes,
         trustProxy: options.trustProxy ?? false,
       },
-      {
-        ...options.ssl,
-        ...options.serverOptions,
-      },
+      options.serverOptions,
+      options.ssl,
     );
   }
 
