@@ -73,7 +73,12 @@ class Validator {
     return this.add((v) => typeof v === 'string' && v.length === n);
   }
   regex(pattern: RegExp): Validator {
-    return this.add((v) => typeof v === 'string' && pattern.test(v));
+    // test() on a /g or /y RegExp starts at lastIndex and moves it, so the same valid value would
+    // fail every other call; a copy without those flags gives the same answer every time
+    const stateless: RegExp = /[gy]/.test(pattern.flags)
+      ? new RegExp(pattern.source, pattern.flags.replace(/[gy]/g, ''))
+      : pattern;
+    return this.add((v) => typeof v === 'string' && stateless.test(v));
   }
   email(): Validator {
     // capped at the RFC 5321 maximum length, so no input can make it expensive
