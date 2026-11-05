@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseJson } from '../../src/helpers/parser/json-parser';
+import { parseJson, removeForbiddenKeys } from '../../src/helpers/parser/json-parser';
 import { deprecatedJsonPropertiesRegExp } from '../../src/constants';
 
 // what the body parser did before: a reviver dropping every forbidden key
@@ -57,7 +57,9 @@ describe('parseJson', () => {
   it('walks nesting far deeper than the call stack allows', () => {
     const depth = 200000;
     const text = '{"a":'.repeat(depth) + '{"__proto__":{"isAdmin":true},"\\u006Bey":1}' + '}'.repeat(depth);
-    let value: any = parseJson(text);
+    // parseJson refuses this depth; the walk itself must still not recurse
+    let value: any = JSON.parse(text);
+    removeForbiddenKeys(value);
     for (let i = 0; i < depth; i++) {
       value = value.a;
     }
