@@ -16,6 +16,15 @@ function decodeComponent(value: string): string {
 }
 
 /**
+ * `name[]`: ends with "[]" right after a word character. Same test as /\w+\[\]$/, which tried
+ * every start position and backtracked over the whole key from each one: quadratic, ~200 ms for a
+ * key at the 16 KB header limit.
+ */
+function isArrayKey(key: string): boolean {
+  return key.length > 2 && key.endsWith('[]') && /\w/.test(key[key.length - 3]);
+}
+
+/**
  * Splits on '&' and the first '=' BEFORE decoding, so encoded '&' / '=' stay
  * inside values. Keys without a value are skipped (as before); `key[]` and
  * repeated keys produce arrays. Malformed percent-encoding throws a 400 error.
@@ -35,8 +44,8 @@ export function queryParser(queryString: string) {
     if (!key || !value) {
       continue;
     }
-    if (/\w+\[\]$/.test(key)) {
-      const k: string = key.replace(/\[\]$/, '');
+    if (isArrayKey(key)) {
+      const k: string = key.slice(0, -2);
       if (unsafeKeys.has(k)) {
         continue;
       }
