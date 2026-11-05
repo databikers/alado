@@ -39,6 +39,14 @@ export function validateRequestPart(
     }
     return;
   }
+  // declared fields need an object to live in: a JSON array, string or number body would
+  // otherwise reach the handler as-is (or fail with a 500 while unknown fields are removed)
+  const part: unknown = request[key];
+  if (part === undefined || part === null || part === '') {
+    request[key] = {};
+  } else if (typeof part !== 'object' || Array.isArray(part)) {
+    return { statusCode: 400, message: `Invalid request ${key}: an object is expected` };
+  }
   return validateDeclaredProperties(key, context, request);
 }
 
