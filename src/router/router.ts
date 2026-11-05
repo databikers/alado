@@ -24,6 +24,53 @@ export function toRoutePattern(path: string): { pattern: string; params: string[
   return { pattern, params };
 }
 
+// "/a/b" -> ["a", "b"]; the root path ("" after clearRoutePath) has no segments
+function splitPath(cleanPath: string): string[] {
+  return cleanPath === '' || cleanPath === '/' ? [] : cleanPath.slice(1).split('/');
+}
+
+/**
+ * Depth-first search for the route matching the rest of `path` from `start` (just after a '/'):
+ * the literal child first, then param children; `values` collects param values on the way down
+ * and is unwound on backtracking. Segments are read in place, so a lookup allocates nothing but
+ * the segment strings. Recursion depth is bounded by the deepest registered route.
+ */
+function findRoute(node: TrieNode, path: string, start: number, lowerCase: boolean, values: string[]): TrieNode | null {
+  if (start > path.length) {
+    return node.route !== null ? node : null;
+  }
+  let end: number = path.indexOf('/', start);
+  if (end === -1) {
+    end = path.length;
+  }
+  const segment: string = path.slice(start, end);
+  const key: string = lowerCase ? segment.toLowerCase() : segment;
+  if (node.statics !== null) {
+    const child: TrieNode | undefined = node.statics.get(key);
+    if (child !== undefined) {
+      const found: TrieNode | null = findRoute(child, path, end + 1, lowerCase, values);
+      if (found !== null) {
+        return found;
+      }
+    }
+  }
+  if (node.params !== null) {
+    for (let j: number = 0; j < node.params.length; j++) {
+      const edge: ParamEdge = node.params[j];
+      // a param needs at least one character, as ([^/]+?) did
+      if (key.length > edge.prefix.length && (edge.prefix === '' || key.startsWith(edge.prefix))) {
+        values.push(edge.prefix === '' ? segment : segment.slice(edge.prefix.length));
+        const found: TrieNode | null = findRoute(edge.node, path, end + 1, lowerCase, values);
+        if (found !== null) {
+          return found;
+        }
+        values.pop();
+      }
+    }
+  }
+  return null;
+}
+
 // TODO: default route 404;
 type RouterUseArgs =
   | [
@@ -37,23 +84,31 @@ type RouterUseArgs =
       string,
       (request: Request) => void,
     ];
-type DynamicRoute = {
-  matcher: RegExp;
-  data: Route<any>;
-  params: [
-    string,
-    number,
-  ][];
+/**
+ * One path segment level of the route trie. A route segment is either literal ("users") or an
+ * optional literal prefix followed by a param that runs to the end of the segment (":id", "v:version").
+ */
+type TrieNode = {
+  // literal next segments, keyed like routeKey() (lower-cased for case-insensitive routes)
+  statics: Map<string, TrieNode> | null;
+  // param next segments, longest prefix first, so "v:version" is tried before ":id"
+  params: ParamEdge[] | null;
+  // the route ending here (first registration wins) and the names of its params, in path order
+  route: Route<any> | null;
+  names: string[] | null;
 };
+type ParamEdge = { prefix: string; node: TrieNode };
+
+const newTrieNode = (): TrieNode => ({ statics: null, params: null, route: null, names: null });
 // literal: lower-cased path for routes without params, undefined otherwise
 type RouteMeta = { method: string; pattern: string; literal?: string };
 
 export class Router {
   private routes: Map<RegExp, Route<any>> = new Map<RegExp, Route<any>>();
-  // per-method lookup tables, rebuilt on every use(): exact (lower-cased) path -> route for
-  // routes without params, and an ordered list of pre-compiled matchers for the rest
+  // per-method lookup structures, extended on every use(): exact (lower-cased) path -> route for
+  // routes without params (one hash lookup), and a segment trie holding every route
   private staticRoutes: Map<string, Map<string, Route<any>>> = new Map();
-  private dynamicRoutes: Map<string, DynamicRoute[]> = new Map();
+  private tries: Map<string, TrieNode> = new Map();
   private meta: Map<RegExp, RouteMeta> = new Map();
   public readonly options: RouterOptions;
   public readonly openApiDocObject: any;
@@ -144,7 +199,7 @@ export class Router {
         ]);
         const optionsRouteRegEx: RegExp = new RegExp(`^${optionsRoute.replace(/\//g, '/')}\/?$`, this.regExpFlags);
         this.meta.set(optionsRouteRegEx, { method: HttpMethod.OPTIONS, pattern, literal });
-        this.routes.set(optionsRouteRegEx, {
+        const optionsData: Route<any> = {
           route: optionsRouteRegEx,
           path: pathData,
           context,
@@ -170,65 +225,62 @@ export class Router {
               headers,
             };
           },
-        });
+        };
+        this.routes.set(optionsRouteRegEx, optionsData);
+        this.index(HttpMethod.OPTIONS, cleanUri, literal, params, optionsData);
       }
     }
+    const data: Route<any> = { route: routeRegEx, path: pathData, context, handler, optionsDataKey };
     this.meta.set(routeRegEx, { method, pattern, literal });
-    this.routes.set(routeRegEx, { route: routeRegEx, path: pathData, context, handler, optionsDataKey });
-    this.sortRoutes();
+    this.routes.set(routeRegEx, data);
+    this.index(method, cleanUri, literal, params, data);
   }
 
   /**
-   * parse() returns the first match, so more specific routes must come first:
-   * fewer path params wins (/items/featured before /items/:id), ties keep
-   * registration order (Array.prototype.sort is stable).
+   * Adds one route to the lookup structures, in O(segments): nothing already registered is
+   * re-sorted or recompiled. The first registration of a method + path shape wins.
    */
-  protected sortRoutes() {
-    const paramCount = (route: Route<any>): number => Object.keys(route.path || {}).length;
-    this.routes = new Map(
-      [...this.routes.entries()].sort(
-        (
-          [
-            ,
-            a,
-          ],
-          [
-            ,
-            b,
-          ],
-        ) => paramCount(a) - paramCount(b),
-      ),
-    );
-    this.buildIndex();
-  }
-
-  protected buildIndex() {
-    this.staticRoutes = new Map();
-    this.dynamicRoutes = new Map();
-    for (const [
-      route,
-      data,
-    ] of this.routes) {
-      const meta: RouteMeta = this.meta.get(route) as RouteMeta;
-      if (meta.literal !== undefined) {
-        const table = this.staticRoutes.get(meta.method) || new Map<string, Route<any>>();
-        // first registration wins, as with the ordered scan
-        if (!table.has(meta.literal)) {
-          table.set(meta.literal, data);
+  protected index(method: string, cleanUri: string, literal: string | undefined, params: string[], data: Route<any>) {
+    if (literal !== undefined) {
+      const table = this.staticRoutes.get(method) || new Map<string, Route<any>>();
+      if (!table.has(literal)) {
+        table.set(literal, data);
+      }
+      this.staticRoutes.set(method, table);
+    }
+    let node: TrieNode = this.tries.get(method) as TrieNode;
+    if (node === undefined) {
+      node = newTrieNode();
+      this.tries.set(method, node);
+    }
+    for (const segment of splitPath(cleanUri)) {
+      // same rule as toRoutePattern(): a param starts at the first ':' that has a name after it
+      const colon: number = segment.indexOf(':');
+      if (colon === -1 || colon === segment.length - 1) {
+        const key: string = this.routeKey(segment);
+        node.statics = node.statics || new Map<string, TrieNode>();
+        let child: TrieNode | undefined = node.statics.get(key);
+        if (child === undefined) {
+          child = newTrieNode();
+          node.statics.set(key, child);
         }
-        this.staticRoutes.set(meta.method, table);
+        node = child;
         continue;
       }
-      const list: DynamicRoute[] = this.dynamicRoutes.get(meta.method) || [];
-      list.push({
-        matcher: new RegExp(`^${meta.pattern}\\/?$`, this.regExpFlags),
-        data,
-        params: Object.entries(data.path || {}) as unknown as [
-          string,
-          number,
-        ][],
-      });
-      this.dynamicRoutes.set(meta.method, list);
+      const prefix: string = this.routeKey(segment.slice(0, colon));
+      node.params = node.params || [];
+      let edge: ParamEdge | undefined = node.params.find((e: ParamEdge) => e.prefix === prefix);
+      if (edge === undefined) {
+        edge = { prefix, node: newTrieNode() };
+        node.params.push(edge);
+        // stable: equal prefix lengths keep registration order
+        node.params.sort((a: ParamEdge, b: ParamEdge) => b.prefix.length - a.prefix.length);
+      }
+      node = edge.node;
+    }
+    if (node.route === null) {
+      node.route = data;
+      node.names = params;
     }
   }
 
@@ -246,8 +298,10 @@ export class Router {
 
   /**
    * Same as parse(), for a path that already went through clearRoutePath().
-   * Param-less routes are a hash lookup; only routes with params are tried as RegExps,
-   * and only those registered for the request method.
+   * Param-less routes are one hash lookup. Everything else walks the method's segment trie:
+   * at each segment a literal child is tried before param children (longest prefix first),
+   * backtracking on a dead end. Every trie node is visited at most once, so the cost depends
+   * on the path, not on how many routes are registered.
    */
   match(method: HttpMethod, uri: string): Route<any> | undefined {
     const table = this.staticRoutes.get(method);
@@ -257,20 +311,22 @@ export class Router {
         return this.toResult(data, {});
       }
     }
-    const list: DynamicRoute[] | undefined = this.dynamicRoutes.get(method);
-    if (list !== undefined) {
-      for (let i: number = 0; i < list.length; i++) {
-        const matches: RegExpExecArray | null = list[i].matcher.exec(uri);
-        if (matches !== null) {
-          const path: Record<string, string> = {};
-          const params = list[i].params;
-          for (let j: number = 0; j < params.length; j++) {
-            path[params[j][0]] = matches[params[j][1]];
-          }
-          return this.toResult(list[i].data, path);
-        }
-      }
+    const root: TrieNode | undefined = this.tries.get(method);
+    if (root === undefined) {
+      return;
     }
+    const values: string[] = [];
+    // segments start after the leading '/'; the root path ("") has none, as 1 is past its end
+    const node: TrieNode | null = findRoute(root, uri, 1, !this.caseSensitive, values);
+    if (node === null) {
+      return;
+    }
+    const names: string[] = node.names as string[];
+    const path: Record<string, string> = {};
+    for (let i: number = 0; i < names.length; i++) {
+      path[names[i]] = values[i];
+    }
+    return this.toResult(node.route as Route<any>, path);
   }
 
   protected routeKey(path: string): string {
