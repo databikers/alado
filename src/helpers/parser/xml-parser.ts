@@ -37,6 +37,51 @@ function removeSections(input: string, open: string, close: string, keepContent:
   return output + input.slice(from);
 }
 
+type XmlAttribute = { name: string; value?: string; end: number };
+
+const attributeNameStartRegExp: RegExp = /[a-zA-Z_:]/g;
+const attributeNameRestRegExp: RegExp = /[\w:.-]*/y;
+
+function skipSpaces(text: string, from: number): number {
+  let i: number = from;
+  while (i < text.length && /\s/.test(text[i])) {
+    i++;
+  }
+  return i;
+}
+
+/**
+ * The next `name="value"` / `name='value'` in a tag from `from` on, or null when no name is left.
+ * A name without a value is returned without `value`, with `end` after the name, so the caller
+ * resumes there. Same matches as the former /(name)\s*=\s*"([^"]*)"|.../g RegExp, but every
+ * character is read once: the RegExp retried each failed name from every one of its characters,
+ * so a long run of name characters without "=" cost quadratic time (40 KB took ~4 s).
+ */
+function nextAttribute(text: string, from: number): XmlAttribute | null {
+  attributeNameStartRegExp.lastIndex = from;
+  const start: RegExpExecArray | null = attributeNameStartRegExp.exec(text);
+  if (start === null) {
+    return null;
+  }
+  attributeNameRestRegExp.lastIndex = start.index + 1;
+  attributeNameRestRegExp.exec(text);
+  const nameEnd: number = attributeNameRestRegExp.lastIndex;
+  const name: string = text.slice(start.index, nameEnd);
+  // a match starting later inside the same name would end at the same place, so it fails too
+  let i: number = skipSpaces(text, nameEnd);
+  if (text[i] === '=') {
+    i = skipSpaces(text, i + 1);
+    const quote: string = text[i];
+    if (quote === '"' || quote === "'") {
+      const close: number = text.indexOf(quote, i + 1);
+      if (close !== -1) {
+        return { name, value: text.slice(i + 1, close), end: close + 1 };
+      }
+    }
+  }
+  return { name, end: nameEnd };
+}
+
 export function xmlParser(xmlInput: string): XmlObject {
   let xml: string = xmlInput;
   let pos: number = 0;
@@ -57,17 +102,16 @@ export function xmlParser(xmlInput: string): XmlObject {
 
   function parseAttributes(tagContent: string): { [key: string]: string } {
     const attrs: { [key: string]: string } = {};
-    const attrRegex: RegExp = /([a-zA-Z_:][\w:.-]*)\s*=\s*"([^"]*)"|([a-zA-Z_:][\w:.-]*)\s*=\s*'([^']*)'/g;
-    let match: RegExpExecArray | null;
-
-    match = attrRegex.exec(tagContent);
-    while (match !== null) {
-      const name: string = match[1] || match[3];
-      const value: string = match[2] !== undefined ? match[2] : match[4];
-      if (!unsafeKeys.has(name)) {
-        attrs[name] = decodeEntities(value);
+    let i: number = 0;
+    for (;;) {
+      const attribute: XmlAttribute | null = nextAttribute(tagContent, i);
+      if (attribute === null) {
+        break;
       }
-      match = attrRegex.exec(tagContent);
+      if (attribute.value !== undefined && !unsafeKeys.has(attribute.name)) {
+        attrs[attribute.name] = decodeEntities(attribute.value);
+      }
+      i = attribute.end;
     }
     return attrs;
   }
