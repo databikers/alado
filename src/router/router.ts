@@ -71,6 +71,32 @@ function findRoute(node: TrieNode, path: string, start: number, lowerCase: boole
   return null;
 }
 
+/** Like findRoute(), but visits every match and collects the methods of the routes ending there. */
+function collectMethods(node: TrieNode, path: string, start: number, lowerCase: boolean, found: Set<string>): void {
+  if (start > path.length) {
+    node.methods?.forEach((method: string) => found.add(method));
+    return;
+  }
+  let end: number = path.indexOf('/', start);
+  if (end === -1) {
+    end = path.length;
+  }
+  const segment: string = path.slice(start, end);
+  const key: string = lowerCase ? segment.toLowerCase() : segment;
+  const child: TrieNode | undefined = node.statics?.get(key);
+  if (child !== undefined) {
+    collectMethods(child, path, end + 1, lowerCase, found);
+  }
+  if (node.params !== null) {
+    for (let j: number = 0; j < node.params.length; j++) {
+      const edge: ParamEdge = node.params[j];
+      if (key.length > edge.prefix.length && (edge.prefix === '' || key.startsWith(edge.prefix))) {
+        collectMethods(edge.node, path, end + 1, lowerCase, found);
+      }
+    }
+  }
+}
+
 // TODO: default route 404;
 type RouterUseArgs =
   | [
@@ -96,10 +122,12 @@ type TrieNode = {
   // the route ending here (first registration wins) and the names of its params, in path order
   route: Route<any> | null;
   names: string[] | null;
+  // all-methods trie only: the methods that have a route ending here
+  methods: Set<string> | null;
 };
 type ParamEdge = { prefix: string; node: TrieNode };
 
-const newTrieNode = (): TrieNode => ({ statics: null, params: null, route: null, names: null });
+const newTrieNode = (): TrieNode => ({ statics: null, params: null, route: null, names: null, methods: null });
 // literal: lower-cased path for routes without params, undefined otherwise
 type RouteMeta = { method: string; pattern: string; literal?: string };
 
@@ -109,6 +137,8 @@ export class Router {
   // routes without params (one hash lookup), and a segment trie holding every route
   private staticRoutes: Map<string, Map<string, Route<any>>> = new Map();
   private tries: Map<string, TrieNode> = new Map();
+  // every route of every method, for listing the methods a path accepts (405 Allow)
+  private anyMethodTrie: TrieNode = newTrieNode();
   private meta: Map<RegExp, RouteMeta> = new Map();
   public readonly options: RouterOptions;
   public readonly openApiDocObject: any;
@@ -248,11 +278,36 @@ export class Router {
       }
       this.staticRoutes.set(method, table);
     }
-    let node: TrieNode = this.tries.get(method) as TrieNode;
-    if (node === undefined) {
-      node = newTrieNode();
-      this.tries.set(method, node);
+    let root: TrieNode | undefined = this.tries.get(method);
+    if (root === undefined) {
+      root = newTrieNode();
+      this.tries.set(method, root);
     }
+    const node: TrieNode = this.insertPath(root, cleanUri);
+    const shape: TrieNode = this.insertPath(this.anyMethodTrie, cleanUri);
+    shape.methods = shape.methods || new Set<string>();
+    shape.methods.add(method);
+    if (node.route === null) {
+      node.route = data;
+      node.names = params;
+    }
+  }
+
+  protected getOptionsDataKey(method: string, routeRegEx: RegExp) {
+    return routeRegEx.toString().replace(`^${method}\\/`, '');
+  }
+
+  public getOptionsData(key: string) {
+    return this.options.cors?.allowedMethods?.get(key) || [];
+  }
+
+  parse(method: HttpMethod, uri: string): Route<any> | undefined {
+    return this.match(method, clearRoutePath(uri));
+  }
+
+  /** Walks (and extends) the trie below `root` along the route's segments; returns the last node. */
+  protected insertPath(root: TrieNode, cleanUri: string): TrieNode {
+    let node: TrieNode = root;
     for (const segment of splitPath(cleanUri)) {
       // same rule as toRoutePattern(): a param starts at the first ':' that has a name after it
       const colon: number = segment.indexOf(':');
@@ -278,22 +333,7 @@ export class Router {
       }
       node = edge.node;
     }
-    if (node.route === null) {
-      node.route = data;
-      node.names = params;
-    }
-  }
-
-  protected getOptionsDataKey(method: string, routeRegEx: RegExp) {
-    return routeRegEx.toString().replace(`^${method}\\/`, '');
-  }
-
-  public getOptionsData(key: string) {
-    return this.options.cors?.allowedMethods?.get(key) || [];
-  }
-
-  parse(method: HttpMethod, uri: string): Route<any> | undefined {
-    return this.match(method, clearRoutePath(uri));
+    return node;
   }
 
   /**
@@ -327,6 +367,17 @@ export class Router {
       path[names[i]] = values[i];
     }
     return this.toResult(node.route as Route<any>, path);
+  }
+
+  /**
+   * Methods that have a route for this path (already through clearRoutePath()), in httpMethods
+   * order: the union over every route shape that matches, found in one walk of the all-methods
+   * trie. Used for 405 responses, so it only runs when match() found nothing.
+   */
+  public methodsFor(uri: string): HttpMethod[] {
+    const found: Set<string> = new Set<string>();
+    collectMethods(this.anyMethodTrie, uri, 1, !this.caseSensitive, found);
+    return found.size ? httpMethods.filter((method: HttpMethod) => found.has(method)) : [];
   }
 
   protected routeKey(path: string): string {

@@ -353,6 +353,15 @@ export class RequestProcessor {
         backgroundHeaders = this.corsHeaders(route?.allowedMethods, origin);
       }
       if (!route) {
+        // the path exists for other methods: 405 with the methods it does accept (RFC 9110 15.5.6)
+        const allowed: HttpMethod[] = router.methodsFor(uri);
+        if (allowed.length) {
+          return this.respondError(
+            res,
+            { statusCode: 405, message: 'Method Not Allowed' },
+            { ...backgroundHeaders, Allow: allowed.join(', ') },
+          );
+        }
         // Not Found
         return this.respondError(res, { statusCode: 404, message: 'Not Found' }, backgroundHeaders);
       } else {
