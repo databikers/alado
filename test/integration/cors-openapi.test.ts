@@ -272,8 +272,10 @@ describe('CORS', () => {
       path: '/private',
       headers: { Origin: 'https://evil.example' },
     });
-    assert.equal(r.status, 404);
+    // the path exists for GET, so 405 rather than 404, but still no CORS answer
+    assert.equal(r.status, 405);
     assert.equal(r.headers['access-control-allow-origin'], undefined);
+    assert.equal(r.headers['access-control-allow-methods'], undefined);
   });
 });
 
