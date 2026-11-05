@@ -400,19 +400,125 @@ describe('router matching order', () => {
     assert.deepEqual(r.parse(HttpMethod.GET, '/u/1/2')?.path, { a: '1', b: '2' });
   });
 
-  it('keeps registration order between routes with the same number of params', () => {
+  it('prefers the leftmost literal segment, whatever the registration order', () => {
+    for (const order of [
+      [
+        '/x/:a/c',
+        '/x/b/:c',
+      ],
+      [
+        '/x/b/:c',
+        '/x/:a/c',
+      ],
+    ]) {
+      const r = makeRouter();
+      for (const path of order) {
+        r.use(HttpMethod.GET, path, { ...ctx, title: path }, () => ({ statusCode: 204 }));
+      }
+      assert.equal(r.parse(HttpMethod.GET, '/x/b/c')?.context.title, '/x/b/:c');
+      assert.deepEqual(r.parse(HttpMethod.GET, '/x/b/c')?.path, { c: 'c' });
+      assert.equal(r.parse(HttpMethod.GET, '/x/q/c')?.context.title, '/x/:a/c');
+    }
+  });
+
+  it('does not let import order decide between an authenticated and a public route', () => {
+    for (const order of [
+      [
+        '/admin/:action',
+        '/:section/public',
+      ],
+      [
+        '/:section/public',
+        '/admin/:action',
+      ],
+    ]) {
+      const r = makeRouter();
+      for (const path of order) {
+        r.use(HttpMethod.GET, path, { ...ctx, title: path }, () => ({ statusCode: 204 }));
+      }
+      assert.equal(r.parse(HttpMethod.GET, '/admin/public')?.context.title, '/admin/:action');
+      assert.equal(r.parse(HttpMethod.GET, '/docs/public')?.context.title, '/:section/public');
+    }
+  });
+
+  it('backtracks out of a literal branch that leads nowhere', () => {
     const r = makeRouter();
-    let hit = '';
-    r.use(HttpMethod.GET, '/x/:a/c', ctx, () => {
-      hit = 'first';
-      return { statusCode: 204 };
-    });
-    r.use(HttpMethod.GET, '/x/b/:c', ctx, () => {
-      hit = 'second';
-      return { statusCode: 204 };
-    });
-    r.parse(HttpMethod.GET, '/x/b/c')?.handler({} as any);
-    assert.equal(hit, 'first');
+    r.use(HttpMethod.GET, '/a/b/d', { ...ctx, title: 'literal' }, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.GET, '/a/:x/c', { ...ctx, title: 'param' }, () => ({ statusCode: 204 }));
+    assert.equal(r.parse(HttpMethod.GET, '/a/b/c')?.context.title, 'param');
+    assert.deepEqual(r.parse(HttpMethod.GET, '/a/b/c')?.path, { x: 'b' });
+    assert.equal(r.parse(HttpMethod.GET, '/a/b/d')?.context.title, 'literal');
+  });
+
+  it('keeps registration order for routes of the same shape', () => {
+    const r = makeRouter();
+    r.use(HttpMethod.GET, '/x/:a', { ...ctx, title: 'first' }, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.GET, '/x/:b', { ...ctx, title: 'second' }, () => ({ statusCode: 204 }));
+    assert.equal(r.parse(HttpMethod.GET, '/x/1')?.context.title, 'first');
+    assert.deepEqual(r.parse(HttpMethod.GET, '/x/1')?.path, { a: '1' });
+  });
+
+  it('matches params with a literal prefix, longest prefix first', () => {
+    const r = makeRouter();
+    r.use(HttpMethod.GET, '/api/:anything', { ...ctx, title: 'bare' }, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.GET, '/api/v:version', { ...ctx, title: 'v' }, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.GET, '/api/v1.:minor', { ...ctx, title: 'v1.' }, () => ({ statusCode: 204 }));
+    assert.deepEqual(
+      [
+        '/api/v2',
+        '/api/v1.3',
+        '/api/v',
+        '/api/x',
+      ].map((p: string) => [
+        r.parse(HttpMethod.GET, p)?.context.title,
+        r.parse(HttpMethod.GET, p)?.path,
+      ]),
+      [
+        [
+          'v',
+          { version: '2' },
+        ],
+        [
+          'v1.',
+          { minor: '3' },
+        ],
+        [
+          'bare',
+          { anything: 'v' },
+        ],
+        [
+          'bare',
+          { anything: 'x' },
+        ],
+      ],
+    );
+  });
+
+  it('matches literal segments and prefixes case-insensitively when asked, keeping param case', () => {
+    const r = new Router(
+      {
+        cors: { enable: false, allowedMethods: new Map() },
+        openApiDoc: undefined,
+        logger: { log() {} },
+        caseSensitiveRoutes: false,
+      } as any,
+      {},
+    );
+    r.use(HttpMethod.GET, '/Users/V:version/:Id', ctx, () => ({ statusCode: 204 }));
+    assert.deepEqual(r.parse(HttpMethod.GET, '/USERS/v2/AbC')?.path, { version: '2', Id: 'AbC' });
+  });
+
+  it('registers thousands of routes in linear time', () => {
+    const r = makeRouter();
+    const started = Date.now();
+    for (let i = 0; i < 5000; i++) {
+      r.use(HttpMethod.GET, `/r${i}/:id/items/:item`, ctx, () => ({ statusCode: 204 }));
+    }
+    const ms = Date.now() - started;
+    // 3.5.12 re-sorted and recompiled every route on each registration: ~6 s for 5000
+    assert.ok(ms < 1500, `took ${ms} ms`);
+    assert.deepEqual(r.parse(HttpMethod.GET, '/r4999/1/items/2')?.path, { id: '1', item: '2' });
+    assert.equal(r.parse(HttpMethod.GET, '/r5000/1/items/2'), undefined);
   });
 
   it('keeps CORS preflight working after reordering', () => {
