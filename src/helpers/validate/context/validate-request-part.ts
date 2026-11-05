@@ -1,4 +1,5 @@
 import { Context, ContextRequest, PropertyDefinition } from '@dto';
+import { parseJson } from '../../parser/json-parser';
 
 const nonProcessingRequestParts: Set<string> = new Set([
   'files',
@@ -74,7 +75,9 @@ function validateProperty(
   let value: any = part[property];
   if (isJSON && typeof value === 'string') {
     try {
-      value = JSON.parse(value);
+      // same parser as JSON bodies: a field such as {"__proto__":{...}} must not reach the
+      // validator or a transform with an own __proto__ key
+      value = parseJson(value);
     } catch {
       // keep the raw string
     }
