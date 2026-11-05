@@ -1,8 +1,9 @@
 import { IncomingMessage, OutgoingMessage } from 'http';
-import { ContentType, deprecatedJsonPropertiesHintRegExp, deprecatedJsonPropertiesRegExp, spaceRegExp } from '@const';
+import { ContentType, deprecatedJsonPropertiesRegExp, spaceRegExp } from '@const';
 import { Readable } from 'stream';
 import { AladoServerError } from '@dto';
 import { xmlParser } from './xml-parser';
+import { parseJson } from './json-parser';
 import { FILE_SIGNATURE_BYTES, uploadedFileHeads } from '../validate/context/file-signature';
 
 // "application/xml; charset=utf-8" is still XML, and so are +xml types such as SOAP 1.2's application/soap+xml
@@ -190,14 +191,7 @@ export async function bodyParser(
         result.rawBody = body;
         if (contentType?.startsWith(ContentType.JSON)) {
           try {
-            // A reviver takes V8 off its fast JSON path, so only use it when a forbidden key can be present
-            result.body = deprecatedJsonPropertiesHintRegExp.test(body)
-              ? JSON.parse(body, function (key, value) {
-                  if (!deprecatedJsonPropertiesRegExp.test(key)) {
-                    return value;
-                  }
-                })
-              : JSON.parse(body);
+            result.body = parseJson(body) as Record<string, any>;
             resolve();
           } catch (e) {
             reject({ statusCode: 400, message: `Invalid JSON body` });
