@@ -44,6 +44,41 @@ describe('OpenAPI document of separate servers', () => {
   });
 });
 
+describe('OpenAPI path parameters', () => {
+  const app = new AladoServer(baseOptions('openapi-path-params', { openApiDoc: { ...docs } }));
+  let port: number;
+
+  before(async () => {
+    app.get(
+      '/users/:userId/posts/:postId',
+      {
+        ...context('posts'),
+        request: {
+          path: {
+            userId: {
+              validation: { handler: () => true, error: { statusCode: 400, message: 'bad' } },
+              openApiDoc: { schema: { type: 'integer' }, description: 'user' },
+            },
+          },
+        },
+      },
+      async () => ({ statusCode: 200, body: { ok: true } }),
+    );
+    port = await listen(app);
+  });
+
+  after(() => close(app));
+
+  it('declares every path parameter as required, documented or not', async () => {
+    const doc = (await send(port, { path: '/swagger.json' })).json();
+    const parameters = doc.paths['/users/{userId}/posts/{postId}'].get.parameters;
+    assert.deepEqual(parameters, [
+      { in: 'path', name: 'userId', required: true, schema: { type: 'integer' }, description: 'user' },
+      { in: 'path', name: 'postId', required: true, schema: { type: 'string' } },
+    ]);
+  });
+});
+
 describe('OpenAPI document of a route without request or options', () => {
   const app = new AladoServer(baseOptions('openapi-minimal-context', { openApiDoc: { ...docs } }));
   let port: number;
