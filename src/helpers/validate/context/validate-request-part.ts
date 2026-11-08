@@ -1,6 +1,5 @@
 import { Context, ContextRequest, PropertyDefinition } from '@dto';
-import { parseJson } from '../../parser/json-parser';
-import { NumericInputType, numericInput, toNumericInput } from '../built-in/numeric-input';
+import { isPrevalidated, validatorInput } from './request-input';
 
 const nonProcessingRequestParts: Set<string> = new Set([
   'files',
@@ -62,7 +61,7 @@ function validateProperty(
   definition: PropertyDefinition,
   request: any,
 ): RequestPartError | Promise<RequestPartError> {
-  const { validation, transform, isJSON } = definition;
+  const { validation, transform } = definition;
   const { required, handler, error } = validation;
   const part: any = request[key];
   const present: boolean = hasOwn(part, property);
@@ -73,24 +72,15 @@ function validateProperty(
   if (!handler || !present) {
     return;
   }
-  let value: any = part[property];
+  const raw: unknown = part[property];
+  // already accepted by its validator before authentication / access control: not run twice
+  const accepted: boolean = isPrevalidated(request, key, property, raw);
   // query and path values are strings: a number()/bigint() validator gets them converted, and so
   // does the handler. A value that is not a well-formed number stays a string and fails validation.
-  const numericType: NumericInputType | undefined = (handler as any)[numericInput];
-  if (numericType && (key === 'query' || key === 'path') && typeof value === 'string') {
-    value = toNumericInput(numericType, value);
-    if (typeof value !== 'string') {
-      part[property] = value;
-    }
-  }
-  if (isJSON && typeof value === 'string') {
-    try {
-      // same parser as JSON bodies: a field such as {"__proto__":{...}} must not reach the
-      // validator or a transform with an own __proto__ key
-      value = parseJson(value);
-    } catch {
-      // keep the raw string
-    }
+  const input = validatorInput(key, definition, raw);
+  const value: any = input.value;
+  if (input.numeric) {
+    part[property] = value;
   }
   // the configured error, never the exception text (it may describe internals)
   const fail = (): RequestPartError => error;
@@ -107,6 +97,9 @@ function validateProperty(
     }
     request[key][property] = transformed;
   };
+  if (accepted) {
+    return applyTransform();
+  }
   try {
     const isValid: any = handler.apply(request, [value]);
     if (isThenable(isValid)) {

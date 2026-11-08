@@ -1,37 +1,21 @@
-import { Context, PropertyDefinition, RequestAuthentication } from '@dto';
+import { Context, RequestAuthentication } from '@dto';
 import { getProperty, setProperty } from '../accessor';
-import { parseJson } from './json-parser';
+import { checkDeclaredInput } from '../validate/context/request-input';
 
 /**
  * The auth input is checked before the handler sees it: validation of the rest of the request runs
  * only after authentication, so without this a JSON body or a repeated query key could hand the
  * handler an object or an array (e.g. {"$ne": null}, a NoSQL operator) instead of a token.
- * With a validator declared for the field (context.request.<part>.<name>) that validator decides;
- * without one, only a string is accepted.
+ * With a validator declared for the field (context.request.<part>.<name>) that validator decides,
+ * once: request validation reuses its result. Without one, only a string is accepted.
  */
 async function isValidAuthInput(context: Context<any>, request: any, value: unknown): Promise<boolean> {
   const [
     part,
     name,
   ] = (context.auth as RequestAuthentication).inputProperty.split('.');
-  const definition: PropertyDefinition | undefined = (context.request as any)?.[part]?.[name];
-  const handler = definition?.validation?.handler;
-  if (typeof handler !== 'function') {
-    return typeof value === 'string';
-  }
-  let input: unknown = value;
-  if (definition?.isJSON && typeof value === 'string') {
-    try {
-      input = parseJson(value);
-    } catch {
-      // the validator gets the raw string, as in request validation
-    }
-  }
-  try {
-    return Boolean(await handler.apply(request, [input]));
-  } catch {
-    return false;
-  }
+  const declared: boolean | undefined = await checkDeclaredInput(request, context.request, part, name, value);
+  return declared === undefined ? typeof value === 'string' : declared;
 }
 
 /**
