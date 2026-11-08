@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { queryParser, clearRoutePath, getProperty, setProperty } from '../../src/helpers';
 import { xmlParser } from '../../src/helpers/parser/xml-parser';
-import { bodyParser } from '../../src/helpers/parser/body-parser';
+import { bodyParser, isJsonContentType, mediaType } from '../../src/helpers/parser/body-parser';
 import { Readable } from 'stream';
 
 describe('clearRoutePath', () => {
@@ -367,5 +367,40 @@ describe('bodyParser (JSON)', () => {
 
   it('rejects malformed JSON with an HTTP-mappable 400', async () => {
     await assert.rejects(parseJson('{"a":'), { statusCode: 400, message: 'Invalid JSON body' });
+  });
+});
+
+describe('bodyParser (Content-Type matching)', () => {
+  const parse = async (contentType: string, text: string) => {
+    const req: any = Readable.from([Buffer.from(text)]);
+    req.headers = { 'content-type': contentType };
+    return (await bodyParser(req, {} as any, 0)).body;
+  };
+
+  it('matches media types case-insensitively', async () => {
+    assert.deepEqual(await parse('Application/JSON; charset=UTF-8', '{"a":1}'), { a: 1 });
+    assert.deepEqual(await parse('APPLICATION/X-WWW-FORM-URLENCODED', 'a=1'), { a: '1' });
+  });
+
+  it('parses +json media types as JSON', async () => {
+    assert.deepEqual(await parse('application/merge-patch+json', '{"a":null}'), { a: null });
+  });
+
+  it('does not treat a media type that only starts with application/json as JSON', async () => {
+    assert.equal(await parse('application/jsonx', '{"a":1}'), '{"a":1}');
+  });
+});
+
+describe('mediaType / isJsonContentType', () => {
+  it('drops parameters and lower-cases', () => {
+    assert.equal(mediaType(' Multipart/Form-Data ; boundary=x'), 'multipart/form-data');
+    assert.equal(mediaType(undefined), '');
+  });
+
+  it('recognises JSON types', () => {
+    assert.equal(isJsonContentType('application/json'), true);
+    assert.equal(isJsonContentType('application/problem+json; charset=utf-8'), true);
+    assert.equal(isJsonContentType('text/json+plain'), false);
+    assert.equal(isJsonContentType('application/json-seq'), false);
   });
 });
