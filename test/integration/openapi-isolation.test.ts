@@ -43,3 +43,28 @@ describe('OpenAPI document of separate servers', () => {
     assert.deepEqual(defaultOpenApiDocObject.paths, {});
   });
 });
+
+describe('OpenAPI document of a route without request or options', () => {
+  const app = new AladoServer(baseOptions('openapi-minimal-context', { openApiDoc: { ...docs } }));
+  let port: number;
+
+  before(async () => {
+    app.get('/minimal', { title: 'minimal', response: { statusCode: 200, body: { ok: true } } } as any, async () => ({
+      statusCode: 200,
+      body: { ok: true },
+    }));
+    port = await listen(app);
+  });
+
+  after(() => close(app));
+
+  it('registers and serves the route', async () => {
+    assert.equal((await send(port, { path: '/minimal' })).status, 200);
+  });
+
+  it('documents the route', async () => {
+    const doc = (await send(port, { path: '/swagger.json' })).json();
+    assert.deepEqual(Object.keys(doc.paths), ['/minimal']);
+    assert.deepEqual(doc.paths['/minimal'].get.parameters, []);
+  });
+});
