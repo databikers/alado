@@ -1,5 +1,6 @@
 import { Context, ContextRequest, PropertyDefinition } from '@dto';
 import { parseJson } from '../../parser/json-parser';
+import { NumericInputType, numericInput, toNumericInput } from '../built-in/numeric-input';
 
 const nonProcessingRequestParts: Set<string> = new Set([
   'files',
@@ -73,6 +74,15 @@ function validateProperty(
     return;
   }
   let value: any = part[property];
+  // query and path values are strings: a number()/bigint() validator gets them converted, and so
+  // does the handler. A value that is not a well-formed number stays a string and fails validation.
+  const numericType: NumericInputType | undefined = (handler as any)[numericInput];
+  if (numericType && (key === 'query' || key === 'path') && typeof value === 'string') {
+    value = toNumericInput(numericType, value);
+    if (typeof value !== 'string') {
+      part[property] = value;
+    }
+  }
   if (isJSON && typeof value === 'string') {
     try {
       // same parser as JSON bodies: a field such as {"__proto__":{...}} must not reach the

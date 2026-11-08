@@ -1,3 +1,5 @@
+import { NumericInputType, numericInput } from './numeric-input';
+
 type ValidatorFn = (input: any, root?: any) => boolean | Promise<boolean>;
 type SyncValidatorFn = (input: any, root?: any) => boolean;
 
@@ -23,9 +25,20 @@ function every(results: Array<boolean | Promise<boolean>>): boolean | Promise<bo
 // domain labels cannot contain dots, so the pattern can only match one way (linear time)
 const emailRegExp: RegExp = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
+const isNumeric = (v: unknown): v is number | bigint => (typeof v === 'number' && !isNaN(v)) || typeof v === 'bigint';
+
+// lets the request validation convert a query or path string first (see numeric-input.ts)
+function markNumericInput<T extends object>(fn: T, type: NumericInputType | undefined): T {
+  if (type) {
+    Object.defineProperty(fn, numericInput, { value: type });
+  }
+  return fn;
+}
+
 class Validator {
   private rules: ValidatorFn[] = [];
   private _required = false;
+  private numericType?: NumericInputType;
 
   private add(fn: ValidatorFn): Validator {
     this.rules.push(fn);
@@ -49,7 +62,12 @@ class Validator {
     return this.add((v) => typeof v === 'string');
   }
   number(): Validator {
+    this.numericType = this.numericType || 'number';
     return this.add((v) => typeof v === 'number' && !isNaN(v));
+  }
+  bigint(): Validator {
+    this.numericType = this.numericType || 'bigint';
+    return this.add((v) => typeof v === 'bigint');
   }
   boolean(): Validator {
     return this.add((v) => typeof v === 'boolean');
@@ -64,10 +82,10 @@ class Validator {
   //  String rules
 
   min(n: number): Validator {
-    return this.add((v) => (typeof v === 'string' ? v.length >= n : typeof v === 'number' ? v >= n : false));
+    return this.add((v) => (typeof v === 'string' ? v.length >= n : isNumeric(v) ? v >= n : false));
   }
   max(n: number): Validator {
-    return this.add((v) => (typeof v === 'string' ? v.length <= n : typeof v === 'number' ? v <= n : false));
+    return this.add((v) => (typeof v === 'string' ? v.length <= n : isNumeric(v) ? v <= n : false));
   }
   length(n: number): Validator {
     return this.add((v) => typeof v === 'string' && v.length === n);
@@ -119,13 +137,13 @@ class Validator {
   //  Number rules
 
   integer(): Validator {
-    return this.add((v) => Number.isInteger(v));
+    return this.add((v) => Number.isInteger(v) || typeof v === 'bigint');
   }
   positive(): Validator {
-    return this.add((v) => typeof v === 'number' && v > 0);
+    return this.add((v) => isNumeric(v) && v > 0);
   }
   negative(): Validator {
-    return this.add((v) => typeof v === 'number' && v < 0);
+    return this.add((v) => isNumeric(v) && v < 0);
   }
 
   //  Generic rules
@@ -244,7 +262,7 @@ class Validator {
   build(): (input: any, root?: any) => Promise<boolean> {
     const rules = [...this.rules];
     const required = this._required;
-    return async (input: any, root?: any): Promise<boolean> => {
+    return markNumericInput(async (input: any, root?: any): Promise<boolean> => {
       const isEmpty = input === null || input === undefined || input === '';
       if (isEmpty) {
         return !required;
@@ -256,7 +274,7 @@ class Validator {
         }
       }
       return true;
-    };
+    }, this.numericType);
   }
 
   // Same semantics as build(), but returns a plain boolean. Throws if any rule
@@ -268,7 +286,7 @@ class Validator {
     if (rules.some(isAsyncFunction)) {
       throw new Error(ASYNC_RULE_ERROR);
     }
-    return (input: any, root?: any): boolean => {
+    return markNumericInput((input: any, root?: any): boolean => {
       const isEmpty = input === null || input === undefined || input === '';
       if (isEmpty) {
         return !required;
@@ -285,7 +303,7 @@ class Validator {
         }
       }
       return true;
-    };
+    }, this.numericType);
   }
 }
 
@@ -294,6 +312,7 @@ class Validator {
 export const validate = {
   string: () => new Validator().string(),
   number: () => new Validator().number(),
+  bigint: () => new Validator().bigint(),
   boolean: () => new Validator().boolean(),
   array: () => new Validator().array(),
   object: () => new Validator().object(),
