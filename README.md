@@ -1153,7 +1153,9 @@ When a request arrives with a `Content-Type` of `text/xml` or `application/xml`,
 - **Repeated sibling tags collapse into an array.** `<item>a</item><item>b</item>` becomes `item: ['a', 'b']` rather than overwriting the key.
 - **Leaf elements become plain strings.** `<name>Daniel</name>` becomes `name: 'Daniel'` — no wrapper object, no type coercion (numeric-looking text like `"10000.00"` is kept exactly as written, since silently converting it to a JS number would lose precision on monetary values).
 - **Attributes are namespaced under `@attrs`.** An element like `<amount currency="USD">100</amount>` becomes `{ '@attrs': { currency: 'USD' }, '#text': '100' }`, keeping attribute data separate from element data and text content.
+- **Text next to child elements is kept under `#text`.** `<p>Total: <b>5</b> EUR</p>` becomes `p: { b: '5', '#text': 'Total: EUR', '@ns': null }` (the text pieces, joined). Whitespace used only for indentation is dropped.
 - **CDATA sections are unwrapped automatically**, and their contents treated as plain text.
+- **One root element.** Text before it, or anything after it other than whitespace and comments, gets `400 Invalid XML body`.
 - **Namespaces resolve to local names.** For SOAP envelopes or ISO 20022 style payment messages, elements are keyed by their local name regardless of which prefix the sender used (`soapenv:Body` and `soap:Body` parse identically if they share a namespace). Each element also carries an `@ns` field with its resolved namespace URI, so elements sharing a local name across different namespaces stay distinguishable.
 
 Because the contract is identical to JSON, everything documented under [`defineRequest`](#definerequest) and [DTOs](#dtos) — `@validateProperty`, `@documentProperty`, `@transformProperty`, auto-generated OpenAPI schemas applies to XML bodies without any extra setup.
