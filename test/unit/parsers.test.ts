@@ -291,6 +291,22 @@ describe('xmlParser', () => {
     assert.throws(() => xmlParser('<a><b>1'), /Unclosed element <b>/);
   });
 
+  it('keeps the text of an element that also has children under #text', () => {
+    assert.deepEqual(xmlParser('<p>Total: <b>5</b> EUR</p>'), { p: { b: '5', '@ns': null, '#text': 'Total: EUR' } });
+    assert.deepEqual(xmlParser('<p>\n  <b>5</b>\n</p>'), { p: { b: '5', '@ns': null } });
+  });
+
+  it('refuses content after the root element', () => {
+    assert.throws(() => xmlParser('<a>1</a><b>2</b>'), /Content after the root element at position 8/);
+    assert.throws(() => xmlParser('<a>1</a>trailing'), /Content after the root element/);
+    assert.deepEqual(xmlParser('<?xml version="1.0"?>\n<a>1</a>\n<!-- end -->\n'), { a: '1' });
+  });
+
+  it('refuses text before the root element', () => {
+    assert.throws(() => xmlParser('hello <a>1</a>'), /Text before the root element/);
+    assert.throws(() => xmlParser('just text'), /Text before the root element/);
+  });
+
   it('decodes numeric character references in text and attributes', () => {
     assert.deepEqual(xmlParser('<a t="&#x41;&#66;">&#1087;&#x440;&#x438; &#x1F600;</a>'), {
       a: { '@ns': null, '@attrs': { t: 'AB' }, '#text': 'при 😀' },
