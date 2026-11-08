@@ -214,6 +214,22 @@ describe('routing', () => {
     assert.deepEqual(r.json(), { userId: '42', postId: 'abc' });
   });
 
+  it('decodes percent-encoded path params', async () => {
+    const r = await send(port, { path: '/users/john%20doe/posts/%D0%BF%D1%80%D0%B8%D0%B2%D1%96%D1%82' });
+    assert.deepEqual(r.json(), { userId: 'john doe', postId: 'привіт' });
+  });
+
+  it('keeps an encoded slash inside one path param', async () => {
+    const r = await send(port, { path: '/users/a%2Fb/posts/1' });
+    assert.deepEqual(r.json(), { userId: 'a/b', postId: '1' });
+  });
+
+  it('answers 400 to a malformed path param encoding', async () => {
+    const r = await send(port, { path: '/users/%E0%A4%A/posts/1' });
+    assert.equal(r.status, 400);
+    assert.deepEqual(r.json(), { message: 'Malformed path parameter' });
+  });
+
   it('ignores a trailing slash and repeated slashes', async () => {
     assert.equal((await send(port, { path: '/ping/' })).status, 200);
     assert.equal((await send(port, { path: '//ping' })).status, 200);
