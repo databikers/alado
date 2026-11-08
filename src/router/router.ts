@@ -6,6 +6,21 @@ import { clearRoutePath, validateContext } from '@helper';
 
 const pathVariableRegex = /:([^/]+)/g;
 
+/**
+ * Path params arrive percent-encoded ("john%20doe"); handlers get the decoded value. Only values
+ * containing '%' are decoded, so the common case costs nothing. Malformed encoding is a 400.
+ */
+function decodePathParam(value: string): string {
+  if (value.indexOf('%') === -1) {
+    return value;
+  }
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw { statusCode: 400, message: 'Malformed path parameter' };
+  }
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -364,7 +379,7 @@ export class Router {
     const names: string[] = node.names as string[];
     const path: Record<string, string> = {};
     for (let i: number = 0; i < names.length; i++) {
-      path[names[i]] = values[i];
+      path[names[i]] = decodePathParam(values[i]);
     }
     return this.toResult(node.route as Route<any>, path);
   }
