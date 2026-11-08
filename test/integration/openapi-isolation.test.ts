@@ -32,8 +32,8 @@ describe('OpenAPI document of separate servers', () => {
   });
 
   it('lists only the routes of its own server', async () => {
-    const publicDoc = (await send(publicPort, { path: '/swagger.json' })).json();
-    const adminDoc = (await send(adminPort, { path: '/swagger.json' })).json();
+    const publicDoc = (await send(publicPort, { path: '/docs/swagger.json' })).json();
+    const adminDoc = (await send(adminPort, { path: '/docs/swagger.json' })).json();
     assert.deepEqual(Object.keys(publicDoc.paths), ['/hello']);
     assert.deepEqual(Object.keys(adminDoc.paths), ['/internal/users']);
   });
@@ -70,7 +70,7 @@ describe('OpenAPI path parameters', () => {
   after(() => close(app));
 
   it('declares every path parameter as required, documented or not', async () => {
-    const doc = (await send(port, { path: '/swagger.json' })).json();
+    const doc = (await send(port, { path: '/docs/swagger.json' })).json();
     const parameters = doc.paths['/users/{userId}/posts/{postId}'].get.parameters;
     assert.deepEqual(parameters, [
       { in: 'path', name: 'userId', required: true, schema: { type: 'integer' }, description: 'user' },
@@ -98,7 +98,7 @@ describe('OpenAPI document of a route without request or options', () => {
   });
 
   it('documents the route', async () => {
-    const doc = (await send(port, { path: '/swagger.json' })).json();
+    const doc = (await send(port, { path: '/docs/swagger.json' })).json();
     assert.deepEqual(Object.keys(doc.paths), ['/minimal']);
     assert.deepEqual(doc.paths['/minimal'].get.parameters, []);
   });

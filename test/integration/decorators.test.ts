@@ -296,7 +296,7 @@ describe('decorator registration order and conflicts', () => {
     });
     const port = await listen(app);
     try {
-      const paths = Object.keys((await send(port, { path: '/swagger.json' })).json().paths);
+      const paths = Object.keys((await send(port, { path: '/docs/swagger.json' })).json().paths);
       assert.deepEqual(paths, [
         '/first',
         '/second',

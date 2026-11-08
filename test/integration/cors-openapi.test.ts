@@ -283,7 +283,7 @@ describe('OpenAPI', () => {
   let spec: any;
 
   before(async () => {
-    const r = await send(docsPort, { path: '/swagger.json' });
+    const r = await send(docsPort, { path: '/docs/swagger.json' });
     assert.equal(r.status, 200);
     spec = r.json();
   });

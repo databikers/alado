@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { AladoServer, defineResponse, get, initializeApplication } from '../../src';
+import { AladoConfigurationError, AladoServer, defineResponse, get, initializeApplication } from '../../src';
 import { resolveSwaggerUiFile, swaggerIndexHtml } from '../../src/request-processor/request-processor';
 import { baseOptions, close, listen, send } from '../helpers/http';
 
@@ -14,7 +14,19 @@ class PagesController {
     return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: '<p>app</p>' };
   }
 
-  @get('/swagger.jsonx', { appId })
+  @get('/swagger.json', { appId })
+  @defineResponse({ statusCode: 200, headers: json, body: { route: 'root' } })
+  async rootSwaggerJson() {
+    return { statusCode: 200, headers: json, body: { route: 'root' } };
+  }
+
+  @get('/docs/guide', { appId })
+  @defineResponse({ statusCode: 200, headers: json, body: { route: 'guide' } })
+  async guide() {
+    return { statusCode: 200, headers: json, body: { route: 'guide' } };
+  }
+
+  @get('/docs/swagger.jsonx', { appId })
   @defineResponse({ statusCode: 200, headers: json, body: { route: 'api' } })
   async notTheDocs() {
     return { statusCode: 200, headers: json, body: { route: 'api' } };
@@ -65,10 +77,46 @@ describe('Swagger UI serving', () => {
     assert.equal(r.text, '<p>app</p>');
   });
 
-  it('matches /swagger.json exactly', async () => {
-    assert.equal((await send(port, { path: '/swagger.json' })).status, 200);
-    assert.equal((await send(port, { path: '/swagger.json?v=2' })).status, 200);
-    assert.deepEqual((await send(port, { path: '/swagger.jsonx' })).json(), { route: 'api' });
+  it('serves the OpenAPI document under the docs route, matched exactly', async () => {
+    const r = await send(port, { path: '/docs/swagger.json' });
+    assert.equal(r.status, 200);
+    assert.equal(r.json().openapi, '3.0.0');
+    assert.equal((await send(port, { path: '/docs/swagger.json?v=2' })).status, 200);
+    assert.deepEqual((await send(port, { path: '/docs/swagger.jsonx' })).json(), { route: 'api' });
+  });
+
+  it('leaves /swagger.json and other paths under the docs route to the API', async () => {
+    assert.deepEqual((await send(port, { path: '/swagger.json' })).json(), { route: 'root' });
+    assert.deepEqual((await send(port, { path: '/docs/guide' })).json(), { route: 'guide' });
+  });
+
+  it('points Swagger UI at the document under the docs route', async () => {
+    const r = await send(port, { path: '/docs/swagger-initializer.js' });
+    assert.match(r.text, /url: "\/docs\/swagger\.json"/);
+  });
+
+  it('refuses GET routes that the docs answer', () => {
+    const docsApp = new AladoServer(
+      baseOptions('swagger-serving-reserved', { openApiDoc: { enable: true, route: '/docs', info: {} } }),
+    );
+    const context = {
+      title: 't',
+      request: {},
+      options: { allowUnknownFields: false },
+      response: { statusCode: 200, body: { ok: true } },
+    } as any;
+    for (const path of [
+      '/docs',
+      '/docs/swagger.json',
+      '/docs/swagger-ui.css',
+    ]) {
+      assert.throws(
+        () => docsApp.get(path, context, async () => ({ statusCode: 200, body: {} })),
+        (e: any) => e instanceof AladoConfigurationError && e.code === 'ROUTE_RESERVED_FOR_OPEN_API',
+        path,
+      );
+    }
+    docsApp.post('/docs/swagger.json', context, async () => ({ statusCode: 200, body: {} }));
   });
 
   it('serves only web assets from the Swagger UI package', async () => {
