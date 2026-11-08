@@ -7,9 +7,20 @@ import { JsonDepthError, parseJson } from './json-parser';
 import { FILE_SIGNATURE_BYTES, uploadedFileHeads } from '../validate/context/file-signature';
 
 // "application/xml; charset=utf-8" is still XML, and so are +xml types such as SOAP 1.2's application/soap+xml
+// media type without parameters, lower-cased: "Application/JSON; charset=utf-8" -> "application/json"
+export function mediaType(contentType: string | undefined): string {
+  return (contentType || '').split(';')[0].trim().toLowerCase();
+}
+
 export function isXmlContentType(contentType: string | undefined): boolean {
-  const mime: string = (contentType || '').split(';')[0].trim().toLowerCase();
+  const mime: string = mediaType(contentType);
   return mime === ContentType.XML || mime === ContentType.TEXT_XML || /^application\/[\w.+-]+\+xml$/.test(mime);
+}
+
+// application/json, and +json types such as application/merge-patch+json or application/problem+json
+export function isJsonContentType(contentType: string | undefined): boolean {
+  const mime: string = mediaType(contentType);
+  return mime === ContentType.JSON || /^application\/[\w.+-]+\+json$/.test(mime);
 }
 
 type MultipartPart = { name: string | null; value: string | null; filename: string | null; mimetype: string | null };
@@ -118,7 +129,8 @@ export async function bodyParser(
     abortOversizedBody(req, res);
     throw contentTooLarge;
   }
-  if (contentType?.startsWith(ContentType.FORM_DATA)) {
+  const mime: string = mediaType(contentType);
+  if (mime === ContentType.FORM_DATA) {
     const boundary: string | null = multipartBoundary(req.headers['content-type'] as string);
     await new Promise<void>((resolve, reject) => {
       req.on('data', collectChunks(req, res, limit, received, reject));
@@ -189,7 +201,7 @@ export async function bodyParser(
       req.on('end', () => {
         body = concatChunks(received, 'utf8');
         result.rawBody = body;
-        if (contentType?.startsWith(ContentType.JSON)) {
+        if (isJsonContentType(contentType)) {
           try {
             result.body = parseJson(body) as Record<string, any>;
             resolve();
@@ -200,7 +212,7 @@ export async function bodyParser(
               message: e instanceof JsonDepthError ? `Invalid JSON body: ${e.message}` : `Invalid JSON body`,
             });
           }
-        } else if (contentType?.startsWith(ContentType.X_WWW_FORM_URLENCODED)) {
+        } else if (mime === ContentType.X_WWW_FORM_URLENCODED) {
           // URLSearchParams decodes %XX and '+', keeps '=' inside values and never throws
           for (const [
             key,
