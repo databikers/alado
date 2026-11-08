@@ -261,20 +261,18 @@ export class RequestProcessor {
     const start = (): void => {
       stream.removeListener('error', failBeforeStart);
       res.writeHead(statusCode, headers);
-      pipeline(stream, res, (error?: Error | null) => {
+      pipeline(stream, res, (error?: NodeJS.ErrnoException | null) => {
         if (error) {
-          this.logError(error);
+          // the client going away mid-response is not a server failure
+          this.logError(error, error.code === 'ERR_STREAM_PREMATURE_CLOSE' ? 499 : 500);
         }
       });
     };
     const failBeforeStart = (error: NodeJS.ErrnoException): void => {
       stream.removeListener('ready', start);
-      this.logError(error);
-      this.respondError(
-        res,
-        error.code === 'ENOENT' ? { statusCode: 404, message: 'Not Found' } : toClientError(error),
-        backgroundHeaders,
-      );
+      const clientError = error.code === 'ENOENT' ? { statusCode: 404, message: 'Not Found' } : toClientError(error);
+      this.logError(error, clientError.statusCode);
+      this.respondError(res, clientError, backgroundHeaders);
     };
     if ((stream as Readable & { pending?: boolean }).pending === true) {
       stream.once('ready', start);
@@ -449,13 +447,15 @@ export class RequestProcessor {
           const response: Response<any> = await handler(request);
           return this.respond(res, response, backgroundHeaders);
         } catch (e: any) {
-          this.logError(e);
-          return this.respondError(res, toClientError(e), backgroundHeaders);
+          const clientError = toClientError(e);
+          this.logError(e, clientError.statusCode);
+          return this.respondError(res, clientError, backgroundHeaders);
         }
       }
     } catch (e: any) {
-      this.logError(e as Error);
-      return this.respondError(res, toClientError(e), {});
+      const clientError = toClientError(e);
+      this.logError(e as Error, clientError.statusCode);
+      return this.respondError(res, clientError, {});
     }
   }
 
@@ -497,9 +497,21 @@ export class RequestProcessor {
     return headers;
   }
 
-  protected logError(e: Error) {
-    if (this.options.verbose) {
-      this.options.logger?.error(e);
+  /**
+   * Internal failures (5xx) are always logged: the client only gets a generic message, so the log
+   * is the only place their cause shows up. Errors caused by the client (4xx thrown on purpose,
+   * invalid or oversized bodies, a client leaving mid-response) are logged in verbose mode only.
+   */
+  protected logError(e: Error, statusCode: number) {
+    if (statusCode < 500 && !this.options.verbose) {
+      return;
+    }
+    const logger = this.options.logger;
+    // `error` is optional in loggers that pass validation (only `log` is checked)
+    if (typeof logger?.error === 'function') {
+      logger.error(e);
+    } else {
+      logger?.log(e);
     }
   }
 }
