@@ -201,7 +201,10 @@ export async function bodyParser(
       req.on('end', () => {
         body = concatChunks(received, 'utf8');
         result.rawBody = body;
-        if (isJsonContentType(contentType)) {
+        if (isJsonContentType(contentType) && !body) {
+          // no body at all (clients often send the header on every request): same as the other types
+          resolve();
+        } else if (isJsonContentType(contentType)) {
           try {
             result.body = parseJson(body) as Record<string, any>;
             resolve();
