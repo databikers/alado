@@ -225,7 +225,8 @@ export function xmlParser(xmlInput: string): XmlObject {
 
     const tagMatch = /^<([a-zA-Z_:][\w:.-]*)((?:\s+[^>]*?)?)(\/?)>/.exec(xml.slice(pos));
     if (!tagMatch) {
-      throw new Error(`Malformed XML near position ${pos}: ${xml.slice(pos, pos + 40)}`);
+      // the message reaches the client: the position only, never the request content
+      throw new Error(`Malformed XML near position ${pos}`);
     }
 
     const fullMatch: string = tagMatch[0];
@@ -295,7 +296,8 @@ export function xmlParser(xmlInput: string): XmlObject {
     }
 
     if (!closed) {
-      throw new Error(`Unclosed element <${rawTagName}>`);
+      // a name is only [\w:.-] characters, but its length is the client's: cut it to stay readable
+      throw new Error(`Unclosed element <${rawTagName.length > 64 ? `${rawTagName.slice(0, 64)}...` : rawTagName}>`);
     }
 
     const trimmedText = textContent.trim();
