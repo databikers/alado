@@ -135,6 +135,24 @@ class RoutingController {
     throw Object.assign(new Error('ENOENT: /srv/secret.key'), { statusCode: 'ENOENT' });
   }
 
+  @get('/serialised-json', { appId })
+  @doc
+  async serialisedJson() {
+    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: '{"a":1}' };
+  }
+
+  @get('/serialised-json-buffer', { appId })
+  @doc
+  async serialisedJsonBuffer() {
+    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: Buffer.from('[1,2]') };
+  }
+
+  @get('/json-null', { appId })
+  @doc
+  async jsonNull() {
+    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: null as any };
+  }
+
   @get('/implicit-json', { appId })
   @doc
   async implicitJson() {
@@ -394,6 +412,17 @@ describe('routing', () => {
     } finally {
       await close(l);
     }
+  });
+
+  it('sends a string or Buffer body under a JSON Content-Type as it is', async () => {
+    const text = await send(port, { path: '/serialised-json' });
+    assert.equal(text.text, '{"a":1}');
+    assert.equal(text.headers['content-length'], '7');
+    assert.equal((await send(port, { path: '/serialised-json-buffer' })).text, '[1,2]');
+  });
+
+  it('still serialises a null body under a JSON Content-Type', async () => {
+    assert.equal((await send(port, { path: '/json-null' })).text, 'null');
   });
 
   it('serialises an object body as JSON when the handler sets no Content-Type', async () => {
