@@ -16,7 +16,8 @@ export function openApiDocFactory(
   openApiRoute = openApiRoute.toString().replace(/\/$/, '');
   // Docs part
   openApiDocObject.paths[openApiRoute] = openApiDocObject.paths[openApiRoute] || {};
-  const { openApiDoc } = context.options;
+  // both are optional in a Context (the router fills in `request` only after this runs)
+  const openApiDoc = context.options?.openApiDoc;
   openApiDocObject.paths[openApiRoute][openApiMethod] = { ...openApiDoc, parameters: [] };
   const { title } = context;
   if (context.auth) {
@@ -35,7 +36,7 @@ export function openApiDocFactory(
     }
     openApiDocObject.paths[openApiRoute][openApiMethod].security = [{ [authStrategyName]: [] }];
   }
-  const { headers, body, path, query, files } = context.request;
+  const { headers, body, path, query, files } = context.request || {};
   if (headers) {
     for (const header in headers) {
       openApiDocObject.paths[openApiRoute][openApiMethod].parameters.push({
