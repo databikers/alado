@@ -74,7 +74,7 @@ export function multipart(
   const chunks: Buffer[] = [];
   for (const p of parts) {
     let head = `--${boundary}\r\nContent-Disposition: form-data; name="${p.name}"`;
-    if (p.filename) {
+    if (p.filename !== undefined) {
       head += `; filename="${p.filename}"`;
     }
     head += '\r\n';
