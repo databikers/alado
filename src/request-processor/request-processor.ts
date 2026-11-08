@@ -280,6 +280,12 @@ export class RequestProcessor {
     res.end(responseBody);
   }
 
+  /**
+   * Streams a body. A pending stream (fs.createReadStream) starts in its 'ready' event, outside the
+   * request's try/catch: anything thrown there, such as writeHead() refusing a header value built
+   * from request data ("filename=\"a\nb\""), would end the process. Every listener here catches,
+   * answers 500 when the status line is not out yet, and destroys the stream so its file is closed.
+   */
   protected sendStream(
     res: ServerResponse,
     statusCode: number,
@@ -287,9 +293,25 @@ export class RequestProcessor {
     stream: Readable,
     backgroundHeaders?: Record<string, string>,
   ) {
+    const fail = (error: unknown, clientError: AladoServerError): void => {
+      stream.destroy();
+      this.logError(error as Error, clientError.statusCode);
+      try {
+        this.respondError(res, clientError, backgroundHeaders);
+      } catch (e) {
+        // not even the error response could be written: drop the connection, keep the process
+        this.logError(e as Error, 500);
+        res.destroy();
+      }
+    };
     const start = (): void => {
       stream.removeListener('error', failBeforeStart);
-      res.writeHead(statusCode, headers);
+      try {
+        res.writeHead(statusCode, headers);
+      } catch (error) {
+        fail(error, { statusCode: 500, message: 'Internal Server Error' });
+        return;
+      }
       pipeline(stream, res, (error?: NodeJS.ErrnoException | null) => {
         if (error) {
           // the client going away mid-response is not a server failure
@@ -299,9 +321,7 @@ export class RequestProcessor {
     };
     const failBeforeStart = (error: NodeJS.ErrnoException): void => {
       stream.removeListener('ready', start);
-      const clientError = error.code === 'ENOENT' ? { statusCode: 404, message: 'Not Found' } : toClientError(error);
-      this.logError(error, clientError.statusCode);
-      this.respondError(res, clientError, backgroundHeaders);
+      fail(error, error.code === 'ENOENT' ? { statusCode: 404, message: 'Not Found' } : toClientError(error));
     };
     if ((stream as Readable & { pending?: boolean }).pending === true) {
       stream.once('ready', start);
