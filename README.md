@@ -493,6 +493,7 @@ validate.custom(fn); // starts with a custom rule
 | ----------- | -------------------------------------------- |
 | `string()`  | Must be a string                             |
 | `number()`  | Must be a number (not NaN)                   |
+| `bigint()`  | Must be a bigint                             |
 | `boolean()` | Must be a boolean                            |
 | `array()`   | Must be an array                             |
 | `object()`  | Must be a plain object (not array, not null) |
@@ -518,6 +519,10 @@ validate.custom(fn); // starts with a custom rule
 | `integer()`  | Must be an integer |
 | `positive()` | Must be `> 0`      |
 | `negative()` | Must be `< 0`      |
+
+`min`, `max`, `integer`, `positive` and `negative` accept bigints as well.
+
+Query and path values always arrive as strings. When a query or path field is validated by a validator built from `validate.number()` or `validate.bigint()`, the string is converted before validation, and the handler gets the converted value. Accepted: decimal numbers with sign, fraction and exponent (`-1.5e3`), `0x` / `0o` / `0b` integers, digit separators (`1_000`), and for `bigint()` an optional `n` suffix (`123n`). Anything else (padded or empty text, `Infinity`, `NaN`, out-of-range values, integers past `Number.MAX_SAFE_INTEGER` for `number()`) stays a string and fails validation. Note that `JSON.stringify` cannot serialise a bigint: convert it before putting it in a response body.
 
 **Generic**
 
