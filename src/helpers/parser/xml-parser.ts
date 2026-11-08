@@ -319,6 +319,10 @@ export function xmlParser(xmlInput: string): XmlObject {
       if (hasAttrs) {
         children['@attrs'] = dataAttrs;
       }
+      // mixed content (<p>Total: <b>5</b> EUR</p>): the text pieces around the children, joined
+      if (trimmedText) {
+        children['#text'] = trimmedText;
+      }
       return [
         localName,
         children,
@@ -350,7 +354,15 @@ export function xmlParser(xmlInput: string): XmlObject {
 
   const rootScope: NamespaceScope = { defaultUri: null, prefixes: Object.create(null) };
   const root: XmlObject = {};
+  if (xml[0] !== '<') {
+    throw new Error('Text before the root element');
+  }
   const rootElement = parseElement(rootScope);
+  // a document has exactly one root (comments and <?xml ...?> declarations were removed above)
+  skipWhitespace();
+  if (pos < xml.length) {
+    throw new Error(`Content after the root element at position ${pos}`);
+  }
 
   if (rootElement) {
     const [
