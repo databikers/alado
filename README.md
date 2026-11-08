@@ -949,6 +949,8 @@ The `inputProperty` supports dot-notation and can point to any part of the reque
 
 The resolved value from `handler` is set at `outputProperty` on the request object, making it available as `req.auth.user` in your handler.
 
+The value at `inputProperty` is checked before `handler` runs (the rest of the request is validated only after authentication). If the route declares a validator for that field (for example `body.token` in the request DTO), that validator decides; otherwise only a string is accepted. Anything else, such as an object from a JSON body or an array from a repeated query key, gets the configured `error` and `handler` is not called.
+
 **Optional auth** — set `required: false` for soft checking (handler runs but failure doesn't block the request):
 
 ```ts
