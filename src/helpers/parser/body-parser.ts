@@ -1,4 +1,5 @@
 import { IncomingMessage, OutgoingMessage } from 'http';
+import { constants } from 'buffer';
 import { ContentType, deprecatedJsonPropertiesRegExp } from '@const';
 import { Readable } from 'stream';
 import { AladoServerError } from '@dto';
@@ -149,6 +150,20 @@ function ownCopy(chunks: Buffer[], size: number): Buffer {
 const contentTooLarge: AladoServerError = { statusCode: 413, message: 'Content Too Large' };
 
 /**
+ * V8 cannot build a string longer than buffer.constants.MAX_STRING_LENGTH (about 512 MB), and
+ * decoding more throws. A body decoded as text (JSON, XML, urlencoded, text) above it is refused
+ * with 413 while it arrives, even when maxBodySizeBytes is 0 or larger; so is a multipart text field.
+ * UTF-8 never decodes to more UTF-16 units than bytes, so a byte count is enough. Exported as an
+ * object so tests can lower it.
+ */
+export const textLimits: { maxBytes: number } = { maxBytes: constants.MAX_STRING_LENGTH };
+
+// an error thrown while a body is turned into request data: never left to crash the process
+function toBodyError(e: any): AladoServerError | Error {
+  return e?.code === 'ERR_STRING_TOO_LONG' ? contentTooLarge : e;
+}
+
+/**
  * Stops buffering an oversized body. The rest of it is not read: the connection is
  * closed once the 413 response is sent, so the client cannot keep streaming into it.
  */
@@ -166,10 +181,11 @@ function collectChunks(
   limit: number,
   received: ReceivedBody,
   reject: (error: AladoServerError) => void,
+  textLimit: number = 0,
 ) {
   return (chunk: Buffer) => {
     received.bytes += chunk.length;
-    if (limit && received.bytes > limit) {
+    if ((limit && received.bytes > limit) || (textLimit && received.bytes > textLimit)) {
       abortOversizedBody(req, res);
       reject(contentTooLarge);
       return;
@@ -241,7 +257,14 @@ export async function bodyParser(
         }
         collect(chunk);
         if (declared && received.bytes * 2 >= declared && received.bytes <= declared) {
-          whole = Buffer.allocUnsafeSlow(declared);
+          try {
+            whole = Buffer.allocUnsafeSlow(declared);
+          } catch {
+            // no memory for a body of the declared size
+            abortOversizedBody(req, res);
+            reject(contentTooLarge);
+            return;
+          }
           let offset: number = 0;
           for (const piece of received.chunks) {
             offset += piece.copy(whole, offset);
@@ -250,7 +273,7 @@ export async function bodyParser(
         }
       });
       req.once('error', onRequestError(reject));
-      req.on('end', () => {
+      const readMultipart = (): void => {
         // one Buffer for the whole body; files are views into it, nothing is copied as a string
         const raw: Buffer = whole ? whole.subarray(0, received.bytes) : ownCopy(received.chunks, received.bytes);
         received.chunks = [];
@@ -259,7 +282,13 @@ export async function bodyParser(
         Object.defineProperty(result, 'rawBody', {
           enumerable: true,
           configurable: true,
-          get: () => (rawBody ??= raw.toString('latin1')),
+          get: () => {
+            if (rawBody === undefined && raw.length > textLimits.maxBytes) {
+              // too long for a string: a 413 for the handler that reads it, not a RangeError
+              throw Object.assign(new Error(contentTooLarge.message), { statusCode: contentTooLarge.statusCode });
+            }
+            return (rawBody ??= raw.toString('latin1'));
+          },
         });
         if (!boundary) {
           resolve();
@@ -272,6 +301,10 @@ export async function bodyParser(
         ] of fields) {
           // same keys the JSON and urlencoded parsers drop (__proto__, constructor, ...)
           if (!deprecatedJsonPropertiesRegExp.test(name)) {
+            if (value.length > textLimits.maxBytes) {
+              reject(contentTooLarge);
+              return;
+            }
             result.body[name] = value.toString('utf8');
           }
         }
@@ -295,13 +328,20 @@ export async function bodyParser(
           }
         }
         resolve();
+      };
+      req.on('end', () => {
+        try {
+          readMultipart();
+        } catch (e) {
+          reject(toBodyError(e));
+        }
       });
     });
   } else {
     await new Promise<void>((resolve, reject) => {
-      req.on('data', collectChunks(req, res, limit, received, reject));
+      req.on('data', collectChunks(req, res, limit, received, reject, textLimits.maxBytes));
       req.once('error', onRequestError(reject));
-      req.on('end', () => {
+      const readText = (): void => {
         body = concatChunks(received, 'utf8');
         result.rawBody = body;
         if (isJsonContentType(contentType) && !body) {
@@ -339,6 +379,13 @@ export async function bodyParser(
         } else {
           result.body = body;
           resolve();
+        }
+      };
+      req.on('end', () => {
+        try {
+          readText();
+        } catch (e) {
+          reject(toBodyError(e));
         }
       });
     });
