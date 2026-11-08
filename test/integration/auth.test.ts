@@ -190,6 +190,12 @@ describe('withAuth', () => {
     assert.equal(r.status, 200);
   });
 
+  it('lets the request through anonymously when required is false and the handler throws', async () => {
+    const r = await send(port, { path: '/maybe', headers: bearer('explode') });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.json(), {});
+  });
+
   it('still authenticates when required is false and credentials are sent', async () => {
     const r = await send(port, { path: '/maybe', headers: bearer('token-bob') });
     assert.equal(r.status, 200);
