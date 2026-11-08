@@ -19,6 +19,7 @@ import {
   validateProperty,
 } from '../../src';
 import { Router } from '../../src/router';
+import { AladoConfigurationError } from '../../src/dto';
 import { HttpMethod } from '../../src/constants';
 import { baseOptions, close, listen, send, sendJson } from '../helpers/http';
 
@@ -551,12 +552,69 @@ describe('router matching order', () => {
     assert.equal(r.parse(HttpMethod.GET, '/a/b/d')?.context.title, 'literal');
   });
 
-  it('keeps registration order for routes of the same shape', () => {
+  it('refuses a second route of the same method and path', () => {
+    const r = makeRouter();
+    r.use(HttpMethod.GET, '/x', ctx, () => ({ statusCode: 204 }));
+    assert.throws(
+      () => r.use(HttpMethod.GET, '/x/', ctx, () => ({ statusCode: 204 })),
+      (e: any) =>
+        e instanceof AladoConfigurationError &&
+        e.code === 'ROUTE_ALREADY_REGISTERED' &&
+        e.message === 'Route GET /x is already registered',
+    );
+  });
+
+  it('refuses a second route that differs only in parameter names', () => {
     const r = makeRouter();
     r.use(HttpMethod.GET, '/x/:a', { ...ctx, title: 'first' }, () => ({ statusCode: 204 }));
-    r.use(HttpMethod.GET, '/x/:b', { ...ctx, title: 'second' }, () => ({ statusCode: 204 }));
+    assert.throws(
+      () => r.use(HttpMethod.GET, '/x/:b', { ...ctx, title: 'second' }, () => ({ statusCode: 204 })),
+      (e: any) =>
+        e instanceof AladoConfigurationError &&
+        e.code === 'ROUTE_ALREADY_REGISTERED' &&
+        /GET \/x\/:b is already registered as GET \/x\/:a/.test(e.message),
+    );
     assert.equal(r.parse(HttpMethod.GET, '/x/1')?.context.title, 'first');
-    assert.deepEqual(r.parse(HttpMethod.GET, '/x/1')?.path, { a: '1' });
+  });
+
+  it('accepts the same path for other methods and other parameter prefixes', () => {
+    const r = makeRouter();
+    r.use(HttpMethod.GET, '/x/:a', ctx, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.POST, '/x/:a', ctx, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.GET, '/x/v:version', ctx, () => ({ statusCode: 204 }));
+    r.use(HttpMethod.GET, '/x/:a/y', ctx, () => ({ statusCode: 204 }));
+  });
+
+  it('compares paths case-insensitively when routes are case-insensitive', () => {
+    const r = new Router(
+      {
+        cors: { enable: false, allowedMethods: new Map() },
+        openApiDoc: undefined,
+        logger: { log() {} },
+        caseSensitiveRoutes: false,
+      } as any,
+      {},
+    );
+    r.use(HttpMethod.GET, '/Users', ctx, () => ({ statusCode: 204 }));
+    assert.throws(() => r.use(HttpMethod.GET, '/users', ctx, () => ({ statusCode: 204 })), AladoConfigurationError);
+    const sensitive = makeRouter();
+    sensitive.use(HttpMethod.GET, '/Users', ctx, () => ({ statusCode: 204 }));
+    sensitive.use(HttpMethod.GET, '/users', ctx, () => ({ statusCode: 204 }));
+  });
+
+  it('refuses GET on the Open API route with its own code', () => {
+    const r = new Router(
+      {
+        cors: { enable: false, allowedMethods: new Map() },
+        openApiDoc: { enable: true, route: '/docs', info: {} },
+        logger: { log() {} },
+      } as any,
+      { paths: {}, components: { securitySchemes: {} } },
+    );
+    assert.throws(
+      () => r.use(HttpMethod.GET, '/docs', ctx, () => ({ statusCode: 204 })),
+      (e: any) => e instanceof AladoConfigurationError && e.code === 'ROUTE_RESERVED_FOR_OPEN_API',
+    );
   });
 
   it('matches params with a literal prefix, longest prefix first', () => {

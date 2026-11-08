@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  AladoConfigurationError,
   RequestAuthentication,
   accessControl,
   defineRequest,
@@ -262,5 +263,68 @@ describe('decorator order with an existing application', () => {
     } finally {
       await close(app);
     }
+  });
+});
+
+describe('decorator registration order and conflicts', () => {
+  const ok = { statusCode: 200, headers: json, body: { ok: true } };
+
+  it('registers routes in declaration order', async () => {
+    const appId = 'deco-order-fifo';
+    class OrderController {
+      @get('/first', { appId })
+      @defineResponse(ok)
+      async first() {
+        return ok;
+      }
+
+      @get('/second', { appId })
+      @defineResponse(ok)
+      async second() {
+        return ok;
+      }
+
+      @get('/third', { appId })
+      @defineResponse(ok)
+      async third() {
+        return ok;
+      }
+    }
+    const app = initializeApplication({
+      serverOptions: baseOptions(appId, { openApiDoc: { enable: true, route: '/docs', info: {} } }),
+      controllers: [OrderController],
+    });
+    const port = await listen(app);
+    try {
+      const paths = Object.keys((await send(port, { path: '/swagger.json' })).json().paths);
+      assert.deepEqual(paths, [
+        '/first',
+        '/second',
+        '/third',
+      ]);
+    } finally {
+      await close(app);
+    }
+  });
+
+  it('refuses two decorated routes of the same method and path', () => {
+    const appId = 'deco-conflict';
+    class ConflictController {
+      @get('/users/:id', { appId })
+      @defineResponse(ok)
+      async one() {
+        return ok;
+      }
+
+      @get('/users/:userId', { appId })
+      @defineResponse(ok)
+      async other() {
+        return ok;
+      }
+    }
+    assert.throws(
+      () => initializeApplication({ serverOptions: baseOptions(appId), controllers: [ConflictController] }),
+      (e: any) => e instanceof AladoConfigurationError && e.code === 'ROUTE_ALREADY_REGISTERED',
+    );
   });
 });
