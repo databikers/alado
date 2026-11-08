@@ -136,6 +136,16 @@ export function multipartBoundary(contentType: string): string | null {
 
 type ReceivedBody = { chunks: Buffer[]; bytes: number };
 
+// chunks joined into a Buffer of exactly `size` bytes that nothing else shares (see the multipart branch)
+function ownCopy(chunks: Buffer[], size: number): Buffer {
+  const copy: Buffer = Buffer.allocUnsafeSlow(size);
+  let offset: number = 0;
+  for (const chunk of chunks) {
+    offset += chunk.copy(copy, offset);
+  }
+  return copy;
+}
+
 const contentTooLarge: AladoServerError = { statusCode: 413, message: 'Content Too Large' };
 
 /**
@@ -209,6 +219,9 @@ export async function bodyParser(
     // of it has arrived, the chunks so far are copied in and dropped, and the rest is copied as it
     // comes: about 1.5x at the peak. Waiting for half keeps a client from making the server allocate a
     // large body it never sends. Without a declared length (chunked encoding) the chunks are joined.
+    // Either way the Buffer is the request's own allocation (allocUnsafeSlow, never Node's shared pool,
+    // never a socket chunk that also holds the headers): file contents are views into it, so their
+    // `.buffer` must not reach memory outside this body.
     const declared: number = Number.isSafeInteger(declaredLength) && declaredLength > 0 ? declaredLength : 0;
     let whole: Buffer | undefined;
     await new Promise<void>((resolve, reject) => {
@@ -228,7 +241,7 @@ export async function bodyParser(
         }
         collect(chunk);
         if (declared && received.bytes * 2 >= declared && received.bytes <= declared) {
-          whole = Buffer.allocUnsafe(declared);
+          whole = Buffer.allocUnsafeSlow(declared);
           let offset: number = 0;
           for (const piece of received.chunks) {
             offset += piece.copy(whole, offset);
@@ -239,11 +252,7 @@ export async function bodyParser(
       req.once('error', onRequestError(reject));
       req.on('end', () => {
         // one Buffer for the whole body; files are views into it, nothing is copied as a string
-        const raw: Buffer = whole
-          ? whole.subarray(0, received.bytes)
-          : received.chunks.length === 1
-            ? received.chunks[0]
-            : Buffer.concat(received.chunks, received.bytes);
+        const raw: Buffer = whole ? whole.subarray(0, received.bytes) : ownCopy(received.chunks, received.bytes);
         received.chunks = [];
         // the latin1 ("binary") text of the body costs as much memory again: built only when read
         let rawBody: string | undefined;
