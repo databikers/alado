@@ -203,6 +203,39 @@ describe('bodyParser (multipart collection)', () => {
     }
   });
 
+  it('backs file contents with memory that holds this body only', async () => {
+    const small = body('XX', [
+      fieldPart('a', 'x'),
+      filePart('f', Buffer.from('hello')),
+    ]);
+    for (const input of [
+      { pieces: [small], headers: { 'content-length': String(small.length) } },
+      { pieces: [small], headers: {} },
+      {
+        pieces: [
+          small.subarray(0, 10),
+          small.subarray(10),
+        ],
+        headers: {},
+      },
+      { pieces: pieces(16 * 1024), headers: { 'content-length': String(raw.length) } },
+      { pieces: pieces(16 * 1024), headers: {} },
+    ]) {
+      const total = input.pieces.reduce((n, p) => n + p.length, 0);
+      const r = await parse(input.pieces, input.headers);
+      const chunks: Buffer[] = [];
+      for await (const chunk of r.files.f.stream) {
+        chunks.push(chunk);
+      }
+      // a view's backing memory is exactly this body: not Node's shared pool, not a socket chunk
+      assert.equal(
+        chunks[0].buffer.byteLength,
+        total,
+        `${input.pieces.length} pieces ${JSON.stringify(input.headers)}`,
+      );
+    }
+  });
+
   it('refuses more data than the declared length', async () => {
     await assert.rejects(parse(pieces(16 * 1024), { 'content-length': String(raw.length - 100) }), {
       statusCode: 400,
