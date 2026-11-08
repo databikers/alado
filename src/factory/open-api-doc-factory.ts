@@ -49,17 +49,20 @@ export function openApiDocFactory(
       });
     }
   }
-  if (path) {
-    for (const param in path) {
-      openApiDocObject.paths[openApiRoute][openApiMethod].parameters.push({
-        in: 'path',
-        name: param,
-        required: path[param].validation?.required || false,
-        schema: path[param].openApiDoc?.schema,
-        description: path[param].openApiDoc?.description,
-        example: path[param].openApiDoc?.example,
-      });
-    }
+  // OpenAPI 3: every {param} of the path has to be declared, with required: true
+  for (const [
+    ,
+    param,
+  ] of openApiRoute.matchAll(/\{([^}]+)\}/g)) {
+    const definition = path?.[param];
+    openApiDocObject.paths[openApiRoute][openApiMethod].parameters.push({
+      in: 'path',
+      name: param,
+      required: true,
+      schema: definition?.openApiDoc?.schema || { type: 'string' },
+      description: definition?.openApiDoc?.description,
+      example: definition?.openApiDoc?.example,
+    });
   }
   if (query) {
     for (const param in query) {
