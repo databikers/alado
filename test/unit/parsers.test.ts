@@ -291,6 +291,20 @@ describe('xmlParser', () => {
     assert.throws(() => xmlParser('<a><b>1'), /Unclosed element <b>/);
   });
 
+  it('decodes numeric character references in text and attributes', () => {
+    assert.deepEqual(xmlParser('<a t="&#x41;&#66;">&#1087;&#x440;&#x438; &#x1F600;</a>'), {
+      a: { '@ns': null, '@attrs': { t: 'AB' }, '#text': 'при 😀' },
+    });
+  });
+
+  it('decodes &amp; once only', () => {
+    assert.deepEqual(xmlParser('<a>&amp;lt; &amp;#65;</a>'), { a: '&lt; &#65;' });
+  });
+
+  it('keeps references to characters XML does not allow', () => {
+    assert.deepEqual(xmlParser('<a>&#0;&#xD800;&#x110000;</a>'), { a: '&#0;&#xD800;&#x110000;' });
+  });
+
   it('does not repeat the document content in error messages', () => {
     assert.throws(
       () => xmlParser('<a><!DOCTYPE secret-token-123></a>'),
