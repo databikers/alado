@@ -454,7 +454,10 @@ export class RequestProcessor {
           if (stage === 'auth') {
             await readBody();
           }
-          const authError: AladoServerError = await authenticate(context, request);
+          const authError: AladoServerError = await authenticate(context, request, (e: unknown) =>
+            // a thrown auth handler is a failure of the handler, not of the credentials
+            this.logError(e as Error, 500),
+          );
           if (authError) {
             closeIfBodyUnread(req, res, bodyRead);
             return this.respondError(res, authError, backgroundHeaders);

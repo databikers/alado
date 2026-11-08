@@ -34,16 +34,27 @@ async function isValidAuthInput(context: Context<any>, request: any, value: unkn
   }
 }
 
-export async function authenticate(context: Context<any>, request: any): Promise<any> {
+/**
+ * Runs the auth handler. With `required: false` a request is never refused here: credentials that
+ * are missing, invalid or make the handler throw leave it anonymous (nothing at outputProperty).
+ * A handler is expected to return null/undefined for credentials it does not accept; an exception
+ * is a failure of the handler and goes to `onHandlerError` (the client only ever gets `error`).
+ */
+export async function authenticate(
+  context: Context<any>,
+  request: any,
+  onHandlerError?: (error: unknown) => void,
+): Promise<any> {
   const { auth } = context;
   const { required, handler, handlerContext, inputProperty, outputProperty, error } = auth as RequestAuthentication;
+  const refuse = required ? error : undefined;
 
   const authData: any = getProperty(request, inputProperty);
   if (required && !authData) {
     return error;
   }
   if (authData !== undefined && authData !== null && !(await isValidAuthInput(context, request, authData))) {
-    return error;
+    return refuse;
   }
   try {
     const result = await handler.apply(handlerContext || {}, [authData]);
@@ -51,8 +62,9 @@ export async function authenticate(context: Context<any>, request: any): Promise
       return error;
     }
     setProperty(request, outputProperty, result);
-  } catch {
+  } catch (e) {
+    onHandlerError?.(e);
     // the configured error, never the exception text (it may describe internals)
-    return error;
+    return refuse;
   }
 }
