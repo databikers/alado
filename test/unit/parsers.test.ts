@@ -291,6 +291,18 @@ describe('xmlParser', () => {
     assert.throws(() => xmlParser('<a><b>1'), /Unclosed element <b>/);
   });
 
+  it('does not repeat the document content in error messages', () => {
+    assert.throws(
+      () => xmlParser('<a><!DOCTYPE secret-token-123></a>'),
+      (e: Error) => e.message === 'Malformed XML near position 3',
+    );
+    const name = 'n'.repeat(1000);
+    assert.throws(
+      () => xmlParser(`<${name}>`),
+      (e: Error) => e.message === `Unclosed element <${'n'.repeat(64)}...>`,
+    );
+  });
+
   it('matches closing tags literally (a dot in a name is not a wildcard)', () => {
     assert.deepEqual(xmlParser('<a.b>1</a.b>'), { 'a.b': '1' });
     assert.throws(() => xmlParser('<a.b>1</aXb>'));
