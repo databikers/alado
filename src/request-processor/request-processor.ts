@@ -451,7 +451,11 @@ export class RequestProcessor {
           } else {
             delete request.body;
           }
-          if (r.rawBody) {
+          const rawBody: PropertyDescriptor | undefined = Object.getOwnPropertyDescriptor(r, 'rawBody');
+          if (rawBody?.get) {
+            // multipart: the text is built only if something reads request.rawBody
+            Object.defineProperty(request, 'rawBody', rawBody);
+          } else if (r.rawBody) {
             request.rawBody = r.rawBody;
           }
           request.files = r.files;
