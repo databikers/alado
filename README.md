@@ -958,7 +958,7 @@ The resolved value from `handler` is set at `outputProperty` on the request obje
 
 `handler` should return `null`/`undefined` for credentials it does not accept. A thrown error is treated as a failure of the handler: the client gets `error` (or, with `required: false`, the request goes on anonymously) and the error is always logged.
 
-The value at `inputProperty` is checked before `handler` runs (the rest of the request is validated only after authentication). If the route declares a validator for that field (for example `body.token` in the request DTO), that validator decides; otherwise only a string is accepted. Anything else, such as an object from a JSON body or an array from a repeated query key, gets the configured `error` and `handler` is not called.
+The value at `inputProperty` is checked before `handler` runs (the rest of the request is validated only after authentication). If the route declares a validator for that field (for example `body.token` in the request DTO), that validator decides, and it runs only this once for the request (request validation reuses the result); otherwise only a string is accepted. The handler gets the value as sent: query and path values stay strings even when a `number()` validator converts them for `req.query` / `req.path`. Anything else, such as an object from a JSON body or an array from a repeated query key, gets the configured `error` and `handler` is not called.
 
 When `inputProperty` reads a header, a query parameter or a path parameter, the request body is read only after authentication (and after access control, unless a rule reads `body.*`). A refused request never has its body parsed, and its connection is closed after the error response.
 
