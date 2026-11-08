@@ -255,7 +255,8 @@ export class Router {
               'Access-Control-Allow-Headers': this.options.cors?.allowedHeaders?.join(', ') || '',
               'Access-Control-Expose-Headers': this.options.cors?.exposeHeaders?.join(', ') || '',
               'Access-Control-Allow-Credentials': this.options.cors?.allowedCredentials ? 'true' : 'false',
-              'Access-Control-Max-Age': Math.round(this.options.cors?.maxAge || 86400).toString(10) || '86400',
+              // ?? and not ||: maxAge 0 (no preflight caching) is a valid value
+              'Access-Control-Max-Age': Math.round(this.options.cors?.maxAge ?? 86400).toString(10),
             };
             if (Array.isArray(this.options.cors.allowedOrigin)) {
               if (this.options.cors.allowedOrigin.includes(request.origin as string)) {

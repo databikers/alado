@@ -54,6 +54,16 @@ function validateCors(cors: CorsOptions) {
         break;
     }
   }
+  // browsers refuse credentialed responses with "Access-Control-Allow-Origin: *", and '*' is also
+  // the default: such a configuration would fail every credentialed request at runtime
+  const origins: string[] = Array.isArray(cors.allowedOrigin)
+    ? cors.allowedOrigin
+    : [(cors.allowedOrigin as string) || '*'];
+  if (cors.allowedCredentials && origins.includes('*')) {
+    throw new Error(
+      'AladoServerOptions.cors.allowedCredentials needs explicit allowedOrigin values: browsers refuse credentials with "*"',
+    );
+  }
 }
 
 function validateOpenApiDoc(openApiDoc: OpenApiDoc) {
