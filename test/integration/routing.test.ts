@@ -342,6 +342,60 @@ describe('routing', () => {
     }
   });
 
+  it('logs internal errors without verbose and skips errors with an HTTP status', async () => {
+    const seen: unknown[] = [];
+    class QuietController {
+      @get('/quiet-boom', { appId: 'routing-quiet' })
+      @doc
+      async boom(): Promise<any> {
+        throw new Error('database is down');
+      }
+
+      @get('/quiet-conflict', { appId: 'routing-quiet' })
+      @doc
+      async conflict(): Promise<any> {
+        throw { statusCode: 409, message: 'Already exists' };
+      }
+    }
+    const q = initializeApplication({
+      serverOptions: baseOptions('routing-quiet', {
+        logger: { log: () => undefined, error: (e: unknown) => seen.push(e) },
+      }),
+      controllers: [QuietController],
+    });
+    const p = await listen(q);
+    try {
+      assert.equal((await send(p, { path: '/quiet-boom' })).status, 500);
+      assert.equal((await send(p, { path: '/quiet-conflict' })).status, 409);
+      assert.equal(seen.length, 1);
+      assert.equal((seen[0] as Error).message, 'database is down');
+    } finally {
+      await close(q);
+    }
+  });
+
+  it('logs internal errors through log() when the logger has no error()', async () => {
+    const seen: unknown[] = [];
+    class LogOnlyController {
+      @get('/log-only-boom', { appId: 'routing-log-only' })
+      @doc
+      async boom(): Promise<any> {
+        throw new Error('disk full');
+      }
+    }
+    const l = initializeApplication({
+      serverOptions: baseOptions('routing-log-only', { logger: { log: (e: unknown) => seen.push(e) } }),
+      controllers: [LogOnlyController],
+    });
+    const p = await listen(l);
+    try {
+      assert.equal((await send(p, { path: '/log-only-boom' })).status, 500);
+      assert.equal((seen[0] as Error).message, 'disk full');
+    } finally {
+      await close(l);
+    }
+  });
+
   it('serialises an object body as JSON when the handler sets no Content-Type', async () => {
     const r = await send(port, { path: '/implicit-json' });
     assert.equal(r.status, 200);
