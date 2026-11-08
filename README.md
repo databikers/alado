@@ -218,6 +218,8 @@ import { get, query, post, put, patch, del, head } from 'alado';
 | `@del(path, options?)`   | DELETE |
 | `@head(path, options?)`  | HEAD   |
 
+Routes are registered in declaration order. Registering a second route with the same method and path (also when only the parameter names differ, e.g. `/users/:id` and `/users/:userId`) throws an `AladoConfigurationError` with `code: 'ROUTE_ALREADY_REGISTERED'` at startup, since the second one could never be reached.
+
 **Options:**
 
 ```ts
