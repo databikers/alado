@@ -73,6 +73,38 @@ describe('validateAladoOptions', () => {
     assert.throws(() => validateAladoOptions({ ...valid(), cors: { enable: true, exposeHeaders: [1] } }));
   });
 
+  it('rejects allowedCredentials with a wildcard or default allowedOrigin', () => {
+    assert.throws(
+      () => validateAladoOptions({ ...valid(), cors: { enable: true, allowedCredentials: true } }),
+      /allowedCredentials/,
+    );
+    assert.throws(
+      () => validateAladoOptions({ ...valid(), cors: { enable: true, allowedOrigin: '*', allowedCredentials: true } }),
+      /allowedCredentials/,
+    );
+    assert.throws(
+      () =>
+        validateAladoOptions({
+          ...valid(),
+          cors: {
+            enable: true,
+            allowedOrigin: [
+              'https://a.com',
+              '*',
+            ],
+            allowedCredentials: true,
+          },
+        }),
+      /allowedCredentials/,
+    );
+    assert.doesNotThrow(() =>
+      validateAladoOptions({
+        ...valid(),
+        cors: { enable: true, allowedOrigin: 'https://a.com', allowedCredentials: true },
+      }),
+    );
+  });
+
   it('rejects negative cors.maxAge', () => {
     assert.throws(() => validateAladoOptions({ ...valid(), cors: { enable: true, maxAge: -1 } }), /maxAge/);
   });
