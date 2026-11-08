@@ -90,11 +90,23 @@ class Validator {
   trim(): Validator {
     return this.add((v) => typeof v === 'string' && v === v.trim());
   }
-  url(): Validator {
+  // only http(s) by default: new URL() also accepts javascript:, data:, file:, ... which turn a
+  // user-supplied link into stored XSS or a local file reference
+  url(
+    protocols: string[] = [
+      'http',
+      'https',
+      'ws',
+      'wss',
+    ],
+  ): Validator {
+    const allowed: Set<string> = new Set(protocols.map((p) => `${p.replace(/:$/, '').toLowerCase()}:`));
     return this.add((v) => {
+      if (typeof v !== 'string') {
+        return false;
+      }
       try {
-        new URL(v);
-        return true;
+        return allowed.has(new URL(v).protocol);
       } catch {
         return false;
       }
