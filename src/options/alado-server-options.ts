@@ -6,8 +6,8 @@ import { SecureContextOptions } from 'tls';
 
 export type AladoServerOptions = {
   port: number;
-  cors: CorsOptions;
-  openApiDoc: OpenApiDoc;
+  cors?: CorsOptions;
+  openApiDoc?: OpenApiDoc;
   headers?: Record<string, string>;
   serverOptions?: ServerOptions;
   host?: string;
