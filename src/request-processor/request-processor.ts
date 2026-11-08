@@ -77,6 +77,41 @@ function hasKeys(value: any): boolean {
   return false;
 }
 
+const bodyPathRegExp: RegExp = /^(body|rawBody|files)(\.|\[|$)/;
+// where the body has to be read: before authentication or access control when they read it,
+// otherwise after both, so a refused request never has its body read and parsed
+type BodyStage = 'auth' | 'accessControl' | 'validation';
+const bodyStages: WeakMap<Context<any>, BodyStage> = new WeakMap();
+
+function bodyStage(context: Context<any>): BodyStage {
+  let stage: BodyStage | undefined = bodyStages.get(context);
+  if (stage === undefined) {
+    const accessControlPaths: unknown[] = (context.accessControl || []).flatMap((rule) => [
+      rule.inputProperty,
+      rule.compareWithProperty,
+    ]);
+    const reads = (path: unknown): boolean => typeof path === 'string' && bodyPathRegExp.test(path);
+    stage = reads(context.auth?.inputProperty)
+      ? 'auth'
+      : accessControlPaths.some(reads)
+        ? 'accessControl'
+        : 'validation';
+    bodyStages.set(context, stage);
+  }
+  return stage;
+}
+
+// a body is on its way that will not be read: close the connection after the response instead
+// of letting the client keep sending it
+function closeIfBodyUnread(req: IncomingMessage, res: ServerResponse, bodyRead: boolean): void {
+  const pending: boolean =
+    req.headers['transfer-encoding'] !== undefined ||
+    (req.headers['content-length'] !== undefined && req.headers['content-length'] !== '0');
+  if (!bodyRead && pending && !res.headersSent) {
+    res.setHeader('Connection', 'close');
+  }
+}
+
 const queryReaders: WeakMap<Context<any>, boolean> = new WeakMap();
 const queryPathRegExp: RegExp = /^query(\.|\[|$)/;
 
@@ -379,22 +414,7 @@ export class RequestProcessor {
         const { context, handler, path } = route;
 
         // Process request, prepare data
-        let body: any = {};
-        let rawBody: string = '';
         let query: any = {};
-        let files: any = {};
-
-        if (bodyMethods.has(method as string)) {
-          const r = await bodyParser(
-            req,
-            res,
-            this.options.maxBodySizeBytes as number,
-            Boolean(context.options?.allowUnknownFields) || hasKeys(context.request.files),
-          );
-          body = r.body;
-          rawBody = r.rawBody;
-          files = r.files;
-        }
 
         if (queryString && readsQuery(context)) {
           query = queryParser(queryString);
@@ -410,30 +430,55 @@ export class RequestProcessor {
           headers,
           path,
           query,
+          body: {},
+          files: {},
         };
-        if (body) {
-          request.body = body;
-        }
-        if (rawBody) {
-          request.rawBody = rawBody;
-        }
-        if (files) {
-          request.files = files;
-        }
+        const stage: BodyStage = bodyStage(context);
+        let bodyRead: boolean = !bodyMethods.has(method as string);
+        const readBody = async (): Promise<void> => {
+          if (bodyRead) {
+            return;
+          }
+          bodyRead = true;
+          const r = await bodyParser(
+            req,
+            res,
+            this.options.maxBodySizeBytes as number,
+            Boolean(context.options?.allowUnknownFields) || hasKeys(context.request.files),
+          );
+          if (r.body) {
+            request.body = r.body;
+          } else {
+            delete request.body;
+          }
+          if (r.rawBody) {
+            request.rawBody = r.rawBody;
+          }
+          request.files = r.files;
+        };
         // Authenticate
         if (context.auth) {
+          if (stage === 'auth') {
+            await readBody();
+          }
           const authError: AladoServerError = await authenticate(context, request);
           if (authError) {
+            closeIfBodyUnread(req, res, bodyRead);
             return this.respondError(res, authError, backgroundHeaders);
           }
         }
         // Access control
         if (Array.isArray(context.accessControl) && context.accessControl.length) {
+          if (stage === 'accessControl') {
+            await readBody();
+          }
           const accessError = await accessControlChecker(context, request);
           if (accessError) {
+            closeIfBodyUnread(req, res, bodyRead);
             return this.respondError(res, accessError, backgroundHeaders);
           }
         }
+        await readBody();
         // Validate request
         for (const key in context.request) {
           const result = validateRequestPart(key as keyof ContextRequest, context, request);
