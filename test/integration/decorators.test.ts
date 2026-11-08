@@ -1,6 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { defineRequest, defineResponse, get, initializeApplication, post, validateProperty } from '../../src';
+import {
+  RequestAuthentication,
+  accessControl,
+  defineRequest,
+  defineResponse,
+  get,
+  initializeApplication,
+  post,
+  validateProperty,
+  withAuth,
+} from '../../src';
 import { baseOptions, close, listen, send, sendJson } from '../helpers/http';
 
 const json = { 'Content-Type': 'application/json' };
@@ -166,6 +176,89 @@ describe('decorator registry', () => {
           { path: '/b' },
         ],
       );
+    } finally {
+      await close(app);
+    }
+  });
+});
+
+describe('decorator order with an existing application', () => {
+  const bearer: RequestAuthentication = {
+    inputProperty: 'headers.authorization',
+    outputProperty: 'auth.user',
+    required: true,
+    handler: async (token: string) => (token === 'secret' ? { id: 1 } : null),
+    error: { statusCode: 401, message: 'Unauthorized' },
+  };
+  const ok = { statusCode: 200, headers: json, body: { ok: true } };
+
+  it('enforces @withAuth placed below the HTTP decorator', async () => {
+    const appId = 'deco-order-auth-below';
+    const app = initializeApplication({ serverOptions: baseOptions(appId), controllers: [] });
+    class AdminController {
+      @get('/admin', { appId })
+      @withAuth(bearer)
+      @defineResponse(ok)
+      async admin() {
+        return ok;
+      }
+    }
+    void AdminController;
+    const port = await listen(app);
+    try {
+      assert.equal((await send(port, { path: '/admin' })).status, 401);
+      assert.equal((await send(port, { path: '/admin', headers: { Authorization: 'secret' } })).status, 200);
+    } finally {
+      await close(app);
+    }
+  });
+
+  it('refuses @withAuth placed above the HTTP decorator instead of dropping it', () => {
+    const appId = 'deco-order-auth-above';
+    initializeApplication({ serverOptions: baseOptions(appId), controllers: [] });
+    assert.throws(() => {
+      class AdminController {
+        @withAuth(bearer)
+        @get('/admin', { appId })
+        @defineResponse(ok)
+        async admin() {
+          return ok;
+        }
+      }
+      void AdminController;
+    }, /@withAuth on .*\.admin is applied after its route was registered/);
+  });
+
+  it('refuses @accessControl placed above the HTTP decorator', () => {
+    const appId = 'deco-order-access-above';
+    initializeApplication({ serverOptions: baseOptions(appId), controllers: [] });
+    assert.throws(() => {
+      class AdminController {
+        @accessControl([{ inputProperty: 'auth.user.id', expectedValue: 1, statusCode: 403, message: 'Forbidden' }])
+        @get('/admin', { appId })
+        @defineResponse(ok)
+        async admin() {
+          return ok;
+        }
+      }
+      void AdminController;
+    }, /@accessControl on .*\.admin is applied after its route was registered/);
+  });
+
+  it('keeps @withAuth placed above the HTTP decorator when registration is deferred', async () => {
+    const appId = 'deco-order-auth-deferred';
+    class AdminController {
+      @withAuth(bearer)
+      @get('/admin', { appId })
+      @defineResponse(ok)
+      async admin() {
+        return ok;
+      }
+    }
+    const app = initializeApplication({ serverOptions: baseOptions(appId), controllers: [AdminController] });
+    const port = await listen(app);
+    try {
+      assert.equal((await send(port, { path: '/admin' })).status, 401);
     } finally {
       await close(app);
     }
