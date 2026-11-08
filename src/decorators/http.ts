@@ -5,6 +5,7 @@ import { ContextOptions, HttpDecoratorOptions } from '@options';
 import { initializeInjector } from './initialize-injector';
 import { memberKey } from './class-key';
 import { controllerInstances } from './controller-instances';
+import { markRegistered } from './registered-members';
 
 function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecoratorOptions = {}) {
   initializeInjector();
@@ -39,6 +40,7 @@ function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecor
       );
     };
     if (app) {
+      markRegistered(key);
       fn(app);
       const shadowApp = injector.injected.shadowAppMapping[appId];
       if (Array.isArray(shadowApp) && shadowApp.length) {
