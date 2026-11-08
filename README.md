@@ -500,17 +500,17 @@ validate.custom(fn); // starts with a custom rule
 
 **String**
 
-| Method            | Description                                                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------ |
-| `min(n)`          | Min length (string) or min value (number)                                                        |
-| `max(n)`          | Max length (string) or max value (number)                                                        |
-| `length(n)`       | Exact length                                                                                     |
-| `regex(pattern)`  | Must match RegExp                                                                                |
-| `email()`         | Valid email format                                                                               |
-| `uuid()`          | Valid UUID v4                                                                                    |
-| `objectId()`      | Valid MongoDB ObjectId (24-char hex)                                                             |
-| `url(protocols?)` | Valid URL (parsed by `new URL()`) whose protocol is in `protocols` (default `['http', 'https']`) |
-| `trim()`          | No leading/trailing whitespace                                                                   |
+| Method            | Description                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| `min(n)`          | Min length (string) or min value (number)                                                                     |
+| `max(n)`          | Max length (string) or max value (number)                                                                     |
+| `length(n)`       | Exact length                                                                                                  |
+| `regex(pattern)`  | Must match RegExp                                                                                             |
+| `email()`         | Valid email format                                                                                            |
+| `uuid()`          | Valid UUID v4                                                                                                 |
+| `objectId()`      | Valid MongoDB ObjectId (24-char hex)                                                                          |
+| `url(protocols?)` | Valid URL (parsed by `new URL()`) whose protocol is in `protocols` (default `['http', 'https', 'ws', 'wss']`) |
+| `trim()`          | No leading/trailing whitespace                                                                                |
 
 **Number**
 
