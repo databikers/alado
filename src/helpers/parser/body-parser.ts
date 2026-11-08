@@ -48,10 +48,13 @@ export function parseMultipartPart(item: string): MultipartPart | null {
     const match: RegExpExecArray | null = regExp.exec(headers);
     return match && match[1] ? match[1] : null;
   };
+  // filename="" is kept as '': it is what a browser sends for a file input left empty
+  const filenameMatch: RegExpExecArray | null = partFilenameRegExp.exec(headers);
   return {
     name: pick(partNameRegExp),
-    value: value || null,
-    filename: pick(partFilenameRegExp),
+    // '' is a field or file sent empty, null a part without a well-formed value
+    value,
+    filename: filenameMatch ? filenameMatch[1] : null,
     mimetype: pick(partContentTypeRegExp),
   };
 }
@@ -153,10 +156,14 @@ export async function bodyParser(
           // the body is parsed as a binary string (one char per byte) to keep file bytes intact;
           // text (field names and values) is UTF-8 and has to be decoded back
           const name: string | null = element.name && Buffer.from(element.name, 'binary').toString('utf8');
-          if (!name || !value) {
+          if (!name || value === null) {
             continue;
           }
-          if (filename) {
+          if (filename !== null) {
+            // a file input left empty: no file was chosen
+            if (filename === '' && value === '') {
+              continue;
+            }
             if (!mimetype || !acceptFiles) {
               continue;
             }
