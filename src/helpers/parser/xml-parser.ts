@@ -39,6 +39,23 @@ function removeSections(input: string, open: string, close: string, keepContent:
 
 type XmlAttribute = { name: string; value?: string; end: number };
 
+const namedEntities: Record<string, string> = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };
+// one pass, so a decoded '&' never starts another reference ("&amp;lt;" is "&lt;", not "<")
+const entityRegExp: RegExp = /&(lt|gt|quot|apos|amp|#[0-9]{1,7}|#x[0-9a-fA-F]{1,6});/g;
+
+function decodeEntity(reference: string, name: string): string {
+  if (name.charCodeAt(0) !== 35) {
+    return namedEntities[name];
+  }
+  // character reference: &#65; or &#x41;
+  const code: number = name[1] === 'x' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
+  // not a character XML allows (NUL, a surrogate half, past U+10FFFF): kept as written
+  if (code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
+    return reference;
+  }
+  return String.fromCodePoint(code);
+}
+
 const attributeNameStartRegExp: RegExp = /[a-zA-Z_:]/g;
 const attributeNameRestRegExp: RegExp = /[\w:.-]*/y;
 
@@ -117,12 +134,7 @@ export function xmlParser(xmlInput: string): XmlObject {
   }
 
   function decodeEntities(str: string): string {
-    return removeSections(str, '<![CDATA[', ']]>', true)
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&apos;/g, "'")
-      .replace(/&amp;/g, '&');
+    return removeSections(str, '<![CDATA[', ']]>', true).replace(entityRegExp, decodeEntity);
   }
 
   function resolveScope(
