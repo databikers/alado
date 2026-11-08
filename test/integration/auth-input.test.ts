@@ -131,3 +131,66 @@ describe('auth handler failures', () => {
     assert.equal((logged[0] as Error).message, 'token service down');
   });
 });
+
+describe('validator of the auth field', () => {
+  const app = new AladoServer(baseOptions('auth-validator-once'));
+  let calls = 0;
+  const counted = (v: unknown) => {
+    calls++;
+    return typeof v === 'string';
+  };
+  let port: number;
+
+  before(async () => {
+    app.get(
+      '/header',
+      context(
+        {
+          inputProperty: 'headers.x-key',
+          outputProperty: 'auth.user',
+          required: true,
+          handler: async (k: string) => (k === 'abc' ? { id: 1 } : null),
+          error: unauthorized,
+        },
+        { headers: { 'x-key': { validation: { required: true, handler: counted, error: unauthorized } } } },
+      ),
+      async () => ({ statusCode: 200, body: { ok: true } }),
+    );
+    app.get(
+      '/numeric',
+      context(
+        {
+          inputProperty: 'query.key',
+          outputProperty: 'auth.user',
+          required: true,
+          handler: async (k: unknown) => (k === '42' ? { id: 1 } : null),
+          error: unauthorized,
+        },
+        {
+          query: {
+            key: {
+              validation: { required: true, handler: validate.number().integer().buildSync(), error: unauthorized },
+            },
+          },
+        },
+      ),
+      async (req: any) => ({ statusCode: 200, body: { key: req.query.key, type: typeof req.query.key } }),
+    );
+    port = await listen(app);
+  });
+
+  after(() => close(app));
+
+  it('runs once per request', async () => {
+    calls = 0;
+    assert.equal((await send(port, { path: '/header', headers: { 'x-key': 'abc' } })).status, 200);
+    assert.equal(calls, 1);
+  });
+
+  it('sees query and path values converted for number() / bigint(), as in request validation', async () => {
+    const r = await send(port, { path: '/numeric?key=42' });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.json(), { key: 42, type: 'number' });
+    assert.equal((await send(port, { path: '/numeric?key=4x2' })).status, 401);
+  });
+});
