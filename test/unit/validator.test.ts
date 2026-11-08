@@ -148,6 +148,35 @@ describe('validate: string rules', () => {
     assert.equal(await v('not a url'), false);
   });
 
+  it('url accepts only http and https by default', async () => {
+    const v = validate.string().url().build();
+    assert.equal(await v('HTTP://alado.tech'), true);
+    assert.equal(await v('javascript:alert(1)'), false);
+    assert.equal(await v('data:text/html,<script>alert(1)</script>'), false);
+    assert.equal(await v('file:///etc/passwd'), false);
+  });
+
+  it('url takes the allowed protocols', async () => {
+    const v = validate
+      .string()
+      .url([
+        'https',
+        'mailto:',
+      ])
+      .build();
+    assert.equal(await v('mailto:team@alado.tech'), true);
+    assert.equal(await v('https://alado.tech'), true);
+    assert.equal(await v('http://alado.tech'), false);
+  });
+
+  it('url rejects values that are not strings', async () => {
+    const v = validate
+      .custom(() => true)
+      .url()
+      .build();
+    assert.equal(await v({ toString: () => 'https://alado.tech' }), false);
+  });
+
   it('trim rejects surrounding whitespace', async () => {
     const v = validate.string().trim().build();
     assert.equal(await v('abc'), true);
