@@ -297,6 +297,9 @@ export class RequestProcessor {
   }
 
   public async process(req: IncomingMessage, res: ServerResponse) {
+    // declared outside the try: an error thrown after the route is matched (an invalid or oversized
+    // body, ...) still has to carry the CORS headers, or a browser client cannot read it
+    let backgroundHeaders: Record<string, string> | undefined;
     try {
       const { router, openApiDoc, enableCors } = this.options;
       const { headers, method } = req;
@@ -346,7 +349,6 @@ export class RequestProcessor {
       }
       // Process API routes
       const route = router.match(method as HttpMethod, uri);
-      let backgroundHeaders: Record<string, string> | undefined;
       if (enableCors) {
         backgroundHeaders = this.corsHeaders(route?.allowedMethods, origin);
       }
@@ -455,7 +457,7 @@ export class RequestProcessor {
     } catch (e: any) {
       const clientError = toClientError(e);
       this.logError(e as Error, clientError.statusCode);
-      return this.respondError(res, clientError, {});
+      return this.respondError(res, clientError, backgroundHeaders);
     }
   }
 
