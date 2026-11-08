@@ -9,12 +9,18 @@ import { checkDeclaredInput } from '../validate/context/request-input';
  * With a validator declared for the field (context.request.<part>.<name>) that validator decides,
  * once: request validation reuses its result. Without one, only a string is accepted.
  */
-async function isValidAuthInput(context: Context<any>, request: any, value: unknown): Promise<boolean> {
+function isValidAuthInput(context: Context<any>, request: any, value: unknown): boolean | Promise<boolean> {
   const [
     part,
     name,
   ] = (context.auth as RequestAuthentication).inputProperty.split('.');
-  const declared: boolean | undefined = await checkDeclaredInput(request, context.request, part, name, value);
+  const declared: boolean | undefined | Promise<boolean> = checkDeclaredInput(
+    request,
+    context.request,
+    part,
+    name,
+    value,
+  );
   return declared === undefined ? typeof value === 'string' : declared;
 }
 
@@ -37,8 +43,15 @@ export async function authenticate(
   if (required && !authData) {
     return error;
   }
-  if (authData !== undefined && authData !== null && !(await isValidAuthInput(context, request, authData))) {
-    return refuse;
+  if (authData !== undefined && authData !== null) {
+    // only awaited when a declared validator is async
+    let validInput: boolean | Promise<boolean> = isValidAuthInput(context, request, authData);
+    if (typeof validInput !== 'boolean') {
+      validInput = await validInput;
+    }
+    if (!validInput) {
+      return refuse;
+    }
   }
   try {
     const result = await handler.apply(handlerContext || {}, [authData]);

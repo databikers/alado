@@ -30,46 +30,62 @@ export function validatorInput(
   return { value, numeric };
 }
 
-// request -> "<part>.<name>" -> the raw value that already passed its declared validator
-const prevalidated: WeakMap<object, Map<string, unknown>> = new WeakMap();
+// "<part>.<name>" -> the raw value that already passed its declared validator, kept on the request
+// itself (not in a WeakMap: an entry per short-lived request is costly for the garbage collector)
+const PREVALIDATED: unique symbol = Symbol('alado.prevalidated');
+
+type Prevalidated = Record<string, unknown>;
+
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return value !== null && typeof value === 'object' && typeof (value as any).then === 'function';
+}
 
 /** Whether request[key][property] still holds a value its declared validator accepted earlier. */
-export function isPrevalidated(request: object, key: string, property: string, raw: unknown): boolean {
-  const values: Map<string, unknown> | undefined = prevalidated.get(request);
-  return values !== undefined && values.has(`${key}.${property}`) && values.get(`${key}.${property}`) === raw;
+export function isPrevalidated(request: any, key: string, property: string, raw: unknown): boolean {
+  const values: Prevalidated | undefined = request[PREVALIDATED];
+  return values !== undefined && raw !== undefined && values[`${key}.${property}`] === raw;
+}
+
+function remember(request: any, key: string, property: string, raw: unknown): true {
+  let values: Prevalidated | undefined = request[PREVALIDATED];
+  if (values === undefined) {
+    values = Object.create(null) as Prevalidated;
+    Object.defineProperty(request, PREVALIDATED, { value: values });
+  }
+  values[`${key}.${property}`] = raw;
+  return true;
 }
 
 /**
  * Runs the validator declared for request[key][property] ahead of request validation (for the auth
  * input and access-control inputs, which are read before it). `undefined` when no validator is
  * declared. An accepted value is remembered, so request validation does not run the validator
- * again for it (a slow or side-effecting validator runs once per request).
+ * again for it (a slow or side-effecting validator runs once per request). Synchronous unless the
+ * validator returns a promise.
  */
-export async function checkDeclaredInput(
+export function checkDeclaredInput(
   request: any,
   definitions: ContextRequest | undefined,
   key: string,
   property: string,
   raw: unknown,
-): Promise<boolean | undefined> {
+): boolean | undefined | Promise<boolean> {
   const definition: PropertyDefinition | undefined = (definitions as any)?.[key]?.[property];
   const handler = definition?.validation?.handler;
   if (typeof handler !== 'function') {
     return undefined;
   }
-  let valid: boolean;
+  let result: unknown;
   try {
-    valid = Boolean(await handler.apply(request, [validatorInput(key, definition as PropertyDefinition, raw).value]));
+    result = handler.apply(request, [validatorInput(key, definition as PropertyDefinition, raw).value]);
   } catch {
-    valid = false;
+    return false;
   }
-  if (valid) {
-    let values: Map<string, unknown> | undefined = prevalidated.get(request);
-    if (!values) {
-      values = new Map();
-      prevalidated.set(request, values);
-    }
-    values.set(`${key}.${property}`, raw);
+  if (isThenable(result)) {
+    return Promise.resolve(result).then(
+      (ok: unknown) => (ok ? remember(request, key, property, raw) : false),
+      () => false,
+    );
   }
-  return valid;
+  return result ? remember(request, key, property, raw) : false;
 }

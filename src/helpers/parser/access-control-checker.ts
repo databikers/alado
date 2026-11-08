@@ -20,13 +20,18 @@ const clientParts: Set<string> = new Set([
  * other request value has to be a plain string, number, boolean or bigint. Missing values are left
  * to the rule (a comparison with a missing value already denies access).
  */
-async function isValidRuleInput(context: Context<any>, request: any, path: string, value: unknown): Promise<boolean> {
+function isValidRuleInput(
+  context: Context<any>,
+  request: any,
+  path: string,
+  value: unknown,
+): boolean | Promise<boolean> {
   const segments: string[] = path.split('.');
   if (!clientParts.has(segments[0]) || isMissing(value)) {
     return true;
   }
   if (segments.length === 2) {
-    const declared: boolean | undefined = await checkDeclaredInput(
+    const declared: boolean | undefined | Promise<boolean> = checkDeclaredInput(
       request,
       context.request,
       segments[0],
@@ -60,7 +65,12 @@ export async function accessControlChecker(context: Context<any>, request: any):
     } = item;
 
     const rawValue: unknown = getProperty(request, inputProperty);
-    if (!(await isValidRuleInput(context, request, inputProperty, rawValue))) {
+    // only awaited when a declared validator is async
+    let validInput: boolean | Promise<boolean> = isValidRuleInput(context, request, inputProperty, rawValue);
+    if (typeof validInput !== 'boolean') {
+      validInput = await validInput;
+    }
+    if (!validInput) {
       return { statusCode, message };
     }
     let providedValue: unknown = rawValue;
