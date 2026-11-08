@@ -31,8 +31,9 @@ export function initializeApplication(initializeApplicationOptions: InitializeAp
   }
   const shadowApp = injector.injected.shadowAppMapping[serverOptions.appId || DEFAULT_ID];
   if (Array.isArray(shadowApp) && shadowApp.length) {
+    // in declaration order: it decides the order of the OpenAPI document and of conflict errors
     while (shadowApp.length) {
-      const fn = shadowApp.pop();
+      const fn = shadowApp.shift();
       fn(app);
     }
   }

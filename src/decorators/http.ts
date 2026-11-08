@@ -41,14 +41,15 @@ function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecor
     };
     if (app) {
       markRegistered(key);
-      fn(app);
+      // routes still waiting were declared before this one: register them first, in their order
       const shadowApp = injector.injected.shadowAppMapping[appId];
       if (Array.isArray(shadowApp) && shadowApp.length) {
         while (shadowApp.length) {
-          const fn = shadowApp.pop();
-          fn(app);
+          const pending = shadowApp.shift();
+          pending(app);
         }
       }
+      fn(app);
     } else {
       injector.injected.shadowAppMapping[appId] = injector.injected.shadowAppMapping[appId] || [];
       injector.injected.shadowAppMapping[appId].push(fn);

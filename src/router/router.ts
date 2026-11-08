@@ -1,5 +1,5 @@
 import { HttpMethod, httpMethods } from '@const';
-import { AladoServerLogger, Context, Request, Response, Route } from '@dto';
+import { AladoConfigurationError, AladoServerLogger, Context, Request, Response, Route } from '@dto';
 import { RouterOptions } from '@options';
 import { openApiDocFactory } from '@factory';
 import { clearRoutePath, validateContext } from '@helper';
@@ -159,6 +159,8 @@ export class Router {
   public readonly openApiDocObject: any;
   public readonly logger: AladoServerLogger;
   private readonly caseSensitive: boolean;
+  // "<METHOD> <shape>" -> path it was registered with, to refuse routes that could never match
+  private readonly registeredShapes: Map<string, string> = new Map();
   private readonly regExpFlags: string;
 
   constructor(options: RouterOptions, openApiDocObject: any) {
@@ -192,7 +194,22 @@ export class Router {
         this.options.openApiDoc?.route === clearRoutePath(uri) &&
         method === HttpMethod.GET
       ) {
-        throw new Error(`Route ${clearRoutePath(uri)} is used as Open API route already`);
+        throw new AladoConfigurationError(
+          'ROUTE_RESERVED_FOR_OPEN_API',
+          `Route GET ${clearRoutePath(uri)} is used as Open API route already`,
+        );
+      }
+
+      // a second route of the same method and path shape would never be reached: the first one wins
+      const shape: string = `${method} ${this.routeShape(clearRoutePath(uri))}`;
+      const registered: string | undefined = this.registeredShapes.get(shape);
+      if (registered !== undefined) {
+        const same: boolean = registered === clearRoutePath(uri);
+        throw new AladoConfigurationError(
+          'ROUTE_ALREADY_REGISTERED',
+          `Route ${method} ${clearRoutePath(uri) || '/'} is already registered` +
+            (same ? '' : ` as ${method} ${registered || '/'} (same path with other parameter names)`),
+        );
       }
 
       validateContext(context, this.options.openApiDoc?.enable);
@@ -204,6 +221,7 @@ export class Router {
       this.logger.log(`Detected an error during the defining route ${method} ${uri}`);
       throw e;
     }
+    this.registeredShapes.set(`${method} ${this.routeShape(clearRoutePath(uri))}`, clearRoutePath(uri));
 
     const pathData: any = {};
     let openApiRoute: string = uri;
@@ -319,6 +337,22 @@ export class Router {
 
   parse(method: HttpMethod, uri: string): Route<any> | undefined {
     return this.match(method, clearRoutePath(uri));
+  }
+
+  /**
+   * The path as the router sees it: parameter names do not matter ("/users/:id" and "/users/:slug"
+   * are the same route), letters are folded when routes are case-insensitive. Same parameter rule
+   * as insertPath().
+   */
+  private routeShape(cleanUri: string): string {
+    return splitPath(cleanUri)
+      .map((segment: string) => {
+        const colon: number = segment.indexOf(':');
+        return colon === -1 || colon === segment.length - 1
+          ? this.routeKey(segment)
+          : `${this.routeKey(segment.slice(0, colon))}:`;
+      })
+      .join('/');
   }
 
   /** Walks (and extends) the trie below `root` along the route's segments; returns the last node. */

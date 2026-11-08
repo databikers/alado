@@ -1,4 +1,5 @@
 export {
+  AladoConfigurationError,
   AccessControlConfig,
   Context,
   ContextRequest,
