@@ -382,6 +382,14 @@ describe('bodyParser (Content-Type matching)', () => {
     assert.deepEqual(await parse('APPLICATION/X-WWW-FORM-URLENCODED', 'a=1'), { a: '1' });
   });
 
+  it('treats an empty JSON body as no body', async () => {
+    assert.deepEqual(await parse('application/json', ''), {});
+  });
+
+  it('still refuses a JSON body of whitespace only', async () => {
+    await assert.rejects(parse('application/json', '  '), { statusCode: 400 });
+  });
+
   it('parses +json media types as JSON', async () => {
     assert.deepEqual(await parse('application/merge-patch+json', '{"a":null}'), { a: null });
   });
