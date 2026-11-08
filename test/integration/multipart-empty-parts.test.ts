@@ -60,3 +60,35 @@ describe('multipart parts sent empty', () => {
     assert.deepEqual(r.body, { name: 'Ann' });
   });
 });
+
+describe('multipart header values with surrounding spaces', () => {
+  const app = new AladoServer(baseOptions('multipart-header-spaces'));
+  let port: number;
+
+  before(async () => {
+    app.post('/echo', context, async (req: any) => {
+      const files: Record<string, string> = {};
+      for (const name in req.files) {
+        files[name] = req.files[name].mimetype;
+      }
+      return { statusCode: 200, body: { files } };
+    });
+    port = await listen(app);
+  });
+
+  after(() => close(app));
+
+  it('trims both ends of the file field name and mimetype', async () => {
+    const boundary = 'XX';
+    const body =
+      `--${boundary}\r\nContent-Disposition: form-data; name=" doc "; filename="a.txt"\r\n` +
+      `Content-Type:  text/plain  \r\n\r\nabc\r\n--${boundary}--\r\n`;
+    const r = await send(port, {
+      method: 'POST',
+      path: '/echo',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body,
+    });
+    assert.deepEqual(r.json().files, { doc: 'text/plain' });
+  });
+});
