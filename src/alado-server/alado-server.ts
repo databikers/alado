@@ -37,7 +37,9 @@ export class AladoServer {
       options.openApiDoc.route = `${clearRoutePath(options.openApiDoc.route)}`;
     }
     this.logger = options.logger || (console as AladoServerLogger);
-    this.openApiDocObject = { ...defaultOpenApiDocObject, info: options.openApiDoc?.info || {} };
+    // a deep copy: a shallow one would share `paths` and `components` with every other instance in
+    // the process, so one server's swagger.json would list the routes of all of them
+    this.openApiDocObject = { ...structuredClone(defaultOpenApiDocObject), info: options.openApiDoc?.info || {} };
     this.router = new Router(
       {
         cors: {
