@@ -222,7 +222,12 @@ export class RequestProcessor {
     const isStreamBody: boolean = !isRawBody && typeof body.pipe === 'function' && isReadableStream(body);
     if (isStreamBody) {
       responseBody = body;
-    } else if (contentType !== undefined && contentType.startsWith(ContentType.JSON)) {
+    } else if (
+      contentType !== undefined &&
+      contentType.startsWith(ContentType.JSON) &&
+      // a string or bytes under a JSON Content-Type is an already serialised document
+      !(typeof body === 'string' || Buffer.isBuffer(body) || body instanceof Uint8Array)
+    ) {
       responseBody = JSON.stringify(body);
     } else if (!isRawBody) {
       // res.end() only accepts strings and buffers: serialise anything else as JSON
