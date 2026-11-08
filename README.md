@@ -951,11 +951,13 @@ The `inputProperty` supports dot-notation and can point to any part of the reque
 
 The resolved value from `handler` is set at `outputProperty` on the request object, making it available as `req.auth.user` in your handler.
 
+`handler` should return `null`/`undefined` for credentials it does not accept. A thrown error is treated as a failure of the handler: the client gets `error` (or, with `required: false`, the request goes on anonymously) and the error is always logged.
+
 The value at `inputProperty` is checked before `handler` runs (the rest of the request is validated only after authentication). If the route declares a validator for that field (for example `body.token` in the request DTO), that validator decides; otherwise only a string is accepted. Anything else, such as an object from a JSON body or an array from a repeated query key, gets the configured `error` and `handler` is not called.
 
 When `inputProperty` reads a header, a query parameter or a path parameter, the request body is read only after authentication (and after access control, unless a rule reads `body.*`). A refused request never has its body parsed, and its connection is closed after the error response.
 
-**Optional auth** — set `required: false` for soft checking (handler runs but failure doesn't block the request):
+**Optional auth** — set `required: false` for soft checking: missing or invalid credentials, or a `handler` that throws, leave the request anonymous instead of refusing it:
 
 ```ts
 export const optionalAuth: RequestAuthentication = {
