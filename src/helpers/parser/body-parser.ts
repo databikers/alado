@@ -1,5 +1,5 @@
 import { IncomingMessage, OutgoingMessage } from 'http';
-import { ContentType, deprecatedJsonPropertiesRegExp, spaceRegExp } from '@const';
+import { ContentType, deprecatedJsonPropertiesRegExp } from '@const';
 import { Readable } from 'stream';
 import { AladoServerError } from '@dto';
 import { xmlParser } from './xml-parser';
@@ -185,7 +185,7 @@ export async function bodyParser(
         }
         formData.files.forEach((file: any) => {
           const { name, stream, mimetype, size } = file;
-          const key = name.replace(spaceRegExp, '');
+          const key = name.trim();
           // a file named __proto__ would otherwise replace the prototype of request.files
           if (deprecatedJsonPropertiesRegExp.test(key)) {
             return;
@@ -194,7 +194,7 @@ export async function bodyParser(
             stream: stream,
             // byte length of the content, not a private field of the stream
             size,
-            mimetype: mimetype.replace(spaceRegExp, ''),
+            mimetype: mimetype.trim(),
           };
           uploadedFileHeads.set(result.files[key], file.head);
         });
