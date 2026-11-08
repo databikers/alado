@@ -1034,6 +1034,8 @@ Either provide `compareWithProperty` to compare two request values, or `expected
 
 With `compareWithProperty`, access is denied when either value is missing (`undefined` or `null`), before or after `transformInputProperty`: two missing values never count as a match.
 
+Rules run before request validation, so an `inputProperty` that reads the request itself (`headers.*`, `query.*`, `path.*`, `body.*`) is checked first, as the auth input is. A field with a declared validator (for example `ownerId` in the body DTO for `body.ownerId`) is checked by that validator, once for the request. Any other request value must be a string, number, boolean or bigint. An object or an array, such as `{ "$ne": null }` from a JSON body, denies access with the rule's `statusCode` and `message`, before `transformInputProperty` or `accessControlHandler` see it. Values the application set, such as `auth.*`, are not checked.
+
 ### Usage Example
 
 ```typescript
