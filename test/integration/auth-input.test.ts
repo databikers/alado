@@ -194,3 +194,56 @@ describe('validator of the auth field', () => {
     assert.equal((await send(port, { path: '/numeric?key=4x2' })).status, 401);
   });
 });
+
+describe('logging of auth handler exceptions', () => {
+  const run = async (verbose: boolean) => {
+    const logged: unknown[] = [];
+    const app = new AladoServer(
+      baseOptions(`auth-handler-logging-${verbose}`, {
+        verbose,
+        logger: { log: () => undefined, error: (e: unknown) => logged.push(e) },
+      }),
+    );
+    app.get(
+      '/me',
+      context({
+        inputProperty: 'headers.authorization',
+        outputProperty: 'auth.user',
+        required: true,
+        handler: async (token: string) => {
+          if (token === 'expired') {
+            throw Object.assign(new Error('token expired'), { statusCode: 401 });
+          }
+          if (token === 'rejected') {
+            throw { statusCode: 403 };
+          }
+          throw new Error('token service down');
+        },
+        error: unauthorized,
+      }),
+      async () => ({ statusCode: 200, body: { ok: true } }),
+    );
+    const port = await listen(app);
+    try {
+      for (const token of [
+        'expired',
+        'rejected',
+        'other',
+      ]) {
+        assert.equal((await send(port, { path: '/me', headers: { authorization: token } })).status, 401);
+      }
+    } finally {
+      await close(app);
+    }
+    return logged.map((e: any) => e.message ?? `statusCode ${e.statusCode}`);
+  };
+
+  it('logs refusals marked with a 4xx statusCode only in verbose mode, failures always', async () => {
+    assert.deepEqual(await run(false), ['token service down']);
+    assert.deepEqual(await run(true), [
+      'token expired',
+      'statusCode 403',
+      'token service down',
+    ]);
+  });
+});
