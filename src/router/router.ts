@@ -2,7 +2,7 @@ import { HttpMethod, httpMethods } from '@const';
 import { AladoConfigurationError, AladoServerLogger, Context, Request, Response, Route } from '@dto';
 import { RouterOptions } from '@options';
 import { openApiDocFactory } from '@factory';
-import { clearRoutePath, validateContext } from '@helper';
+import { clearRoutePath, isOpenApiPath, validateContext } from '@helper';
 
 const pathVariableRegex = /:([^/]+)/g;
 
@@ -189,14 +189,15 @@ export class Router {
         throw new Error(`uri should be a string`);
       }
 
+      // the docs page, its swagger.json and Swagger UI's files are answered before any route
       if (
         this.options.openApiDoc?.enable &&
-        this.options.openApiDoc?.route === clearRoutePath(uri) &&
-        method === HttpMethod.GET
+        method === HttpMethod.GET &&
+        isOpenApiPath(clearRoutePath(uri), this.options.openApiDoc.route as string)
       ) {
         throw new AladoConfigurationError(
           'ROUTE_RESERVED_FOR_OPEN_API',
-          `Route GET ${clearRoutePath(uri)} is used as Open API route already`,
+          `Route GET ${clearRoutePath(uri) || '/'} is used by the Open API docs already`,
         );
       }
 

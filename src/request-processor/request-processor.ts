@@ -1,6 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { join } from 'path';
-import { createReadStream, readdirSync, readFileSync } from 'fs';
+import { createReadStream, readFileSync } from 'fs';
 import { Readable, pipeline } from 'stream';
 
 import { ContentType, HttpMethod, SWAGGER_INITIALIZER_FILE_NAME } from '@const';
@@ -15,11 +15,11 @@ import {
   isReadableStream,
   validateRequestFiles,
   validateRequestPart,
+  openApiJsonPath,
+  swaggerContentTypes,
+  swaggerUiAssetPath,
+  swaggerUiFileNames,
 } from '@helper';
-
-let swaggerUiFiles: Set<string> = new Set();
-let swaggerUiAssetPath: string = '';
-const SWAGGER_JSON_PATH: string = '/swagger.json';
 
 /**
  * Maps a request path (already through clearRoutePath, query string removed) to a Swagger UI
@@ -36,16 +36,8 @@ export function resolveSwaggerUiFile(pathname: string, docsRoute: string): strin
   } else if (pathname.startsWith(`${route}/`)) {
     name = pathname.slice(route.length + 1);
   }
-  return name !== undefined && swaggerUiFiles.has(name) ? name : undefined;
+  return name !== undefined && swaggerUiFileNames().has(name) ? name : undefined;
 }
-
-const swaggerContentTypes: Record<string, string> = {
-  css: 'text/css; charset=utf-8',
-  js: 'application/javascript; charset=utf-8',
-  map: 'application/json; charset=utf-8',
-  html: 'text/html; charset=utf-8',
-  png: 'image/png',
-};
 
 const htmlAttribute = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -195,26 +187,23 @@ export class RequestProcessor {
   private swaggerInitializer: string = '';
   // CORS header values that do not depend on the request, built on first use
   private corsStatic?: Record<string, string>;
+  private swaggerJsonPath: string = '';
   private corsMethods: WeakMap<string[], { count: number; value: string }> = new WeakMap();
 
   constructor(requestProcessorOptions: RequestProcessorOptions) {
     this.options = requestProcessorOptions;
     if (requestProcessorOptions.openApiDoc?.enable) {
-      swaggerUiAssetPath = require('swagger-ui-dist').absolutePath();
-      // Only web assets directly inside swagger-ui-dist are ever served (not its package.json, README, LICENSE)
-      swaggerUiFiles = new Set(
-        readdirSync(swaggerUiAssetPath, { withFileTypes: true })
-          .filter((entry) => entry.isFile() && swaggerContentTypes[entry.name.slice(entry.name.lastIndexOf('.') + 1)])
-          .map((entry) => entry.name),
-      );
+      const swaggerUiDirectory: string = swaggerUiAssetPath();
+      // the document is served under the docs route, so it never takes a path of the API at the root
+      this.swaggerJsonPath = openApiJsonPath(requestProcessorOptions.openApiDoc.route as string);
       // the two files that are rewritten are built once, not read from disk on every request
       this.swaggerIndex = swaggerIndexHtml(
-        readFileSync(join(swaggerUiAssetPath, 'index.html'), 'utf8'),
+        readFileSync(join(swaggerUiDirectory, 'index.html'), 'utf8'),
         requestProcessorOptions.openApiDoc.route as string,
       );
-      this.swaggerInitializer = readFileSync(join(swaggerUiAssetPath, SWAGGER_INITIALIZER_FILE_NAME), 'utf8').replace(
+      this.swaggerInitializer = readFileSync(join(swaggerUiDirectory, SWAGGER_INITIALIZER_FILE_NAME), 'utf8').replace(
         'https://petstore.swagger.io/v2/swagger.json',
-        SWAGGER_JSON_PATH,
+        this.swaggerJsonPath,
       );
     }
   }
@@ -355,7 +344,7 @@ export class RequestProcessor {
       // Process Open API routes
       if (openApiDoc?.enable && method === HttpMethod.GET) {
         const pathname: string = uri;
-        if (pathname === SWAGGER_JSON_PATH) {
+        if (pathname === this.swaggerJsonPath) {
           return this.respond(res, {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -383,7 +372,7 @@ export class RequestProcessor {
           return this.respond(res, {
             statusCode: 200,
             headers: { 'Content-Type': swaggerContentTypes[extension] },
-            body: createReadStream(join(swaggerUiAssetPath, swaggerFile)),
+            body: createReadStream(join(swaggerUiAssetPath(), swaggerFile)),
           });
         }
       }
