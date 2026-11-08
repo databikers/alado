@@ -44,24 +44,37 @@ describe('multipart parser', () => {
   });
 
   it('reads the field name from the headers even when filename comes first', async () => {
-    const { parseMultipartPart } = await import('../../src/helpers/parser/body-parser');
-    const part = parseMultipartPart(
-      '\r\nContent-Disposition: form-data; filename="photo.png"; name="avatar"\r\nContent-Type: image/png\r\n\r\nDATA\r\n--',
+    const { parsePartHeaders } = await import('../../src/helpers/parser/body-parser');
+    const part = parsePartHeaders(
+      'Content-Disposition: form-data; filename="photo.png"; name="avatar"\r\nContent-Type: image/png',
     );
-    assert.deepEqual(part, { name: 'avatar', value: 'DATA', filename: 'photo.png', mimetype: ' image/png' });
+    assert.deepEqual(part, { name: 'avatar', filename: 'photo.png', mimetype: 'image/png' });
   });
 
   it('does not take header fields from the value', async () => {
-    const { parseMultipartPart } = await import('../../src/helpers/parser/body-parser');
-    const part = parseMultipartPart(
-      '\r\nContent-Disposition: form-data; name="note"\r\n\r\nfilename="evil.exe"\r\nContent-Type: x\r\n--',
+    const { parseMultipartBody } = await import('../../src/helpers/parser/body-parser');
+    const raw = Buffer.from(
+      '--XX\r\nContent-Disposition: form-data; name="note"\r\n\r\nfilename="evil.exe"\r\nContent-Type: x\r\n--XX--\r\n',
     );
-    assert.deepEqual(part, {
-      name: 'note',
-      value: 'filename="evil.exe"\r\nContent-Type: x',
-      filename: null,
-      mimetype: null,
-    });
+    const { fields, files } = parseMultipartBody(raw, 'XX');
+    assert.deepEqual(
+      fields.map(
+        ([
+          name,
+          value,
+        ]) => [
+          name,
+          value.toString(),
+        ],
+      ),
+      [
+        [
+          'note',
+          'filename="evil.exe"\r\nContent-Type: x',
+        ],
+      ],
+    );
+    assert.deepEqual(files, []);
   });
 
   it('accepts a quoted boundary', async () => {

@@ -92,3 +92,24 @@ describe('multipart header values with surrounding spaces', () => {
     assert.deepEqual(r.json().files, { doc: 'text/plain' });
   });
 });
+
+describe('multipart rawBody', () => {
+  const app = new AladoServer(baseOptions('multipart-raw-body'));
+  let port: number;
+
+  before(async () => {
+    app.post('/raw', context, async (req: any) => {
+      const lazy = typeof Object.getOwnPropertyDescriptor(req, 'rawBody')?.get === 'function';
+      return { statusCode: 200, body: { lazy, rawBody: req.rawBody } };
+    });
+    port = await listen(app);
+  });
+
+  after(() => close(app));
+
+  it('is still the body as latin1 text, built only when read', async () => {
+    const { body, contentType } = multipart([{ name: 'a', value: 'é' }]);
+    const r = await send(port, { method: 'POST', path: '/raw', headers: { 'Content-Type': contentType }, body });
+    assert.deepEqual(r.json(), { lazy: true, rawBody: body.toString('latin1') });
+  });
+});
