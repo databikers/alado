@@ -62,6 +62,17 @@ export function toClientError(e: any): AladoServerError {
   return { statusCode: 500, message: 'Internal Server Error' };
 }
 
+/**
+ * How an exception from an auth handler is logged. One that carries a 4xx `statusCode`
+ * ({ statusCode: 401 }, or an Error with it) is the handler refusing credentials: logged like other
+ * client errors, with `verbose` only, so a stream of bad tokens does not flood the log. Anything
+ * else (a database down, a bug) is a failure of the handler and is always logged.
+ */
+export function authHandlerErrorStatus(e: any): number {
+  const statusCode: unknown = e?.statusCode;
+  return typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500 ? statusCode : 500;
+}
+
 function hasKeys(value: any): boolean {
   for (const _ in value) {
     return true;
@@ -475,8 +486,7 @@ export class RequestProcessor {
             await readBody();
           }
           const authError: AladoServerError = await authenticate(context, request, (e: unknown) =>
-            // a thrown auth handler is a failure of the handler, not of the credentials
-            this.logError(e as Error, 500),
+            this.logError(e as Error, authHandlerErrorStatus(e)),
           );
           if (authError) {
             closeIfBodyUnread(req, res, bodyRead);
