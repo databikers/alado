@@ -951,6 +951,8 @@ The resolved value from `handler` is set at `outputProperty` on the request obje
 
 The value at `inputProperty` is checked before `handler` runs (the rest of the request is validated only after authentication). If the route declares a validator for that field (for example `body.token` in the request DTO), that validator decides; otherwise only a string is accepted. Anything else, such as an object from a JSON body or an array from a repeated query key, gets the configured `error` and `handler` is not called.
 
+When `inputProperty` reads a header, a query parameter or a path parameter, the request body is read only after authentication (and after access control, unless a rule reads `body.*`). A refused request never has its body parsed, and its connection is closed after the error response.
+
 **Optional auth** — set `required: false` for soft checking (handler runs but failure doesn't block the request):
 
 ```ts
