@@ -956,7 +956,22 @@ The `inputProperty` supports dot-notation and can point to any part of the reque
 
 The resolved value from `handler` is set at `outputProperty` on the request object, making it available as `req.auth.user` in your handler.
 
-`handler` should return `null`/`undefined` for credentials it does not accept. A thrown error is treated as a failure of the handler: the client gets `error` (or, with `required: false`, the request goes on anonymously) and the error is always logged.
+`handler` should return `null`/`undefined` for credentials it does not accept. A thrown error gets the client `error` (or, with `required: false`, the request goes on anonymously). How it is logged depends on what was thrown:
+
+- an error with a 4xx `statusCode` (`throw { statusCode: 401 }`, or an `Error` with `statusCode: 401`) is a refusal of the credentials and is logged only with `verbose: true`, like other client errors;
+- anything else is a failure of the handler (a database down, a bug) and is always logged.
+
+Libraries that throw on a bad token, such as `jwt.verify`, need their error turned into one of the first two, or every request with a junk token writes an error to the log:
+
+```ts
+handler(token: string) {
+  try {
+    return jwt.verify(token, secret);
+  } catch {
+    return null; // or: throw { statusCode: 401 }
+  }
+},
+```
 
 The value at `inputProperty` is checked before `handler` runs (the rest of the request is validated only after authentication). If the route declares a validator for that field (for example `body.token` in the request DTO), that validator decides, and it runs only this once for the request (request validation reuses the result); otherwise only a string is accepted. The handler gets the value as sent: query and path values stay strings even when a `number()` validator converts them for `req.query` / `req.path`. Anything else, such as an object from a JSON body or an array from a repeated query key, gets the configured `error` and `handler` is not called.
 
