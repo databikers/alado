@@ -224,6 +224,8 @@ Header names are case-insensitive: a request header declared as `X-Api-Key` (in 
 
 A `HEAD` request to a path that has a `GET` route but no `HEAD` route runs the `GET` handler and sends its status and headers (including `Content-Length`) without the body; a stream body is closed without being read. `HEAD` is listed in `Allow` wherever `GET` is. Declare a `HEAD` route to answer it differently.
 
+Absolute-form request targets (`GET http://example.com/items?x=1 HTTP/1.1`, sent by some proxies and older clients, RFC 9112 §3.2.2) are routed like `/items?x=1`; `request.url` holds the path and query only.
+
 **Options:**
 
 ```ts
