@@ -220,6 +220,8 @@ import { get, query, post, put, patch, del, head } from 'alado';
 
 Routes are registered in declaration order. Registering a second route with the same method and path (also when only the parameter names differ, e.g. `/users/:id` and `/users/:userId`) throws an `AladoConfigurationError` with `code: 'ROUTE_ALREADY_REGISTERED'` at startup, since the second one could never be reached.
 
+Header names are case-insensitive: a request header declared as `X-Api-Key` (in a request DTO, or as `headers.X-Api-Key` in `RequestAuthentication.inputProperty` or an access-control rule) matches the header whatever case the client sends, and the OpenAPI document keeps the declared spelling. Declaring the same header twice in different cases throws an `AladoConfigurationError` with `code: 'HEADER_DECLARED_TWICE'`.
+
 **Options:**
 
 ```ts
