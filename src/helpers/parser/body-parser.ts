@@ -377,7 +377,12 @@ export async function bodyParser(
       const readText = (): void => {
         body = concatChunks(received, 'utf8');
         result.rawBody = body;
-        if (isJsonContentType(contentType) && !body) {
+        if (!body && !mime) {
+          // nothing sent and no type given: there is no body (request.body stays missing). An empty
+          // text/plain body is the text '', an empty JSON, XML or form body an empty object
+          result.body = undefined;
+          resolve();
+        } else if (isJsonContentType(contentType) && !body) {
           // no body at all (clients often send the header on every request): same as the other types
           resolve();
         } else if (isJsonContentType(contentType)) {
