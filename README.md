@@ -237,8 +237,11 @@ type HttpDecoratorOptions = {
   description?: string;
   isHidden?: boolean | undefined;
   tags?: string[];
+  rawBody?: boolean; // read the body without body/files fields (see below)
 };
 ```
+
+A route reads the request body only when it declares something that needs it: `body` or `files` fields, `body.*` / `rawBody` / `files.*` in `@withAuth` or `@accessControl`, `allowUnknownFields`, or `rawBody: true`. Otherwise the body is neither read nor parsed (`req.body` is `{}`, `req.rawBody` is unset): a webhook that checks a signature over `req.rawBody` without a body DTO needs `rawBody: true`. A body nobody reads (also on a 404 or 405) is left to Node to discard when it is within `maxBodySizeBytes`, so the connection is kept; a larger or chunked one closes the connection after the response instead of being read.
 
 **Example:**
 
