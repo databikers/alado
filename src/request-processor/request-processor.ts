@@ -383,6 +383,12 @@ export class RequestProcessor {
         fail(error, { statusCode: 500, message: 'Internal Server Error' });
         return;
       }
+      if (res.req?.method === HttpMethod.HEAD) {
+        // a HEAD response has no body: close the stream (and its file) without reading it
+        stream.destroy();
+        res.end();
+        return;
+      }
       pipeline(stream, res, (error?: NodeJS.ErrnoException | null) => {
         if (error) {
           // the client going away mid-response is not a server failure
@@ -485,7 +491,10 @@ export class RequestProcessor {
         }
       }
       // Process API routes
-      const route = router.match(method as HttpMethod, uri);
+      // HEAD without a HEAD route: the GET route answers, and the body is not sent (RFC 9110 9.3.2)
+      const route =
+        router.match(method as HttpMethod, uri) ??
+        (method === HttpMethod.HEAD ? router.match(HttpMethod.GET, uri) : undefined);
       if (enableCors) {
         backgroundHeaders = this.corsHeaders(route?.allowedMethods, origin);
       }

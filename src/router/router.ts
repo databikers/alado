@@ -429,6 +429,10 @@ export class Router {
   public methodsFor(uri: string): HttpMethod[] {
     const found: Set<string> = new Set<string>();
     collectMethods(this.anyMethodTrie, uri, 1, !this.caseSensitive, found);
+    // HEAD is answered by the GET route where there is no HEAD route (RFC 9110 9.3.2)
+    if (found.has(HttpMethod.GET)) {
+      found.add(HttpMethod.HEAD);
+    }
     return found.size ? httpMethods.filter((method: HttpMethod) => found.has(method)) : [];
   }
 
