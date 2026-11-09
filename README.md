@@ -1133,7 +1133,7 @@ import { createWriteStream } from 'fs';
 @defineRequest({ path: Id, files: UserFilesDto })
 setAvatar(req) {
   const { avatar } = req.files;
-  // avatar = { stream: Readable, size: number, mimetype: string }
+  // avatar = { stream: Readable, size: number, mimetype: string, filename: string }
 
   const writeStream = createWriteStream(`./uploads/user-${req.path.id}.png`);
   avatar.stream.pipe(writeStream);
@@ -1145,6 +1145,10 @@ setAvatar(req) {
   };
 }
 ```
+
+`filename` is the name the client sent (`filename="..."`), unchecked: never use it as a path as it is (the example above builds its own). A file part without a `Content-Type` is kept as `application/octet-stream`, so only a field whose `mimetypes` include that type accepts it.
+
+Several files under one field name (`<input type="file" multiple>`) give the last of them by default. With `parsing: { repeatedFiles: 'array' }` in `AladoServerOptions`, a field sent more than once, or as `name[]`, is an array of `UploadedFile` in the order sent, and every file of it is checked against the field's rules. The `Request` type keeps a single `UploadedFile` per field: cast (`req.files.docs as unknown as UploadedFile[]`) for fields that can repeat.
 
 3. Respond with Stream:
 
@@ -1246,24 +1250,25 @@ Documentation is built from:
 | `maxBodySizeBytes`    | `number`               | `1048576` (1 MB) | Larger request bodies get `413 Content Too Large` and the connection is closed. `0` removes the limit. Bodies read as text (JSON, XML, urlencoded, plain text) and multipart text fields are also refused past about 512 MB, the longest string V8 can build                                                                                                                                                                        |
 | `trustProxy`          | `boolean \| number`    | `false`          | Source of `request.ip`. `false`: the socket address (`X-Forwarded-For` is ignored, since clients can set it). `true`: the left-most `X-Forwarded-For` address. A number: how many proxies in front of the app to trust, e.g. `1` behind a single load balancer. `request.ip` is always an IP address: header entries that are not one are never used (the socket address is the fallback), and a port written by a proxy is dropped |
 | `caseSensitiveRoutes` | `boolean`              | `true`           | Whether `/Admin` and `/admin` are different paths. Case-insensitive matching lets requests slip past a reverse proxy that blocks paths by exact match, so turn it off only if clients rely on it. A trailing slash and repeated slashes are always ignored                                                                                                                                                                          |
+| `parsing`             | `ParsingOptions`       | —                | `{ repeatedFiles: 'last' \| 'array' }`. How a multipart field sent several times is given: the last file (default) or an array of all of them                                                                                                                                                                                                                                                                                       |
 
 ### `Request`
 
 The object received in every route handler:
 
-| Property  | Type                         | Description                        |
-| --------- | ---------------------------- | ---------------------------------- |
-| `request` | `IncomingMessage`            | Raw Node.js request                |
-| `ip`      | `string`                     | Client IP address                  |
-| `method`  | `string`                     | HTTP method                        |
-| `url`     | `string`                     | Request URL                        |
-| `headers` | `IncomingHttpHeaders`        | Request headers                    |
-| `path`    | `Record<string, string>`     | Path parameters                    |
-| `query`   | `Record<string, any>`        | Query parameters                   |
-| `body`    | `Record<string, any>`        | Request body (POST/PUT/PATCH only) |
-| `rawBody` | `string`                     | Unparsed body string               |
-| `files`   | `Record<string, FileResult>` | Uploaded files                     |
-| `auth`    | `Record<string, any>`        | Auth handler output                |
+| Property  | Type                           | Description                                            |
+| --------- | ------------------------------ | ------------------------------------------------------ |
+| `request` | `IncomingMessage`              | Raw Node.js request                                    |
+| `ip`      | `string`                       | Client IP address                                      |
+| `method`  | `string`                       | HTTP method                                            |
+| `url`     | `string`                       | Request URL                                            |
+| `headers` | `IncomingHttpHeaders`          | Request headers                                        |
+| `path`    | `Record<string, string>`       | Path parameters                                        |
+| `query`   | `Record<string, any>`          | Query parameters                                       |
+| `body`    | `Record<string, any>`          | Request body (POST/PUT/PATCH only)                     |
+| `rawBody` | `string`                       | Unparsed body string                                   |
+| `files`   | `Record<string, UploadedFile>` | Uploaded files: `{ stream, size, mimetype, filename }` |
+| `auth`    | `Record<string, any>`          | Auth handler output                                    |
 
 ### `Response<T>`
 
