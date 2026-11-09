@@ -543,7 +543,8 @@ export class RequestProcessor {
             this.options.maxBodySizeBytes as number,
             Boolean(context.options?.allowUnknownFields) || hasKeys(context.request.files),
           );
-          if (r.body) {
+          // a JSON body may be false, 0, "" or null: a value the client sent, not a missing body
+          if (r.body !== undefined) {
             request.body = r.body;
           } else {
             delete request.body;
