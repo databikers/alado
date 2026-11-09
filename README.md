@@ -1225,7 +1225,7 @@ const app = initializeApplication({
 
 Open `http://localhost:3000/` to view the Swagger UI.
 
-The OpenAPI document is served under `route` as well: `/docs/swagger.json` when `route` is `/docs` (`/swagger.json` only when `route` is `/`). Swagger UI's own files are served only under `route` too (for example `/docs/swagger-ui.css`), so the docs never take over paths of your API. Registering a `GET` route on a path the docs answer (the docs page, `swagger.json`, a Swagger UI file) throws an `AladoConfigurationError` with `code: 'ROUTE_RESERVED_FOR_OPEN_API'`. The docs are public: if they should not be, leave `openApiDoc` disabled in production or keep the docs route behind your proxy's access control. Only web assets from `swagger-ui-dist` are served (no `package.json`, `README` or license files).
+The OpenAPI document is served under `route` as well: `/docs/swagger.json` when `route` is `/docs` (`/swagger.json` only when `route` is `/`). Swagger UI's own files are served only under `route` too (for example `/docs/swagger-ui.css`), so the docs never take over paths of your API. The docs answer `HEAD` like `GET` (same status and headers, no body). Registering a `GET` or `HEAD` route on a path the docs answer (the docs page, `swagger.json`, a Swagger UI file) throws an `AladoConfigurationError` with `code: 'ROUTE_RESERVED_FOR_OPEN_API'`. The docs are public: if they should not be, leave `openApiDoc` disabled in production or keep the docs route behind your proxy's access control. Only web assets from `swagger-ui-dist` are served (no `package.json`, `README` or license files).
 
 Documentation is built from:
 
