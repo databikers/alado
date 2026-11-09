@@ -484,8 +484,8 @@ export class RequestProcessor {
       const url: string = queryIndex === -1 ? uri : `${uri || '/'}?${queryString}`;
       const ip: string = clientIp(req, this.options.trustProxy);
       const origin: string = (req.headers.origin as string) || '*';
-      // Process Open API routes
-      if (openApiDoc?.enable && method === HttpMethod.GET) {
+      // Process Open API routes (HEAD as GET: same status and headers, the body is not sent)
+      if (openApiDoc?.enable && (method === HttpMethod.GET || method === HttpMethod.HEAD)) {
         const pathname: string = uri;
         if (pathname === this.swaggerJsonPath) {
           return this.respond(res, {

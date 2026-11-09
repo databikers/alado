@@ -200,12 +200,12 @@ export class Router {
       // the docs page, its swagger.json and Swagger UI's files are answered before any route
       if (
         this.options.openApiDoc?.enable &&
-        method === HttpMethod.GET &&
+        (method === HttpMethod.GET || method === HttpMethod.HEAD) &&
         isOpenApiPath(clearRoutePath(uri), this.options.openApiDoc.route as string)
       ) {
         throw new AladoConfigurationError(
           'ROUTE_RESERVED_FOR_OPEN_API',
-          `Route GET ${clearRoutePath(uri) || '/'} is used by the Open API docs already`,
+          `Route ${method} ${clearRoutePath(uri) || '/'} is used by the Open API docs already`,
         );
       }
 
