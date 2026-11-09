@@ -12,6 +12,7 @@ import {
   authenticate,
   bodyMethods,
   bodyParser,
+  bodyReaders,
   queryParser,
   clearRoutePath,
   isReadableStream,
@@ -85,8 +86,9 @@ function hasKeys(value: any): boolean {
 
 const bodyPathRegExp: RegExp = /^(body|rawBody|files)(\.|\[|$)/;
 // where the body has to be read: before authentication or access control when they read it,
-// otherwise after both, so a refused request never has its body read and parsed
-type BodyStage = 'auth' | 'accessControl' | 'validation';
+// otherwise after both, so a refused request never has its body read and parsed. 'none': the route
+// declares nothing that reads it (no body or files fields, no allowUnknownFields), so it is not read
+type BodyStage = 'auth' | 'accessControl' | 'validation' | 'none';
 const bodyStages: WeakMap<Context<any>, BodyStage> = new WeakMap();
 
 function bodyStage(context: Context<any>): BodyStage {
@@ -101,19 +103,31 @@ function bodyStage(context: Context<any>): BodyStage {
       ? 'auth'
       : accessControlPaths.some(reads)
         ? 'accessControl'
-        : 'validation';
+        : context.options?.allowUnknownFields || bodyReaders(context).length
+          ? 'validation'
+          : 'none';
     bodyStages.set(context, stage);
   }
   return stage;
 }
 
-// a body is on its way that will not be read: close the connection after the response instead
-// of letting the client keep sending it
-function closeIfBodyUnread(req: IncomingMessage, res: ServerResponse, bodyRead: boolean): void {
-  const pending: boolean =
-    req.headers['transfer-encoding'] !== undefined ||
-    (req.headers['content-length'] !== undefined && req.headers['content-length'] !== '0');
-  if (!bodyRead && pending && !res.headersSent) {
+/**
+ * Called before the status line goes out. A body that was never read is still on the socket, and
+ * Node reads it to the end to keep the connection: harmless for a body within maxBodySizeBytes (a
+ * client sending `{}` with every DELETE keeps its connection), but the limit does not apply there.
+ * A larger body, a chunked one (its size is unknown) or any body without a limit closes the
+ * connection after the response instead, so no more of it is read.
+ */
+export function settleUnreadBody(req: IncomingMessage, res: ServerResponse, limit: number): void {
+  if (req.complete || res.headersSent) {
+    return;
+  }
+  const declared: string | undefined = req.headers['content-length'];
+  const chunked: boolean = req.headers['transfer-encoding'] !== undefined;
+  if (!chunked && (declared === undefined || declared === '0')) {
+    return;
+  }
+  if (chunked || !limit || !(Number(declared) <= limit)) {
     res.setHeader('Connection', 'close');
   }
 }
@@ -355,6 +369,9 @@ export class RequestProcessor {
             ? String(Buffer.byteLength(responseBody))
             : String(responseBody.byteLength);
     }
+    if (res.req) {
+      settleUnreadBody(res.req, res, this.options.maxBodySizeBytes as number);
+    }
     if (isStreamBody) {
       this.sendStream(res, statusCode, headers, responseBody, backgroundHeaders);
       return;
@@ -552,7 +569,7 @@ export class RequestProcessor {
           files: {},
         };
         const stage: BodyStage = bodyStage(context);
-        let bodyRead: boolean = !bodyMethods.has(method as string);
+        let bodyRead: boolean = !bodyMethods.has(method as string) || stage === 'none';
         const readBody = async (): Promise<void> => {
           if (bodyRead) {
             return;
@@ -589,7 +606,6 @@ export class RequestProcessor {
             this.logError(e as Error, authHandlerErrorStatus(e)),
           );
           if (authError) {
-            closeIfBodyUnread(req, res, bodyRead);
             return this.respondError(res, authError, backgroundHeaders);
           }
         }
@@ -600,7 +616,6 @@ export class RequestProcessor {
           }
           const accessError = await accessControlChecker(context, request);
           if (accessError) {
-            closeIfBodyUnread(req, res, bodyRead);
             return this.respondError(res, accessError, backgroundHeaders);
           }
         }

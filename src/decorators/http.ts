@@ -24,6 +24,7 @@ function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecor
           accessControl: injector.injected.accessControlMapping[key] || undefined,
           options: {
             allowUnknownFields: false,
+            rawBody: options.rawBody || false,
             isHidden: options.isHidden || false,
             openApiDoc: {
               description: options.description || defaultDescription,

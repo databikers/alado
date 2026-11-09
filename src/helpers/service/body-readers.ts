@@ -12,11 +12,15 @@ export const bodyMethods: ReadonlySet<string> = new Set<string>([
 const bodyPathRegExp: RegExp = /^(body|rawBody|files)(\.|\[|$)/;
 
 /**
- * Everything a route declares that needs the request body: body and files DTO fields, and an auth
- * or access-control property read from body, rawBody or files. Empty when the route never reads it.
+ * Everything a route declares that needs the request body: body and files DTO fields, an auth or
+ * access-control property read from body, rawBody or files, and options.rawBody. Empty when the
+ * route never reads it.
  */
 export function bodyReaders(context: Context<any>): string[] {
   const readers: string[] = [];
+  if (context.options?.rawBody) {
+    readers.push('options.rawBody');
+  }
   for (const name in context.request?.body) {
     readers.push(`body.${name}`);
   }
