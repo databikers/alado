@@ -386,6 +386,22 @@ describe('OpenAPI', () => {
     assert.equal(doc.paths['/h'].get.parameters[0].in, 'header');
   });
 
+  it('answers HEAD on the docs routes like GET, without the body', async () => {
+    for (const path of [
+      '/docs',
+      '/docs/swagger.json',
+      '/docs/swagger-initializer.js',
+      '/docs/swagger-ui.css',
+    ]) {
+      const get = await send(docsPort, { path });
+      const head = await send(docsPort, { method: 'HEAD', path });
+      assert.equal(head.status, 200, path);
+      assert.equal(head.headers['content-type'], get.headers['content-type'], path);
+      assert.equal(head.headers['content-length'], get.headers['content-length'], path);
+      assert.equal(head.text, '', path);
+    }
+  });
+
   it('serves Swagger UI at the docs route', async () => {
     const r = await send(docsPort, { path: '/docs' });
     assert.equal(r.status, 200);

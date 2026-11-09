@@ -115,6 +115,14 @@ describe('Swagger UI serving', () => {
         (e: any) => e instanceof AladoConfigurationError && e.code === 'ROUTE_RESERVED_FOR_OPEN_API',
         path,
       );
+      assert.throws(
+        () => docsApp.head(path, context, async () => ({ statusCode: 200 })),
+        (e: any) =>
+          e instanceof AladoConfigurationError &&
+          e.code === 'ROUTE_RESERVED_FOR_OPEN_API' &&
+          e.message.includes('HEAD'),
+        `HEAD ${path}`,
+      );
     }
     docsApp.post('/docs/swagger.json', context, async () => ({ statusCode: 200, body: {} }));
   });
