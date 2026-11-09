@@ -188,6 +188,49 @@ export function clientIp(req: IncomingMessage, trustProxy?: boolean | number): s
 }
 
 /**
+ * Response headers from the server options, CORS and the handler, later sources winning. Header
+ * names are case-insensitive: a handler's `access-control-allow-origin` replaces the CORS
+ * `Access-Control-Allow-Origin` instead of going out next to it (two values make browsers refuse
+ * the response). Names are only folded when more than one source has headers, the rare case.
+ */
+export function mergeHeaders(
+  server: Record<string, string> | undefined,
+  cors: Record<string, string> | undefined,
+  handler: Record<string, string> | undefined,
+): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const hasServer: boolean = hasKeys(server);
+  const hasCors: boolean = hasKeys(cors);
+  const hasHandler: boolean = hasKeys(handler);
+  if ((hasServer ? 1 : 0) + (hasCors ? 1 : 0) + (hasHandler ? 1 : 0) <= 1) {
+    // one source (the common case): a plain copy, the caller adds headers to it
+    const only: Record<string, string> | undefined = hasHandler ? handler : hasCors ? cors : server;
+    for (const name in only) {
+      headers[name] = only[name];
+    }
+    return headers;
+  }
+  // lower-cased name -> the spelling currently in `headers`
+  const spelling: Map<string, string> = new Map();
+  for (const source of [
+    server,
+    cors,
+    handler,
+  ]) {
+    for (const name in source) {
+      const lower: string = name.toLowerCase();
+      const previous: string | undefined = spelling.get(lower);
+      if (previous !== undefined && previous !== name) {
+        delete headers[previous];
+      }
+      spelling.set(lower, name);
+      headers[name] = (source as Record<string, string>)[name];
+    }
+  }
+  return headers;
+}
+
+/**
  * Adds a Vary token without dropping one the handler set: every spelling of the header name
  * (Vary, vary, ...) is folded into a single Vary header, the handler's tokens first.
  */
@@ -249,18 +292,9 @@ export class RequestProcessor {
     let responseBody: any;
     const { statusCode, body } = response;
     const responseHeaders: Record<string, string> = response.headers || {};
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = mergeHeaders(this.options.headers, backgroundHeaders, responseHeaders);
     let contentType: string | undefined;
     let hasContentLength: boolean = false;
-    for (const source of [
-      this.options.headers,
-      backgroundHeaders,
-      responseHeaders,
-    ]) {
-      for (const name in source) {
-        headers[name] = source[name];
-      }
-    }
     if (backgroundHeaders?.Vary) {
       mergeVary(headers, backgroundHeaders.Vary);
     }
