@@ -73,36 +73,23 @@ describe('validateAladoOptions', () => {
     assert.throws(() => validateAladoOptions({ ...valid(), cors: { enable: true, exposeHeaders: [1] } }));
   });
 
-  it('rejects allowedCredentials with a wildcard or default allowedOrigin', () => {
-    assert.throws(
-      () => validateAladoOptions({ ...valid(), cors: { enable: true, allowedCredentials: true } }),
-      /allowedCredentials/,
-    );
-    assert.throws(
-      () => validateAladoOptions({ ...valid(), cors: { enable: true, allowedOrigin: '*', allowedCredentials: true } }),
-      /allowedCredentials/,
-    );
-    assert.throws(
-      () =>
+  it('accepts allowedCredentials with a wildcard, a default or an explicit allowedOrigin', () => {
+    for (const allowedOrigin of [
+      undefined,
+      '*',
+      [
+        'https://a.com',
+        '*',
+      ],
+      'https://a.com',
+    ]) {
+      assert.doesNotThrow(() =>
         validateAladoOptions({
           ...valid(),
-          cors: {
-            enable: true,
-            allowedOrigin: [
-              'https://a.com',
-              '*',
-            ],
-            allowedCredentials: true,
-          },
+          cors: { enable: true, ...(allowedOrigin === undefined ? {} : { allowedOrigin }), allowedCredentials: true },
         }),
-      /allowedCredentials/,
-    );
-    assert.doesNotThrow(() =>
-      validateAladoOptions({
-        ...valid(),
-        cors: { enable: true, allowedOrigin: 'https://a.com', allowedCredentials: true },
-      }),
-    );
+      );
+    }
   });
 
   it('rejects negative cors.maxAge', () => {
