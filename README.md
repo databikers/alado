@@ -1270,6 +1270,8 @@ The object received in every route handler:
 | `files`   | `Record<string, UploadedFile>` | Uploaded files: `{ stream, size, mimetype, filename }` |
 | `auth`    | `Record<string, any>`          | Auth handler output                                    |
 
+Query strings, urlencoded bodies and multipart text fields are read the same way: a key sent more than once, or as `key[]`, gives an array of every value in order (checkboxes, multi-selects); a single key gives a string. A field declared with `validate.string()` therefore refuses a repeated value instead of keeping one of them. Form fields sent empty are kept as `''`; empty query values are skipped.
+
 ### `Response<T>`
 
 The object your handler must return:
