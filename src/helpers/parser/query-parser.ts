@@ -49,7 +49,12 @@ export function queryParser(queryString: string) {
       if (unsafeKeys.has(k)) {
         continue;
       }
-      query[k] = Array.isArray(query[k]) ? query[k] : [];
+      // `a=1&a[]=2` keeps both values, in order, like two `a=` keys
+      if (!Object.prototype.hasOwnProperty.call(query, k)) {
+        query[k] = [];
+      } else if (!Array.isArray(query[k])) {
+        query[k] = [query[k]];
+      }
       query[k].push(value);
     } else if (unsafeKeys.has(key)) {
       continue;
