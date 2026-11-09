@@ -28,11 +28,39 @@ describe('validate: type entry points', () => {
 });
 
 describe('validate: required / optional', () => {
-  it('empty values pass when optional', async () => {
+  it('only a missing value passes when optional: null and empty strings go through the rules', async () => {
     const v = validate.string().email().build();
     assert.equal(await v(undefined), true);
-    assert.equal(await v(null), true);
-    assert.equal(await v(''), true);
+    assert.equal(await v(null), false);
+    assert.equal(await v(''), false);
+    assert.equal(await validate.number().integer().min(18).build()(null), false);
+    assert.equal(await validate.string().min(3).build()(''), false);
+    // a plain string() accepts '' when optional
+    assert.equal(await validate.string().build()(''), true);
+  });
+
+  it('nullable() accepts null, optional or required', async () => {
+    assert.equal(await validate.number().min(18).nullable().build()(null), true);
+    assert.equal(await validate.number().min(18).nullable().required().build()(null), true);
+    assert.equal(await validate.number().min(18).nullable().build()(10), false);
+    assert.equal(validate.string().email().nullable().buildSync()(null), true);
+  });
+
+  it('rejects null inside arrays and objects unless the item validator is nullable', async () => {
+    assert.equal(
+      await validate.array().items(validate.string().buildSync()).build()([
+        'a',
+        null,
+      ]),
+      false,
+    );
+    assert.equal(
+      await validate.array().items(validate.string().nullable().buildSync()).build()([
+        'a',
+        null,
+      ]),
+      true,
+    );
   });
 
   it('empty values fail when required', async () => {
@@ -435,7 +463,9 @@ describe('validate: README contract', () => {
 
 describe('validate: buildSync', () => {
   it('applies the same required/optional semantics as build()', () => {
-    assert.equal(validate.string().email().buildSync()(''), true);
+    assert.equal(validate.string().email().buildSync()(undefined), true);
+    assert.equal(validate.string().email().buildSync()(''), false);
+    assert.equal(validate.string().email().buildSync()(null), false);
     assert.equal(validate.string().email().required().buildSync()(''), false);
     assert.equal(validate.number().required().buildSync()(0), true);
   });
