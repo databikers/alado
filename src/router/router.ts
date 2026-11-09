@@ -2,7 +2,7 @@ import { HttpMethod, httpMethods } from '@const';
 import { AladoConfigurationError, AladoServerLogger, Context, Request, Response, Route } from '@dto';
 import { RouterOptions } from '@options';
 import { openApiDocFactory } from '@factory';
-import { clearRoutePath, isOpenApiPath, validateContext, safeLog } from '@helper';
+import { clearRoutePath, isOpenApiPath, normalizeHeaderNames, validateContext, safeLog } from '@helper';
 
 const pathVariableRegex = /:([^/]+)/g;
 
@@ -242,7 +242,8 @@ export class Router {
       openApiDocFactory(openApiMethod, openApiRoute, context, this.openApiDocObject);
     }
 
-    // after the OpenAPI doc is built; done once here rather than on every request
+    // after the OpenAPI doc is built (it keeps the declared spelling); once here, not per request
+    normalizeHeaderNames(context);
     context.request = context.request || {};
     context.request.headers = context.request.headers || {};
     context.request.query = context.request.query || {};
