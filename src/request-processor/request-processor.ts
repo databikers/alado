@@ -19,6 +19,7 @@ import {
   swaggerContentTypes,
   swaggerUiAssetPath,
   swaggerUiFileNames,
+  safeLog,
 } from '@helper';
 
 /**
@@ -356,7 +357,24 @@ export class RequestProcessor {
     });
   }
 
-  public async process(req: IncomingMessage, res: ServerResponse) {
+  /**
+   * The request listener given to http.createServer. Node ends the process on a rejected promise, so
+   * nothing thrown while a request is handled may leave here: whatever escapes handle() answers 500
+   * when the status line is not out yet, otherwise the connection is dropped.
+   */
+  public process(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    // a .catch on handle()'s own promise: no extra async frame on every request
+    return this.handle(req, res).catch((e: unknown) => {
+      this.logError(e as Error, 500);
+      try {
+        this.respondError(res, { statusCode: 500, message: 'Internal Server Error' });
+      } catch {
+        res.destroy();
+      }
+    });
+  }
+
+  protected async handle(req: IncomingMessage, res: ServerResponse) {
     // declared outside the try: an error thrown after the route is matched (an invalid or oversized
     // body, ...) still has to carry the CORS headers, or a browser client cannot read it
     let backgroundHeaders: Record<string, string> | undefined;
@@ -584,12 +602,7 @@ export class RequestProcessor {
     if (statusCode < 500 && !this.options.verbose) {
       return;
     }
-    const logger = this.options.logger;
-    // `error` is optional in loggers that pass validation (only `log` is checked)
-    if (typeof logger?.error === 'function') {
-      logger.error(e);
-    } else {
-      logger?.log(e);
-    }
+    // sync or async, a logger that fails reports to the console and never ends the process
+    safeLog(this.options.logger, 'error', e);
   }
 }

@@ -2,7 +2,7 @@ import { HttpMethod, httpMethods } from '@const';
 import { AladoConfigurationError, AladoServerLogger, Context, Request, Response, Route } from '@dto';
 import { RouterOptions } from '@options';
 import { openApiDocFactory } from '@factory';
-import { clearRoutePath, isOpenApiPath, validateContext } from '@helper';
+import { clearRoutePath, isOpenApiPath, validateContext, safeLog } from '@helper';
 
 const pathVariableRegex = /:([^/]+)/g;
 
@@ -219,7 +219,7 @@ export class Router {
         throw new Error(`handler should be a function`);
       }
     } catch (e) {
-      this.logger.log(`Detected an error during the defining route ${method} ${uri}`);
+      safeLog(this.logger, 'log', `Detected an error during the defining route ${method} ${uri}`);
       throw e;
     }
     this.registeredShapes.set(`${method} ${this.routeShape(clearRoutePath(uri))}`, clearRoutePath(uri));
