@@ -220,6 +220,8 @@ import { get, query, post, put, patch, del, head } from 'alado';
 
 Routes are registered in declaration order. Registering a second route with the same method and path (also when only the parameter names differ, e.g. `/users/:id` and `/users/:userId`) throws an `AladoConfigurationError` with `code: 'ROUTE_ALREADY_REGISTERED'` at startup, since the second one could never be reached.
 
+The request body is read for `POST`, `PUT`, `PATCH` and `QUERY` only: RFC 9110 gives a `GET`, `HEAD`, `DELETE` or `OPTIONS` body no meaning. A route of those methods that declares `body` or `files` fields, or reads `body.*`, `rawBody` or `files.*` in `@withAuth` or `@accessControl`, throws an `AladoConfigurationError` with `code: 'BODY_NOT_ALLOWED'` at startup instead of refusing every request.
+
 Header names are case-insensitive: a request header declared as `X-Api-Key` (in a request DTO, or as `headers.X-Api-Key` in `RequestAuthentication.inputProperty` or an access-control rule) matches the header whatever case the client sends, and the OpenAPI document keeps the declared spelling. Declaring the same header twice in different cases throws an `AladoConfigurationError` with `code: 'HEADER_DECLARED_TWICE'`.
 
 A `HEAD` request to a path that has a `GET` route but no `HEAD` route runs the `GET` handler and sends its status and headers (including `Content-Length`) without the body; a stream body is closed without being read. `HEAD` is listed in `Allow` wherever `GET` is. Declare a `HEAD` route to answer it differently.
