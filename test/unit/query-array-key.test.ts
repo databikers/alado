@@ -28,3 +28,31 @@ describe('queryParser array keys', () => {
     });
   });
 });
+
+describe('queryParser mixing `a` and `a[]`', () => {
+  it('keeps every value, in order', () => {
+    assert.deepEqual(queryParser('a=1&a[]=2'), {
+      a: [
+        '1',
+        '2',
+      ],
+    });
+    assert.deepEqual(queryParser('a[]=1&a=2'), {
+      a: [
+        '1',
+        '2',
+      ],
+    });
+    assert.deepEqual(queryParser('a=1&a=2&a[]=3'), {
+      a: [
+        '1',
+        '2',
+        '3',
+      ],
+    });
+  });
+
+  it('does not take inherited names as earlier values', () => {
+    assert.deepEqual(queryParser('toString[]=x&hasOwnProperty[]=y'), { toString: ['x'], hasOwnProperty: ['y'] });
+  });
+});
