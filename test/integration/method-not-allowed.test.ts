@@ -14,6 +14,7 @@ function register(app: AladoServer) {
   app.put('/items/:id', ctx(), ok);
   app.delete('/items/:id', ctx(), ok);
   app.patch('/items/featured', ctx(), ok);
+  app.post('/only-post', ctx(), ok);
 }
 
 describe('405 Method Not Allowed', () => {
@@ -31,24 +32,28 @@ describe('405 Method Not Allowed', () => {
   it('answers a known static path with 405 and the methods it accepts', async () => {
     const r = await send(port, { method: 'DELETE', path: '/items' });
     assert.equal(r.status, 405);
-    assert.equal(r.headers.allow, 'GET, POST');
+    assert.equal(r.headers.allow, 'GET, POST, HEAD');
     assert.deepEqual(r.json(), { message: 'Method Not Allowed' });
   });
 
   it('lists the methods of every route shape that matches the path', async () => {
     const r = await send(port, { method: 'POST', path: '/items/42' });
     assert.equal(r.status, 405);
-    assert.equal(r.headers.allow, 'GET, PUT, DELETE');
+    assert.equal(r.headers.allow, 'GET, PUT, HEAD, DELETE');
     // /items/featured also matches /items/:id, so both routes' methods are allowed
     const f = await send(port, { method: 'POST', path: '/items/featured' });
-    assert.equal(f.headers.allow, 'GET, PUT, PATCH, DELETE');
+    assert.equal(f.headers.allow, 'GET, PUT, PATCH, HEAD, DELETE');
   });
 
-  it('applies to HEAD and to methods the router does not know', async () => {
-    assert.equal((await send(port, { method: 'HEAD', path: '/items' })).status, 405);
+  it('applies to HEAD without a GET route and to methods the router does not know', async () => {
+    const h = await send(port, { method: 'HEAD', path: '/items/featured' });
+    assert.equal(h.status, 200, 'featured also matches GET /items/:id');
+    const p = await send(port, { method: 'HEAD', path: '/only-post' });
+    assert.equal(p.status, 405);
+    assert.equal(p.headers.allow, 'POST');
     const r = await send(port, { method: 'PROPFIND', path: '/items' });
     assert.equal(r.status, 405);
-    assert.equal(r.headers.allow, 'GET, POST');
+    assert.equal(r.headers.allow, 'GET, POST, HEAD');
   });
 
   it('still answers 404 for a path no method has', async () => {
@@ -99,7 +104,7 @@ describe('405 with CORS enabled', () => {
   it('includes OPTIONS in Allow and keeps the CORS headers', async () => {
     const r = await send(port, { method: 'DELETE', path: '/items', headers: { Origin: 'https://app.example' } });
     assert.equal(r.status, 405);
-    assert.equal(r.headers.allow, 'GET, POST, OPTIONS');
+    assert.equal(r.headers.allow, 'GET, POST, OPTIONS, HEAD');
     assert.equal(r.headers['access-control-allow-origin'], 'https://app.example');
     assert.equal(r.headers.vary, 'Origin');
   });

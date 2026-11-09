@@ -253,7 +253,7 @@ describe('routing', () => {
   it('returns 405 with Allow when the path exists but the method does not', async () => {
     const r = await sendJson(port, 'POST', '/ping', {});
     assert.equal(r.status, 405);
-    assert.equal(r.headers.allow, 'GET');
+    assert.equal(r.headers.allow, 'GET, HEAD');
     assert.deepEqual(r.json(), { message: 'Method Not Allowed' });
   });
 
