@@ -35,9 +35,29 @@ function markNumericInput<T extends object>(fn: T, type: NumericInputType | unde
   return fn;
 }
 
+/**
+ * The outcome for a missing or empty input, or undefined to run the rules. Only a missing value
+ * (undefined) is "not provided": an optional field may be left out, but a null or '' that is sent
+ * goes through the rules like any other value, so `age: null` cannot pass number() and `email: ''`
+ * cannot pass email(). null is accepted only with nullable(); a required field still refuses ''.
+ */
+function emptyInput(input: unknown, required: boolean, nullable: boolean): boolean | undefined {
+  if (input === undefined) {
+    return !required;
+  }
+  if (input === null) {
+    return nullable;
+  }
+  if (input === '' && required) {
+    return false;
+  }
+  return undefined;
+}
+
 class Validator {
   private rules: ValidatorFn[] = [];
   private _required = false;
+  private _nullable = false;
   private numericType?: NumericInputType;
 
   private add(fn: ValidatorFn): Validator {
@@ -53,6 +73,11 @@ class Validator {
   }
   optional(): Validator {
     this._required = false;
+    return this;
+  }
+  // null is accepted as a value (and skips the other rules); without it null fails, optional or not
+  nullable(): Validator {
+    this._nullable = true;
     return this;
   }
 
@@ -262,10 +287,11 @@ class Validator {
   build(): (input: any, root?: any) => Promise<boolean> {
     const rules = [...this.rules];
     const required = this._required;
+    const nullable = this._nullable;
     return markNumericInput(async (input: any, root?: any): Promise<boolean> => {
-      const isEmpty = input === null || input === undefined || input === '';
-      if (isEmpty) {
-        return !required;
+      const settled: boolean | undefined = emptyInput(input, required, nullable);
+      if (settled !== undefined) {
+        return settled;
       }
       for (const rule of rules) {
         const ok = await rule(input, root);
@@ -286,10 +312,11 @@ class Validator {
     if (rules.some(isAsyncFunction)) {
       throw new Error(ASYNC_RULE_ERROR);
     }
+    const nullable = this._nullable;
     return markNumericInput((input: any, root?: any): boolean => {
-      const isEmpty = input === null || input === undefined || input === '';
-      if (isEmpty) {
-        return !required;
+      const settled: boolean | undefined = emptyInput(input, required, nullable);
+      if (settled !== undefined) {
+        return settled;
       }
       for (const rule of rules) {
         const ok = rule(input, root);
