@@ -1279,6 +1279,8 @@ The object received in every route handler:
 
 Query strings, urlencoded bodies and multipart text fields are read the same way: a key sent more than once, or as `key[]`, gives an array of every value in order (checkboxes, multi-selects); a single key gives a string. A field declared with `validate.string()` therefore refuses a repeated value instead of keeping one of them. Form fields sent empty are kept as `''`; empty query values are skipped.
 
+`body` is missing only when the request has no body: an empty body without a `Content-Type`. An empty `text/plain` (or other text) body is `''`, an empty JSON, XML, urlencoded or multipart body `{}`, and a JSON body of `false`, `0`, `""` or `null` is that value.
+
 ### `Response<T>`
 
 The object your handler must return:
