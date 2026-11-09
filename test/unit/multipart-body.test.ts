@@ -98,12 +98,11 @@ describe('parseMultipartBody', () => {
     );
   });
 
-  it('skips a file input left empty, parts without a name or headers, and files without a type', () => {
+  it('skips a file input left empty and parts without a name or headers', () => {
     const raw = body('XX', [
       filePart('avatar', Buffer.alloc(0), ''),
       Buffer.from('\r\nheaderless'),
       Buffer.from('Content-Disposition: form-data\r\n\r\nnameless'),
-      Buffer.from('Content-Disposition: form-data; name="f"; filename="a"\r\n\r\nno type'),
       fieldPart('kept', 'yes'),
     ]);
     const { fields, files } = parseMultipartBody(raw, 'XX');
@@ -114,6 +113,35 @@ describe('parseMultipartBody', () => {
       ],
     ]);
     assert.deepEqual(files, []);
+  });
+
+  it('keeps a file sent without a Content-Type as application/octet-stream, with its filename', () => {
+    const raw = body('XX', [
+      Buffer.from('Content-Disposition: form-data; name="f"; filename="a.dat"\r\n\r\nno type'),
+      Buffer.from('Content-Disposition: form-data; name="g"; filename=""\r\n\r\nno name'),
+    ]);
+    assert.deepEqual(
+      parseMultipartBody(raw, 'XX').files.map((f) => [
+        f.name,
+        f.mimetype,
+        f.filename,
+        f.content.toString(),
+      ]),
+      [
+        [
+          'f',
+          'application/octet-stream',
+          'a.dat',
+          'no type',
+        ],
+        [
+          'g',
+          'application/octet-stream',
+          '',
+          'no name',
+        ],
+      ],
+    );
   });
 
   it('ignores the preamble and the epilogue, and accepts padding after a delimiter', () => {
