@@ -79,6 +79,25 @@ describe('request.ip', () => {
     assert.equal(clientIp(fakeRequest(' , '), true), '10.0.0.1');
   });
 
+  it('never returns a forwarded entry that is not an IP address', () => {
+    const injected = "<script>alert(1)</script>' OR 1=1 --";
+    // trustProxy: true skips to the left-most real address, or falls back to the socket
+    assert.equal(clientIp(fakeRequest(`${injected}, 203.0.113.7`), true), '203.0.113.7');
+    assert.equal(clientIp(fakeRequest(injected), true), '10.0.0.1');
+    assert.equal(clientIp(fakeRequest('x'.repeat(4000)), true), '10.0.0.1');
+    // a hop count that lands on something else than an address falls back to the socket
+    assert.equal(clientIp(fakeRequest(`203.0.113.7, ${injected}`), 1), '10.0.0.1');
+    assert.equal(clientIp(fakeRequest(`${injected}, 10.0.0.2`), 2), '10.0.0.1');
+  });
+
+  it('accepts IPv6 and the forms with a port some proxies write', () => {
+    assert.equal(clientIp(fakeRequest('2001:db8::1'), true), '2001:db8::1');
+    assert.equal(clientIp(fakeRequest('203.0.113.7:51234'), true), '203.0.113.7');
+    assert.equal(clientIp(fakeRequest('[2001:db8::1]:443'), true), '2001:db8::1');
+    assert.equal(clientIp(fakeRequest('6.6.6.6, 203.0.113.7:51234'), 1), '203.0.113.7');
+    assert.equal(clientIp(fakeRequest('999.1.1.1:80, [zz::1]:1'), true), '10.0.0.1');
+  });
+
   it('rejects an invalid trustProxy option', () => {
     assert.throws(
       () => new AladoServer(baseOptions('trust-proxy-invalid', { trustProxy: 'yes' }) as any),
