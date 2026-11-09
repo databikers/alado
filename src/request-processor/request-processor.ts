@@ -15,6 +15,8 @@ import {
   bodyReaders,
   queryParser,
   clearRoutePath,
+  corsAllowOrigin,
+  corsVariesByOrigin,
   isReadableStream,
   validateRequestFiles,
   validateRequestPart,
@@ -675,16 +677,12 @@ export class RequestProcessor {
       'Access-Control-Allow-Methods': methods,
       ...this.corsStatic,
     };
-    if (Array.isArray(cors.allowedOrigin)) {
-      if (cors.allowedOrigin.includes(origin)) {
-        headers['Access-Control-Allow-Origin'] = origin;
-      }
-    } else {
-      headers['Access-Control-Allow-Origin'] = (cors.allowedOrigin as string) || origin;
+    const allowOrigin: string | undefined = corsAllowOrigin(cors, origin === '*' ? undefined : origin);
+    if (allowOrigin !== undefined) {
+      headers['Access-Control-Allow-Origin'] = allowOrigin;
     }
-    // The response depends on the Origin header whenever the allowed origin is not fixed (also when this
-    // origin is refused): without Vary, a shared cache would hand one origin's response to another.
-    if (Array.isArray(cors.allowedOrigin) || !cors.allowedOrigin) {
+    // also when this origin is refused: the answer depends on the Origin header
+    if (corsVariesByOrigin(cors)) {
       headers.Vary = 'Origin';
     }
     return headers;

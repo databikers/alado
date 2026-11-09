@@ -6,6 +6,7 @@ import {
   bodyMethods,
   bodyReaders,
   clearRoutePath,
+  corsAllowOrigin,
   isOpenApiPath,
   normalizeHeaderNames,
   validateContext,
@@ -299,13 +300,12 @@ export class Router {
               // ?? and not ||: maxAge 0 (no preflight caching) is a valid value
               'Access-Control-Max-Age': Math.round(this.options.cors?.maxAge ?? 86400).toString(10),
             };
-            if (Array.isArray(this.options.cors.allowedOrigin)) {
-              if (this.options.cors.allowedOrigin.includes(request.origin as string)) {
-                headers['Access-Control-Allow-Origin'] = request.origin as string;
-              }
-            } else {
-              headers['Access-Control-Allow-Origin'] =
-                (this.options.cors.allowedOrigin as string) || (request.origin as string);
+            const allowOrigin: string | undefined = corsAllowOrigin(
+              this.options.cors,
+              (request.request?.headers?.origin as string | undefined) || undefined,
+            );
+            if (allowOrigin !== undefined) {
+              headers['Access-Control-Allow-Origin'] = allowOrigin;
             }
             return {
               statusCode: 204,
