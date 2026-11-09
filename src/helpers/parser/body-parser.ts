@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import { AladoServerError, UploadedFile } from '@dto';
 import { xmlParser } from './xml-parser';
 import { JsonDepthError, parseJson } from './json-parser';
+import { appendField } from './query-parser';
 import { FILE_SIGNATURE_BYTES, uploadedFileHeads } from '../validate/context/file-signature';
 
 // "application/xml; charset=utf-8" is still XML, and so are +xml types such as SOAP 1.2's application/soap+xml
@@ -313,7 +314,8 @@ export async function bodyParser(
               reject(contentTooLarge);
               return;
             }
-            result.body[name] = value.toString('utf8');
+            // a repeated name or name[] gives an array, as in a query string or a urlencoded form
+            appendField(result.body, name, value.toString('utf8'));
           }
         }
         if (acceptFiles) {
@@ -390,13 +392,14 @@ export async function bodyParser(
             });
           }
         } else if (mime === ContentType.X_WWW_FORM_URLENCODED) {
-          // URLSearchParams decodes %XX and '+', keeps '=' inside values and never throws
+          // URLSearchParams decodes %XX and '+', keeps '=' inside values and never throws. A repeated
+          // key or key[] gives an array (checkboxes, multi-selects), as in a query string
           for (const [
             key,
             value,
           ] of new URLSearchParams(body)) {
             if (key && !deprecatedJsonPropertiesRegExp.test(key)) {
-              result.body[key] = value;
+              appendField(result.body, key, value);
             }
           }
           resolve();

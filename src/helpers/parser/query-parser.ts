@@ -25,6 +25,33 @@ function isArrayKey(key: string): boolean {
 }
 
 /**
+ * Adds one decoded field to a query or form object: `key[]` and a repeated key give an array of
+ * every value in order (`a=1&a[]=2` keeps both, like two `a=` keys), a single key a string. Keys
+ * that would reach the prototype (__proto__, constructor, prototype) are dropped.
+ */
+export function appendField(target: Record<string, any>, key: string, value: string): void {
+  const listed: boolean = isArrayKey(key);
+  const name: string = listed ? key.slice(0, -2) : key;
+  if (unsafeKeys.has(name)) {
+    return;
+  }
+  if (!Object.prototype.hasOwnProperty.call(target, name)) {
+    target[name] = listed
+      ? [
+          value,
+        ]
+      : value;
+  } else if (Array.isArray(target[name])) {
+    target[name].push(value);
+  } else {
+    target[name] = [
+      target[name],
+      value,
+    ];
+  }
+}
+
+/**
  * Splits on '&' and the first '=' BEFORE decoding, so encoded '&' / '=' stay
  * inside values. Keys without a value are skipped (as before); `key[]` and
  * repeated keys produce arrays. Malformed percent-encoding throws a 400 error.
@@ -44,28 +71,7 @@ export function queryParser(queryString: string) {
     if (!key || !value) {
       continue;
     }
-    if (isArrayKey(key)) {
-      const k: string = key.slice(0, -2);
-      if (unsafeKeys.has(k)) {
-        continue;
-      }
-      // `a=1&a[]=2` keeps both values, in order, like two `a=` keys
-      if (!Object.prototype.hasOwnProperty.call(query, k)) {
-        query[k] = [];
-      } else if (!Array.isArray(query[k])) {
-        query[k] = [query[k]];
-      }
-      query[k].push(value);
-    } else if (unsafeKeys.has(key)) {
-      continue;
-    } else if (Object.prototype.hasOwnProperty.call(query, key)) {
-      if (!Array.isArray(query[key])) {
-        query[key] = [query[key]];
-      }
-      query[key].push(value);
-    } else {
-      query[key] = value;
-    }
+    appendField(query, key, value);
   }
   return query;
 }
