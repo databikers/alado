@@ -155,6 +155,25 @@ export function forwardedAddress(entry: string): string | undefined {
   return match && isIP(match[1]) ? match[1] : undefined;
 }
 
+const absoluteForm: RegExp = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/?#]*/;
+
+/**
+ * The path and query of a request target. Clients normally send "/items?x=1" (origin-form), but
+ * "http://host/items?x=1" (absolute-form) is valid too and must be accepted (RFC 9112 3.2.2); some
+ * proxies and older clients send it. The scheme and host are dropped; an empty path is "/".
+ */
+export function requestTarget(url: string): string {
+  if (url.charCodeAt(0) === 47) {
+    return url;
+  }
+  const match: RegExpExecArray | null = absoluteForm.exec(url);
+  if (!match) {
+    return url;
+  }
+  const rest: string = url.slice(match[0].length);
+  return rest.charCodeAt(0) === 47 ? rest : `/${rest}`;
+}
+
 export function clientIp(req: IncomingMessage, trustProxy?: boolean | number): string {
   const socketAddress: string = req.socket?.remoteAddress as string;
   const header: string | string[] | undefined = req.headers['x-forwarded-for'];
@@ -448,7 +467,7 @@ export class RequestProcessor {
       const { headers, method } = req;
       // only the path is normalised: the query string reaches the parser byte for byte
       // (collapsing '//' or dropping a trailing '/' would change values such as URLs or base64 tokens)
-      const rawUrl: string = req.url as string;
+      const rawUrl: string = requestTarget(req.url as string);
       const queryIndex: number = rawUrl.indexOf('?');
       const uri: string = clearRoutePath(queryIndex === -1 ? rawUrl : rawUrl.slice(0, queryIndex));
       const queryString: string = queryIndex === -1 ? '' : rawUrl.slice(queryIndex + 1);
