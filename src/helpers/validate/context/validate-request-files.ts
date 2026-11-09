@@ -16,16 +16,19 @@ export function validateRequestFiles(context: Context<any>, request: any): Alado
         }
         continue;
       }
-      const { size, mimetype } = uploaded;
-      if (!mimetypes.includes(mimetype)) {
-        return mimetypeError;
-      }
-      if (size > maxSize) {
-        return maxSizeError;
-      }
-      // the declared type is the client's word; the first bytes have to agree with it
-      if (verifyContent !== false && !matchesFileSignature(mimetype, uploadedFileHeads.get(uploaded))) {
-        return mimetypeError;
+      // parsing.repeatedFiles: 'array' gives every file of a repeated field: each one is checked
+      for (const one of Array.isArray(uploaded) ? uploaded : [uploaded]) {
+        const { size, mimetype } = one;
+        if (!mimetypes.includes(mimetype)) {
+          return mimetypeError;
+        }
+        if (size > maxSize) {
+          return maxSizeError;
+        }
+        // the declared type is the client's word; the first bytes have to agree with it
+        if (verifyContent !== false && !matchesFileSignature(mimetype, uploadedFileHeads.get(one))) {
+          return mimetypeError;
+        }
       }
     }
     if (!context.options?.allowUnknownFields) {

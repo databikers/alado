@@ -2,7 +2,7 @@ import { IncomingMessage, OutgoingMessage } from 'http';
 import { constants } from 'buffer';
 import { ContentType, deprecatedJsonPropertiesRegExp } from '@const';
 import { Readable } from 'stream';
-import { AladoServerError } from '@dto';
+import { AladoServerError, UploadedFile } from '@dto';
 import { xmlParser } from './xml-parser';
 import { JsonDepthError, parseJson } from './json-parser';
 import { FILE_SIGNATURE_BYTES, uploadedFileHeads } from '../validate/context/file-signature';
@@ -25,7 +25,7 @@ export function isJsonContentType(contentType: string | undefined): boolean {
 }
 
 type PartHeaders = { name: string | null; filename: string | null; mimetype: string | null };
-type MultipartFile = { name: string; mimetype: string; content: Buffer };
+type MultipartFile = { name: string; mimetype: string; filename: string; content: Buffer };
 
 const partNameRegExp: RegExp = /(?:^|[;\s])name="([^"]*)"/i;
 const partFilenameRegExp: RegExp = /(?:^|[;\s])filename="([^"]*)"/i;
@@ -118,9 +118,16 @@ export function parseMultipartBody(
             headers.name,
             value,
           ]);
-        } else if (headers.mimetype && (headers.filename !== '' || value.length > 0)) {
-          // filename="" without content: a file input left empty, no file was chosen
-          files.push({ name: headers.name, mimetype: headers.mimetype, content: value });
+        } else if (headers.filename !== '' || value.length > 0) {
+          // filename="" without content: a file input left empty, no file was chosen. A file sent
+          // without a Content-Type is kept as application/octet-stream (RFC 7578 4.4): unknown
+          // bytes, which only a field that accepts that type lets through
+          files.push({
+            name: headers.name,
+            mimetype: headers.mimetype || ContentType.OCTET_STREAM,
+            filename: headers.filename,
+            content: value,
+          });
         }
       }
     }
@@ -212,6 +219,7 @@ export async function bodyParser(
   res: OutgoingMessage,
   limit: number,
   acceptFiles: boolean = true,
+  repeatedFiles: 'last' | 'array' = 'last',
 ) {
   const contentType = req.headers['content-type'];
   const result: any = {
@@ -310,7 +318,12 @@ export async function bodyParser(
         }
         if (acceptFiles) {
           for (const file of files) {
-            const key: string = file.name.trim();
+            let key: string = file.name.trim();
+            // name[] asks for a list (with repeatedFiles: 'array'), like a query or form field
+            const listed: boolean = repeatedFiles === 'array' && key.length > 2 && key.endsWith('[]');
+            if (listed) {
+              key = key.slice(0, -2);
+            }
             // a file named __proto__ would otherwise replace the prototype of request.files
             if (deprecatedJsonPropertiesRegExp.test(key)) {
               continue;
@@ -318,13 +331,31 @@ export async function bodyParser(
             const stream: Readable = new Readable();
             stream.push(file.content);
             stream.push(null);
-            result.files[key] = {
+            const uploaded: UploadedFile = {
               stream,
               // byte length of the content, not a private field of the stream
               size: file.content.length,
               mimetype: file.mimetype,
+              filename: file.filename,
             };
-            uploadedFileHeads.set(result.files[key], file.content.subarray(0, FILE_SIGNATURE_BYTES));
+            uploadedFileHeads.set(uploaded, file.content.subarray(0, FILE_SIGNATURE_BYTES));
+            const previous: UploadedFile | UploadedFile[] | undefined = result.files[key];
+            if (repeatedFiles === 'last') {
+              result.files[key] = uploaded;
+            } else if (Array.isArray(previous)) {
+              previous.push(uploaded);
+            } else if (previous) {
+              result.files[key] = [
+                previous,
+                uploaded,
+              ];
+            } else {
+              result.files[key] = listed
+                ? [
+                    uploaded,
+                  ]
+                : uploaded;
+            }
           }
         }
         resolve();

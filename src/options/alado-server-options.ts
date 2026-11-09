@@ -2,6 +2,7 @@ import { ServerOptions } from 'http';
 import { AladoServerLogger } from '@dto';
 import { OpenApiDoc } from './open-api-doc';
 import { CorsOptions } from './cors-options';
+import { ParsingOptions } from './parsing-options';
 import { SecureContextOptions } from 'tls';
 
 export type AladoServerOptions = {
@@ -19,4 +20,5 @@ export type AladoServerOptions = {
   maxBodySizeBytes?: number;
   trustProxy?: boolean | number;
   caseSensitiveRoutes?: boolean;
+  parsing?: ParsingOptions;
 };

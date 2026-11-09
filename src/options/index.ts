@@ -7,3 +7,4 @@ export * from './request-processor-options';
 export * from './injector-options';
 export * from './http-decorator-options';
 export * from './initialize-application-options';
+export * from './parsing-options';

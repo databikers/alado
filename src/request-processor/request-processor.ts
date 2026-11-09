@@ -563,6 +563,7 @@ export class RequestProcessor {
             res,
             this.options.maxBodySizeBytes as number,
             Boolean(context.options?.allowUnknownFields) || hasKeys(context.request.files),
+            this.options.parsing?.repeatedFiles,
           );
           // a JSON body may be false, 0, "" or null: a value the client sent, not a missing body
           if (r.body !== undefined) {

@@ -10,8 +10,9 @@ export {
   PropertyDocumentation,
   PropertyDefinitionSchema,
   FilePropertyDefinition,
+  UploadedFile,
 } from '@dto';
-export { AladoServerOptions, ContextOptions, CorsOptions, OpenApiDoc } from '@options';
+export { AladoServerOptions, ContextOptions, CorsOptions, OpenApiDoc, ParsingOptions } from '@options';
 export { HttpMethod, httpStatus, ContentType } from '@const';
 export { validate } from '@helper';
 export {

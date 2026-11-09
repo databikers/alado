@@ -12,6 +12,17 @@ export interface ContextRequest {
   auth?: Record<string, any>;
 }
 
+/** A file of a multipart request. */
+export interface UploadedFile {
+  stream: Readable;
+  // byte length of the content
+  size: number;
+  // the part's Content-Type; application/octet-stream when the client sent none
+  mimetype: string;
+  // the name the client sent (filename="..."), unchecked: never use it as a path as is
+  filename: string;
+}
+
 export interface Request {
   request: IncomingMessage;
   ip?: string;
@@ -24,12 +35,6 @@ export interface Request {
   query?: Record<string, any>;
   body?: Record<string, any>;
   rawBody?: string;
-  files?: Record<
-    string,
-    {
-      stream: Readable;
-      size: number;
-      mimetype: string;
-    }
-  >;
+  // with parsing.repeatedFiles: 'array', a field sent several times (or as name[]) holds an UploadedFile[]
+  files?: Record<string, UploadedFile>;
 }

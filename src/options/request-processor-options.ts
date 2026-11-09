@@ -1,6 +1,7 @@
 import { Router } from '@router';
 import { OpenApiDoc } from './open-api-doc';
 import { AladoServerLogger } from '@dto';
+import { ParsingOptions } from './parsing-options';
 
 export type RequestProcessorOptions = {
   router: Router;
@@ -11,4 +12,5 @@ export type RequestProcessorOptions = {
   verbose?: boolean;
   maxBodySizeBytes?: number;
   trustProxy?: boolean | number;
+  parsing?: ParsingOptions;
 };

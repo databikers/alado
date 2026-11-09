@@ -131,6 +131,19 @@ function validateCaseSensitiveRoutes(options: AladoServerOptions) {
   }
 }
 
+function validateParsing(options: AladoServerOptions) {
+  const { parsing } = options;
+  if (parsing === undefined) {
+    return;
+  }
+  if (!parsing || typeof parsing !== 'object' || Array.isArray(parsing)) {
+    throw new Error('AladoServerOptions.parsing should be an object');
+  }
+  if (parsing.repeatedFiles !== undefined && parsing.repeatedFiles !== 'last' && parsing.repeatedFiles !== 'array') {
+    throw new Error("AladoServerOptions.parsing.repeatedFiles should be 'last' or 'array'");
+  }
+}
+
 export function validateAladoOptions(options: AladoServerOptions) {
   const { port, cors, openApiDoc, logger, verbose, maxBodySizeBytes } = options;
   validatePort(port);
@@ -141,4 +154,5 @@ export function validateAladoOptions(options: AladoServerOptions) {
   validateMaxBodySize(options);
   validateTrustProxy(options);
   validateCaseSensitiveRoutes(options);
+  validateParsing(options);
 }

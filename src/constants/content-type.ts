@@ -5,4 +5,5 @@ export enum ContentType {
   X_WWW_FORM_URLENCODED = 'application/x-www-form-urlencoded',
   XML = 'application/xml',
   TEXT_XML = 'text/xml',
+  OCTET_STREAM = 'application/octet-stream',
 }
