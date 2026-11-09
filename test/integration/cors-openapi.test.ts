@@ -333,10 +333,11 @@ describe('OpenAPI', () => {
     });
   });
 
-  it('documents responses with component schemas', () => {
+  it('documents responses with component schemas named after the route when no entity is set', () => {
     const res = spec.paths['/widgets'].post.responses['201'];
-    assert.equal(res.content['application/json'].schema.$ref, '#/components/schemas/Widget');
-    assert.ok(spec.components.schemas.Widget.properties.name);
+    assert.equal(res.content['application/json'].schema.$ref, '#/components/schemas/PostWidgets201');
+    assert.ok(spec.components.schemas.PostWidgets201.properties.name);
+    assert.equal(res.description, 'Widget', 'the title stands in for a missing description');
   });
 
   it('documents array responses as items of a named entity', () => {
