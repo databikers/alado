@@ -10,6 +10,7 @@ import { AladoServerError, Context, ContextRequest, Request, Response } from '@d
 import {
   accessControlChecker,
   authenticate,
+  bodyMethods,
   bodyParser,
   queryParser,
   clearRoutePath,
@@ -270,14 +271,6 @@ function mergeVary(headers: Record<string, string>, token: string) {
   }
   headers.Vary = values.join(', ');
 }
-
-// methods whose request body is read and parsed
-const bodyMethods: Set<string> = new Set<string>([
-  HttpMethod.PUT,
-  HttpMethod.PATCH,
-  HttpMethod.POST,
-  HttpMethod.QUERY,
-]);
 
 export class RequestProcessor {
   private readonly options: RequestProcessorOptions;

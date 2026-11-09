@@ -2,7 +2,15 @@ import { HttpMethod, httpMethods } from '@const';
 import { AladoConfigurationError, AladoServerLogger, Context, Request, Response, Route } from '@dto';
 import { RouterOptions } from '@options';
 import { openApiDocFactory } from '@factory';
-import { clearRoutePath, isOpenApiPath, normalizeHeaderNames, validateContext, safeLog } from '@helper';
+import {
+  bodyMethods,
+  bodyReaders,
+  clearRoutePath,
+  isOpenApiPath,
+  normalizeHeaderNames,
+  validateContext,
+  safeLog,
+} from '@helper';
 
 const pathVariableRegex = /:([^/]+)/g;
 
@@ -214,6 +222,19 @@ export class Router {
       }
 
       validateContext(context, this.options.openApiDoc?.enable);
+
+      // the body of these methods is never read: a declaration that needs it could never be satisfied
+      if (!bodyMethods.has(method)) {
+        const readers: string[] = bodyReaders(context);
+        if (readers.length) {
+          throw new AladoConfigurationError(
+            'BODY_NOT_ALLOWED',
+            `Route ${method} ${clearRoutePath(uri) || '/'} reads the request body (${readers.join(', ')}), ` +
+              `but ${method} requests have no body: use ${HttpMethod.POST}, ${HttpMethod.PUT}, ` +
+              `${HttpMethod.PATCH} or ${HttpMethod.QUERY}`,
+          );
+        }
+      }
 
       if (typeof handler !== 'function') {
         throw new Error(`handler should be a function`);
