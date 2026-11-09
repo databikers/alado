@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { join } from 'path';
 import { createReadStream, readFileSync } from 'fs';
 import { Readable, pipeline } from 'stream';
+import { isIP } from 'net';
 
 import { ContentType, HttpMethod, SWAGGER_INITIALIZER_FILE_NAME } from '@const';
 import { RequestProcessorOptions } from '@options';
@@ -138,6 +139,22 @@ function readsQuery(context: Context<any>): boolean {
   return reads;
 }
 
+const bracketedIpv6WithPort: RegExp = /^\[([0-9a-fA-F:.]+)\](?::\d{1,5})?$/;
+const ipv4WithPort: RegExp = /^(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}$/;
+
+/**
+ * An X-Forwarded-For entry as an IP address, or undefined. The header is text a client can write,
+ * so request.ip only ever takes a value that is an address (net.isIP); "203.0.113.7:51234" and
+ * "[2001:db8::1]:443", which some proxies write, give the address without the port.
+ */
+export function forwardedAddress(entry: string): string | undefined {
+  if (isIP(entry)) {
+    return entry;
+  }
+  const match: RegExpExecArray | null = bracketedIpv6WithPort.exec(entry) || ipv4WithPort.exec(entry);
+  return match && isIP(match[1]) ? match[1] : undefined;
+}
+
 export function clientIp(req: IncomingMessage, trustProxy?: boolean | number): string {
   const socketAddress: string = req.socket?.remoteAddress as string;
   const header: string | string[] | undefined = req.headers['x-forwarded-for'];
@@ -152,14 +169,22 @@ export function clientIp(req: IncomingMessage, trustProxy?: boolean | number): s
     return socketAddress;
   }
   if (trustProxy === true) {
-    return forwarded[0];
+    // the left-most address; entries that are not addresses are skipped, never returned
+    for (const entry of forwarded) {
+      const address: string | undefined = forwardedAddress(entry);
+      if (address) {
+        return address;
+      }
+    }
+    return socketAddress;
   }
   // [client, proxy1, ..., socket]: step back trustProxy hops from the socket, never past the client
   const chain: string[] = [
     ...forwarded,
     socketAddress,
   ];
-  return chain[Math.max(0, chain.length - 1 - trustProxy)];
+  const selected: string = chain[Math.max(0, chain.length - 1 - trustProxy)];
+  return selected === socketAddress ? selected : (forwardedAddress(selected) ?? socketAddress);
 }
 
 /**
