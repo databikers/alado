@@ -480,10 +480,13 @@ validate.custom(fn); // starts with a custom rule
 
 ### Modifiers
 
-| Method        | Description                                                |
-| ------------- | ---------------------------------------------------------- |
-| `.required()` | Input must be non-empty (not `null`, `undefined`, or `""`) |
-| `.optional()` | Input may be absent — skips all rules if empty (default)   |
+| Method        | Description                                                               |
+| ------------- | ------------------------------------------------------------------------- |
+| `.required()` | Input must be present and not `""` (and not `null`, unless `.nullable()`) |
+| `.optional()` | Input may be absent (`undefined`): then all rules are skipped (default)   |
+| `.nullable()` | `null` is accepted and skips the other rules; without it `null` fails     |
+
+Only a missing value counts as "not provided". A `null` or `""` that is sent goes through the rules like any other value: an optional `validate.number().min(18)` refuses `null`, an optional `validate.string().email()` refuses `""`, while a plain optional `validate.string()` accepts `""`. This also applies to `items()` and `shape()`: a `null` array item or property needs a `nullable()` validator.
 
 ---
 
