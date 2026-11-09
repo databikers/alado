@@ -102,15 +102,13 @@ export function validateContext(context: Context<any>, useApiDoc?: boolean) {
   }
   if (context.request) {
     const { headers, path, query, body, files } = context.request;
-    for (const obj of [
-      headers,
-      path,
-      query,
-      body,
-    ]) {
+    for (const [
+      part,
+      obj,
+    ] of Object.entries({ headers, path, query, body })) {
       if (obj) {
         for (const prop in obj) {
-          validatePropertyDefinition(obj[prop]);
+          validatePropertyDefinition(obj[prop], `${part}.${prop}`);
         }
       }
     }
@@ -177,13 +175,23 @@ function validatePropertyDefinitionDoc(doc: PropertyDocumentation) {
   }
 }
 
-function validatePropertyDefinition(propertyDefinition: PropertyDefinition) {
+function validatePropertyDefinition(propertyDefinition: PropertyDefinition, name: string) {
+  if (!propertyDefinition || typeof propertyDefinition !== 'object') {
+    throw new Error(`Request field ${name}: the definition should be an object with a validation`);
+  }
   if (propertyDefinition.isJSON !== undefined && typeof propertyDefinition.isJSON !== 'boolean') {
     throw new Error(`PropertyDefinition.isJSON should be a boolean`);
   }
+  // a field documented (@documentProperty) or transformed but never given a validator
+  if (!propertyDefinition.validation || typeof propertyDefinition.validation !== 'object') {
+    throw new Error(
+      `Request field ${name} has no validator: add @validateProperty (or validation: { required, handler, error }), ` +
+        `every declared field is checked`,
+    );
+  }
   const { handler, error, required } = propertyDefinition.validation;
   if (!handler) {
-    throw new Error(`PropertyDefinition.validation.handler is required property"`);
+    throw new Error(`Request field ${name}: PropertyDefinition.validation.handler is required property`);
   }
   if (typeof handler !== 'function') {
     throw new Error(`PropertyDefinition.validation.handler should be a function"`);
