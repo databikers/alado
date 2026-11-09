@@ -10,7 +10,7 @@ const defaultMaxBodySizeBytes = 1024 * 1024;
 const doc = defineResponse({ statusCode: 200, headers: json, body: { ok: true } });
 
 class DefaultLimitController {
-  @post('/size', { appId: 'body-limit-default' })
+  @post('/size', { appId: 'body-limit-default', rawBody: true })
   @doc
   async size(req: Request) {
     return { statusCode: 200, headers: json, body: { length: (req.rawBody || '').length } };
@@ -18,7 +18,7 @@ class DefaultLimitController {
 }
 
 class NoLimitController {
-  @post('/size', { appId: 'body-limit-off' })
+  @post('/size', { appId: 'body-limit-off', rawBody: true })
   @doc
   async size(req: Request) {
     return { statusCode: 200, headers: json, body: { length: (req.rawBody || '').length } };

@@ -8,7 +8,7 @@ const allowed = 'https://app.example.com';
 const appId = 'cors-error-responses';
 
 class EchoController {
-  @post('/echo', { appId })
+  @post('/echo', { appId, rawBody: true })
   @defineResponse({ statusCode: 200, headers: json, body: { ok: true } })
   async echo() {
     return { statusCode: 200, headers: json, body: { ok: true } };

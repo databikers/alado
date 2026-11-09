@@ -186,7 +186,7 @@ class ValidationController {
     return { statusCode: 200, headers: json, body: req.body };
   }
 
-  @post('/raw', { appId })
+  @post('/raw', { appId, rawBody: true })
   @doc
   async raw(req: Request) {
     return { statusCode: 200, headers: json, body: { rawBody: req.rawBody, body: req.body } };
