@@ -299,6 +299,10 @@ Documents the expected response shape for OpenAPI output.
 })
 ```
 
+The body schema is published under `components.schemas` with the name in `entity`; routes that name the same entity share one schema. Without `entity`, the schema is named after the route (`POST /users` answering 201 gives `PostUsers201`, `GET /users/:id` gives `GetUsersById200`), so two routes never overwrite each other's schema. `description` falls back to `title`, then to `"<status> response"` (OpenAPI requires one). A 204 or 304 response is documented without content, and an object body without a `Content-Type` as `application/json`, the type it is sent with.
+
+In request bodies, fields declared with `required: true` are listed in the schema's `required` and the request body is marked required. `@withAuth` adds an `apiKey` security scheme when it reads a header or a query parameter (an optional one, `required: false`, is documented as optional); a credential read from the body or the path is documented by that field only, since OpenAPI has no security scheme for it.
+
 ---
 
 ### `withAuth`
