@@ -740,6 +740,8 @@ const isOrderItems = validate
   .build();
 ```
 
+Items are checked one after the other and the check stops at the first item that fails. An item validator built with `build()` costs no promise per item unless one of its rules is async, so a large array is as cheap as with `buildSync()`. Rules run in the order they are chained: put `maxItems()` before `items()` to refuse an oversized array before any item is looked at.
+
 ---
 
 ### Async validation
