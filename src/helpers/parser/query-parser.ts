@@ -1,4 +1,4 @@
-import { AladoServerError } from '@dto';
+import { HttpError } from '@dto';
 
 const unsafeKeys: Set<string> = new Set([
   '__proto__',
@@ -11,7 +11,7 @@ function decodeComponent(value: string): string {
     // query strings encode spaces as '+' (application/x-www-form-urlencoded)
     return decodeURIComponent(value.replace(/\+/g, ' '));
   } catch {
-    throw Object.assign(new Error('Malformed query string'), { statusCode: 400 } as AladoServerError);
+    throw new HttpError(400, 'Malformed query string');
   }
 }
 

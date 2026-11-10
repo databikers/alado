@@ -9,3 +9,4 @@ export * from './request-authentication';
 export * from './route';
 export * from './open-api-doc-object';
 export * from './alado-configuration-error';
+export * from './http-error';

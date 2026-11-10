@@ -6,7 +6,7 @@ import { isIP } from 'net';
 
 import { ContentType, HttpMethod, SWAGGER_INITIALIZER_FILE_NAME } from '@const';
 import { RequestProcessorOptions } from '@options';
-import { AladoServerError, Context, ContextRequest, Request, Response } from '@dto';
+import { AladoServerError, Context, ContextRequest, HttpError, Request, Response } from '@dto';
 import {
   accessControlChecker,
   authenticate,
@@ -56,14 +56,23 @@ export function swaggerIndexHtml(html: string, docsRoute: string): string {
 }
 
 /**
- * Errors that carry an HTTP status (thrown on purpose, e.g. `{ statusCode: 404,
- * message }`, or produced by the body parser) keep their status and message.
- * Anything else is an internal failure: the client gets a generic 500 and the
- * details only go to the logger.
+ * Errors thrown for the client keep their status and message: an HttpError, or a plain object such
+ * as `{ statusCode: 404, message }` (also what the body parser produces). Anything else is an
+ * internal failure: the client gets a generic 500 and the details only go to the logger. That
+ * includes every other Error, even one with a `statusCode` of its own: errors from libraries and
+ * SDKs carry one too, next to a message that names hosts, buckets or roles.
  */
 export function toClientError(e: any): AladoServerError {
   const statusCode: unknown = e?.statusCode;
-  if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 600 && typeof e?.message === 'string') {
+  const meantForClient: boolean =
+    e instanceof HttpError || (e !== null && typeof e === 'object' && !(e instanceof Error));
+  if (
+    meantForClient &&
+    typeof statusCode === 'number' &&
+    statusCode >= 400 &&
+    statusCode < 600 &&
+    typeof e.message === 'string'
+  ) {
     return { statusCode, message: e.message };
   }
   return { statusCode: 500, message: 'Internal Server Error' };

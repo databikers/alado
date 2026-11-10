@@ -2,7 +2,7 @@ import { IncomingMessage, OutgoingMessage } from 'http';
 import { constants } from 'buffer';
 import { ContentType, deprecatedJsonPropertiesRegExp } from '@const';
 import { Readable } from 'stream';
-import { AladoServerError, UploadedFile } from '@dto';
+import { AladoServerError, HttpError, UploadedFile } from '@dto';
 import { xmlParser } from './xml-parser';
 import { JsonDepthError, parseJson } from './json-parser';
 import { appendField } from './query-parser';
@@ -307,7 +307,7 @@ export async function bodyParser(
           get: () => {
             if (rawBody === undefined && raw.length > textLimits.maxBytes) {
               // too long for a string: a 413 for the handler that reads it, not a RangeError
-              throw Object.assign(new Error(contentTooLarge.message), { statusCode: contentTooLarge.statusCode });
+              throw new HttpError(contentTooLarge.statusCode, contentTooLarge.message);
             }
             return (rawBody ??= raw.toString('latin1'));
           },
