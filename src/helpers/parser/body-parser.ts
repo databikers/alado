@@ -215,13 +215,26 @@ function concatChunks(received: ReceivedBody, encoding: BufferEncoding): string 
   return Buffer.concat(received.chunks, received.bytes).toString(encoding);
 }
 
+/** How multipart files are taken (see ParsingOptions). */
+export type MultipartFileOptions = {
+  repeatedFiles?: 'last' | 'array';
+  // files one field name may carry; 0 or unset: no limit
+  maxFilesPerField?: number;
+  // the declared file fields: files under any other name are skipped before an object is built for
+  // them. Unset: every name is kept (allowUnknownFields)
+  fieldNames?: ReadonlySet<string>;
+};
+
+const tooManyFiles: AladoServerError = { statusCode: 400, message: 'Too many files under one field name' };
+
 export async function bodyParser(
   req: IncomingMessage,
   res: OutgoingMessage,
   limit: number,
   acceptFiles: boolean = true,
-  repeatedFiles: 'last' | 'array' = 'last',
+  fileOptions: MultipartFileOptions = {},
 ) {
+  const { repeatedFiles = 'last', maxFilesPerField = 0, fieldNames } = fileOptions;
   const contentType = req.headers['content-type'];
   const result: any = {
     body: {},
@@ -319,6 +332,7 @@ export async function bodyParser(
           }
         }
         if (acceptFiles) {
+          const counts: Map<string, number> = new Map();
           for (const file of files) {
             let key: string = file.name.trim();
             // name[] asks for a list (with repeatedFiles: 'array'), like a query or form field
@@ -326,10 +340,18 @@ export async function bodyParser(
             if (listed) {
               key = key.slice(0, -2);
             }
-            // a file named __proto__ would otherwise replace the prototype of request.files
-            if (deprecatedJsonPropertiesRegExp.test(key)) {
+            // a file named __proto__ would otherwise replace the prototype of request.files; a field
+            // the route does not declare is dropped by validation anyway: skip it before building it
+            if (deprecatedJsonPropertiesRegExp.test(key) || (fieldNames && !fieldNames.has(key))) {
               continue;
             }
+            // counted before anything is built, so thousands of parts under one name cost nothing
+            const count: number = (counts.get(key) || 0) + 1;
+            if (maxFilesPerField && count > maxFilesPerField) {
+              reject(tooManyFiles);
+              return;
+            }
+            counts.set(key, count);
             const stream: Readable = new Readable();
             stream.push(file.content);
             stream.push(null);

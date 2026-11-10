@@ -130,6 +130,10 @@ function validateParsing(options: AladoServerOptions) {
   if (!parsing || typeof parsing !== 'object' || Array.isArray(parsing)) {
     throw new Error('AladoServerOptions.parsing should be an object');
   }
+  const { maxFilesPerField } = parsing;
+  if (maxFilesPerField !== undefined && (!Number.isInteger(maxFilesPerField) || maxFilesPerField < 0)) {
+    throw new Error('AladoServerOptions.parsing.maxFilesPerField should be a whole number, 0 for no limit');
+  }
   if (parsing.repeatedFiles !== undefined && parsing.repeatedFiles !== 'last' && parsing.repeatedFiles !== 'array') {
     throw new Error("AladoServerOptions.parsing.repeatedFiles should be 'last' or 'array'");
   }

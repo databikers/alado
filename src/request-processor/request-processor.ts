@@ -94,6 +94,18 @@ const bodyPathRegExp: RegExp = /^(body|rawBody|files)(\.|\[|$)/;
 type BodyStage = 'auth' | 'accessControl' | 'validation' | 'none';
 const bodyStages: WeakMap<Context<any>, BodyStage> = new WeakMap();
 
+const fileNames: WeakMap<Context<any>, ReadonlySet<string>> = new WeakMap();
+
+// the file fields a route declares, computed once per route
+function declaredFileNames(context: Context<any>): ReadonlySet<string> {
+  let names: ReadonlySet<string> | undefined = fileNames.get(context);
+  if (!names) {
+    names = new Set(Object.keys(context.request.files || {}));
+    fileNames.set(context, names);
+  }
+  return names;
+}
+
 function bodyStage(context: Context<any>): BodyStage {
   let stage: BodyStage | undefined = bodyStages.get(context);
   if (stage === undefined) {
@@ -583,7 +595,11 @@ export class RequestProcessor {
             res,
             this.options.maxBodySizeBytes as number,
             Boolean(context.options?.allowUnknownFields) || hasKeys(context.request.files),
-            this.options.parsing?.repeatedFiles,
+            {
+              repeatedFiles: this.options.parsing?.repeatedFiles,
+              maxFilesPerField: this.options.parsing?.maxFilesPerField,
+              fieldNames: context.options?.allowUnknownFields ? undefined : declaredFileNames(context),
+            },
           );
           // a JSON body may be false, 0, "" or null: a value the client sent, not a missing body
           if (r.body !== undefined) {
