@@ -5,6 +5,10 @@ on:
     branches: [master]
   pull_request:
 
+# the workflow only reads the repository
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
