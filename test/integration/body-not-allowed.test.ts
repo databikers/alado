@@ -64,7 +64,8 @@ describe('a body declared on a method without a body', () => {
           {
             inputProperty: 'path.id',
             compareWithProperty: 'body.owner',
-            error: { statusCode: 403, message: 'no' },
+            statusCode: 403,
+            message: 'no',
           },
         ],
       },
