@@ -317,8 +317,31 @@ describe('xmlParser', () => {
     assert.deepEqual(xmlParser('<a>&amp;lt; &amp;#65;</a>'), { a: '&lt; &#65;' });
   });
 
-  it('keeps references to characters XML does not allow', () => {
-    assert.deepEqual(xmlParser('<a>&#0;&#xD800;&#x110000;</a>'), { a: '&#0;&#xD800;&#x110000;' });
+  it('refuses references to characters XML does not allow', () => {
+    for (const reference of [
+      '&#0;',
+      '&#1;',
+      '&#x1F;',
+      '&#xD800;',
+      '&#xFFFE;',
+      '&#xFFFF;',
+      '&#x110000;',
+    ]) {
+      assert.throws(() => xmlParser(`<a>${reference}</a>`), new RegExp(`Invalid character reference ${reference}`));
+      assert.throws(() => xmlParser(`<a b="${reference}"/>`), /Invalid character reference/);
+    }
+    assert.deepEqual(xmlParser('<a>x&#9;&#x20;&#xD7FF;&#xE000;&#x10FFFF;y</a>'), { a: 'x\t \uD7FF\uE000\u{10FFFF}y' });
+  });
+
+  it('refuses an attribute repeated on one element', () => {
+    assert.throws(() => xmlParser('<r a="1" a="2"/>'), /Attribute "a" repeated/);
+    assert.throws(() => xmlParser('<r __proto__="1" __proto__="2"/>'), /repeated/);
+    const name = 'n'.repeat(1000);
+    assert.throws(
+      () => xmlParser(`<r ${name}="1" ${name}="2"/>`),
+      (e: Error) => e.message === `Attribute "${'n'.repeat(64)}..." repeated`,
+    );
+    assert.deepEqual(xmlParser('<r a="1" b="2"/>'), { r: { '@ns': null, '@attrs': { a: '1', b: '2' } } });
   });
 
   it('does not repeat the document content in error messages', () => {
