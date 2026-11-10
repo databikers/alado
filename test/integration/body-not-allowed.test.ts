@@ -94,3 +94,33 @@ describe('a body declared on a method without a body', () => {
     );
   });
 });
+
+describe('route parameter names', () => {
+  const refused = (path: string, text: RegExp) =>
+    assert.throws(
+      () => makeRouter().use(HttpMethod.GET, path, { ...base, request: {} }, ok),
+      (e: any) => e instanceof AladoConfigurationError && e.code === 'INVALID_PATH_PARAMETER' && text.test(e.message),
+      path,
+    );
+
+  it('refuses a parameter declared twice in one path', () => {
+    refused('/orgs/:id/users/:id', /parameter ":id" is declared twice/);
+  });
+
+  it('refuses a name that swallowed the text after it', () => {
+    refused('/files/:name.json', /parameter ":name\.json" should be a name/);
+    refused('/range/:from..:to', /should be a name/);
+    refused('/x/:1st', /should be a name/);
+  });
+
+  it('accepts ordinary names, also after a literal prefix', () => {
+    for (const path of [
+      '/users/:id',
+      '/users/:user_id/posts/:post-id',
+      '/api/v:version/items',
+      '/a/:A1',
+    ]) {
+      makeRouter().use(HttpMethod.GET, path, { ...base, request: {} }, ok);
+    }
+  });
+});
