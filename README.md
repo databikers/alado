@@ -353,6 +353,25 @@ See [Access Control](#accesscontrol) for full config details.
 
 ---
 
+### Errors
+
+Throw an `HttpError`, or a plain `{ statusCode, message }` object, to answer with that status and message:
+
+```ts
+import { HttpError } from 'alado';
+
+@get('/orders/:id')
+async getOrder(req: Request) {
+  const order = await orders.find(req.path.id);
+  if (!order) {
+    throw new HttpError(404, 'No such order'); // or: throw { statusCode: 404, message: 'No such order' }
+  }
+  return { statusCode: 200, body: order };
+}
+```
+
+> **Only errors meant for the client reach it.** Any other `Error` is answered with `500 Internal Server Error` and passed to the logger, also when it has a `statusCode` of its own. Errors from libraries and SDKs often carry one next to a message naming hosts, buckets or roles (`AccessDenied: arn:aws:iam::...`); before 3.8.8 such a message was sent to the client. To pass one on, catch it and throw an `HttpError` with a message you chose.
+
 ### Full controller example
 
 ```ts
