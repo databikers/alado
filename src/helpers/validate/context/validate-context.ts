@@ -57,6 +57,86 @@ function validateContextAuth(auth: RequestAuthentication) {
   validateError('RequestAuthentication', error);
 }
 
+// request properties a rule may read (the first segment of its path)
+const accessControlSources: Set<string> = new Set([
+  'headers',
+  'query',
+  'path',
+  'body',
+  'rawBody',
+  'files',
+  'auth',
+  'ip',
+  'origin',
+  'method',
+  'url',
+]);
+const accessControlKeys: Set<string> = new Set([
+  'inputProperty',
+  'transformInputProperty',
+  'compareWithProperty',
+  'expectedValue',
+  'accessControlHandler',
+  'statusCode',
+  'message',
+]);
+
+function validateAccessControlPath(name: string, path: unknown) {
+  if (typeof path !== 'string' || !path) {
+    throw new Error(`${name} should be a non-empty string`);
+  }
+  const source: string = path.split(/[.[]/)[0];
+  if (!accessControlSources.has(source)) {
+    throw new Error(
+      `${name} "${path}" should start with one of ${[...accessControlSources].join(', ')} (got "${source}")`,
+    );
+  }
+}
+
+/**
+ * A rule that is misspelled or checks nothing would let every request through, so rules are checked
+ * when the route is registered: known keys only, a readable input, an error to answer with, and at
+ * least one check (expectedValue, compareWithProperty or accessControlHandler).
+ */
+function validateAccessControl(accessControl: unknown) {
+  if (!Array.isArray(accessControl)) {
+    throw new Error(`Context.accessControl should be an array of rules`);
+  }
+  accessControl.forEach((rule: any, i: number) => {
+    const name: string = `Context.accessControl[${i}]`;
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+      throw new Error(`${name} should be an object`);
+    }
+    for (const key in rule) {
+      if (!accessControlKeys.has(key)) {
+        throw new Error(`${name}.${key} is not a rule property (known: ${[...accessControlKeys].join(', ')})`);
+      }
+    }
+    validateAccessControlPath(`${name}.inputProperty`, rule.inputProperty);
+    if (rule.compareWithProperty !== undefined) {
+      validateAccessControlPath(`${name}.compareWithProperty`, rule.compareWithProperty);
+    }
+    for (const fn of [
+      'transformInputProperty',
+      'accessControlHandler',
+    ]) {
+      if (rule[fn] !== undefined && typeof rule[fn] !== 'function') {
+        throw new Error(`${name}.${fn} should be a function`);
+      }
+    }
+    if (
+      rule.expectedValue === undefined &&
+      rule.compareWithProperty === undefined &&
+      rule.accessControlHandler === undefined
+    ) {
+      throw new Error(
+        `${name} checks nothing: set expectedValue, compareWithProperty or accessControlHandler (it would allow every request)`,
+      );
+    }
+    validateError(name, { statusCode: rule.statusCode, message: rule.message }, 'statusCode/message');
+  });
+}
+
 export function validateContextOptions(context: Context<any>, useApiDoc?: boolean) {
   if (context.options) {
     if (typeof context.options !== 'object') {
@@ -99,6 +179,9 @@ export function validateContext(context: Context<any>, useApiDoc?: boolean) {
   validateContextOptions(context, useApiDoc);
   if (context.auth) {
     validateContextAuth(context.auth);
+  }
+  if (context.accessControl !== undefined && context.accessControl !== null) {
+    validateAccessControl(context.accessControl);
   }
   if (context.request) {
     const { headers, path, query, body, files } = context.request;
