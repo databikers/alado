@@ -1070,6 +1070,8 @@ export type AccessControlConfig<T> = {
 
 Either provide `compareWithProperty` to compare two request values, or `expectedValue` to check against a fixed value or `accessControlHandler` to implement complex logic.
 
+Rules are checked when the route is registered, because a broken rule would otherwise let every request through. Startup fails with an error naming the rule (`Context.accessControl[0]...`) when `accessControl` is not an array, a rule has an unknown property (a typo such as `expectedValu`), `inputProperty` or `compareWithProperty` does not start with a request property (`headers`, `query`, `path`, `body`, `rawBody`, `files`, `auth`, `ip`, `origin`, `method`, `url`), `statusCode` or `message` is missing, or the rule has none of `expectedValue`, `compareWithProperty` and `accessControlHandler`.
+
 With `compareWithProperty`, access is denied when either value is missing (`undefined` or `null`), before or after `transformInputProperty`: two missing values never count as a match.
 
 Rules run before request validation, so an `inputProperty` that reads the request itself (`headers.*`, `query.*`, `path.*`, `body.*`) is checked first, as the auth input is. A field with a declared validator (for example `ownerId` in the body DTO for `body.ownerId`) is checked by that validator, once for the request. Any other request value must be a string, number, boolean or bigint. An object or an array, such as `{ "$ne": null }` from a JSON body, denies access with the rule's `statusCode` and `message`, before `transformInputProperty` or `accessControlHandler` see it. Values the application set, such as `auth.*`, are not checked.
