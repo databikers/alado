@@ -581,7 +581,7 @@ describe('chunked request bodies', () => {
     const r = await sendInParts(
       port,
       { method: 'POST', path: '/payment', headers: { 'Content-Type': 'application/xml' } },
-      splitInsideMultibyte(Buffer.from('<payment><amount>1.50</amount><note>café</note></payment>', 'utf8')),
+      splitInsideMultibyte(Buffer.from('<payment note="café"><amount>1.50</amount></payment>', 'utf8')),
     );
     assert.equal(r.status, 200, r.text);
   });

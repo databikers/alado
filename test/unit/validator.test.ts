@@ -703,3 +703,38 @@ describe('items() and shape() with validators from build()', () => {
     );
   });
 });
+
+describe('shape() and keys the schema does not name', () => {
+  const schema = { name: validate.string().required().build() };
+
+  it('refuses them by default, at any depth', async () => {
+    const strict = validate.object().shape(schema).build();
+    assert.equal(await strict({ name: 'a' }), true);
+    assert.equal(await strict({ name: 'a', isAdmin: true }), false);
+    const nested = validate.object().shape({ profile: strict }).build();
+    assert.equal(await nested({ profile: { name: 'a' } }), true);
+    assert.equal(await nested({ profile: { name: 'a', role: 'root' } }), false);
+    const list = validate.array().items(strict).build();
+    assert.equal(
+      await list([
+        { name: 'a' },
+        { name: 'b', extra: 1 },
+      ]),
+      false,
+    );
+  });
+
+  it('accepts them with allowUnknownKeys, still checking the named keys', async () => {
+    const open = validate.object().shape(schema, { allowUnknownKeys: true }).buildSync();
+    assert.equal(open({ name: 'a', isAdmin: true }), true);
+    assert.equal(open({ isAdmin: true }), false);
+  });
+
+  it('does not count the keys the XML parser adds, nor inherited ones', async () => {
+    const strict = validate.object().shape(schema).buildSync();
+    assert.equal(strict({ name: 'a', '@ns': null, '@attrs': { id: '1' } }), true);
+    assert.equal(strict({ name: 'a', '#text': 'x' }), false);
+    assert.equal(strict(Object.assign(Object.create({ inherited: 1 }), { name: 'a' })), true);
+    assert.equal(strict({ name: 'a', toString: 1 }), false);
+  });
+});
