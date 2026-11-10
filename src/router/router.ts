@@ -168,6 +168,8 @@ export class Router {
   private meta: Map<RegExp, RouteMeta> = new Map();
   public readonly options: RouterOptions;
   public readonly openApiDocObject: any;
+  // grows with every registered route: what was built from the routes (the served document) is rebuilt
+  public revision: number = 0;
   public readonly logger: AladoServerLogger;
   private readonly caseSensitive: boolean;
   // "<METHOD> <shape>" -> path it was registered with, to refuse routes that could never match
@@ -337,6 +339,7 @@ export class Router {
         this.index(HttpMethod.OPTIONS, cleanUri, literal, params, optionsData);
       }
     }
+    this.revision++;
     const data: Route<any> = { route: routeRegEx, path: pathData, context, handler, optionsDataKey };
     this.meta.set(routeRegEx, { method, pattern, literal });
     this.routes.set(routeRegEx, data);

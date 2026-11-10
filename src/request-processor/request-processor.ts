@@ -342,6 +342,8 @@ export class RequestProcessor {
   // CORS header values that do not depend on the request, built on first use
   private corsStatic?: Record<string, string>;
   private swaggerJsonPath: string = '';
+  private swaggerJson?: string;
+  private swaggerJsonRevision: number = -1;
   private corsMethods: WeakMap<string[], { count: number; value: string }> = new WeakMap();
 
   constructor(requestProcessorOptions: RequestProcessorOptions) {
@@ -360,6 +362,16 @@ export class RequestProcessor {
         this.swaggerJsonPath,
       );
     }
+  }
+
+  /** The OpenAPI document as JSON text, serialised again only after a route was registered. */
+  protected openApiJson(): string {
+    const { router } = this.options;
+    if (this.swaggerJson === undefined || this.swaggerJsonRevision !== router.revision) {
+      this.swaggerJson = JSON.stringify(router.openApiDocObject);
+      this.swaggerJsonRevision = router.revision;
+    }
+    return this.swaggerJson;
   }
 
   protected respond(res: ServerResponse, response: Response<any>, backgroundHeaders?: Record<string, string>) {
@@ -535,36 +547,53 @@ export class RequestProcessor {
       // Process Open API routes (HEAD as GET: same status and headers, the body is not sent)
       if (openApiDoc?.enable && (method === HttpMethod.GET || method === HttpMethod.HEAD)) {
         const pathname: string = uri;
+        // the docs are part of the API for a browser on another origin (a hosted Swagger UI, a client
+        // generator): they carry the same CORS headers as any route
+        const docsHeaders: Record<string, string> | undefined = enableCors
+          ? this.corsHeaders(undefined, origin)
+          : undefined;
         if (pathname === this.swaggerJsonPath) {
-          return this.respond(res, {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: this.options.router.openApiDocObject,
-          });
+          return this.respond(
+            res,
+            { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: this.openApiJson() },
+            docsHeaders,
+          );
         }
         const swaggerFile: string | undefined = resolveSwaggerUiFile(pathname, openApiDoc.route as string);
         if (swaggerFile === 'index.html') {
-          return this.respond(res, {
-            statusCode: 200,
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-            body: this.swaggerIndex,
-          });
+          return this.respond(
+            res,
+            {
+              statusCode: 200,
+              headers: { 'Content-Type': 'text/html; charset=utf-8' },
+              body: this.swaggerIndex,
+            },
+            docsHeaders,
+          );
         }
         if (swaggerFile === SWAGGER_INITIALIZER_FILE_NAME) {
-          return this.respond(res, {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
-            body: this.swaggerInitializer,
-          });
+          return this.respond(
+            res,
+            {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+              body: this.swaggerInitializer,
+            },
+            docsHeaders,
+          );
         }
         if (swaggerFile) {
           // swaggerFile is a bare name from the swagger-ui-dist listing, never a path from the URL
           const extension: string = swaggerFile.slice(swaggerFile.lastIndexOf('.') + 1);
-          return this.respond(res, {
-            statusCode: 200,
-            headers: { 'Content-Type': swaggerContentTypes[extension] },
-            body: createReadStream(join(swaggerUiAssetPath(), swaggerFile)),
-          });
+          return this.respond(
+            res,
+            {
+              statusCode: 200,
+              headers: { 'Content-Type': swaggerContentTypes[extension] },
+              body: createReadStream(join(swaggerUiAssetPath(), swaggerFile)),
+            },
+            docsHeaders,
+          );
         }
       }
       // Process API routes
