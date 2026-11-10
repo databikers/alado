@@ -25,7 +25,7 @@ function isValidAuthInput(context: Context<any>, request: any, value: unknown): 
 }
 
 /**
- * Runs the auth handler. With `required: false` a request is never refused here: credentials that
+ * Runs the auth handler. `required` defaults to true. With `required: false` a request is never refused here: credentials that
  * are missing, invalid or make the handler throw leave it anonymous (nothing at outputProperty).
  * A handler is expected to return null/undefined for credentials it does not accept; an exception
  * is a failure of the handler and goes to `onHandlerError` (the client only ever gets `error`).
@@ -36,7 +36,9 @@ export async function authenticate(
   onHandlerError?: (error: unknown) => void,
 ): Promise<any> {
   const { auth } = context;
-  const { required, handler, handlerContext, inputProperty, outputProperty, error } = auth as RequestAuthentication;
+  const { handler, handlerContext, inputProperty, outputProperty, error } = auth as RequestAuthentication;
+  // fail closed: only an explicit `required: false` makes authentication optional
+  const required: boolean = (auth as RequestAuthentication).required !== false;
   const refuse = required ? error : undefined;
 
   const authData: any = getProperty(request, inputProperty);
