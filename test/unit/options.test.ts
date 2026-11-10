@@ -92,6 +92,55 @@ describe('validateAladoOptions', () => {
     }
   });
 
+  it('rejects numbers that are not finite for maxBodySizeBytes and cors.maxAge', () => {
+    for (const value of [
+      NaN,
+      Infinity,
+    ]) {
+      assert.throws(() => validateAladoOptions({ ...valid(), maxBodySizeBytes: value }), /maxBodySizeBytes/);
+      assert.throws(() => validateAladoOptions({ ...valid(), cors: { enable: true, maxAge: value } }), /maxAge/);
+    }
+    assert.doesNotThrow(() => validateAladoOptions({ ...valid(), maxBodySizeBytes: 0 }));
+  });
+
+  it('rejects an allowedOrigin that no browser could send', () => {
+    for (const allowedOrigin of [
+      'https://app.example.com/',
+      'https://app.example.com/path',
+      'https://App.Example.com',
+      'app.example.com',
+      'https://app.example.com:443',
+      [
+        'https://ok.example.com',
+        'https://bad.example.com/',
+      ],
+    ]) {
+      assert.throws(
+        () => validateAladoOptions({ ...valid(), cors: { enable: true, allowedOrigin } }),
+        /is not an origin: use scheme:\/\/host\[:port\]/,
+        String(allowedOrigin),
+      );
+    }
+    assert.throws(
+      () => validateAladoOptions({ ...valid(), cors: { enable: true, allowedOrigin: 'https://app.example.com/' } }),
+      /\("https:\/\/app\.example\.com"\)/,
+    );
+    for (const allowedOrigin of [
+      '*',
+      'null',
+      'https://app.example.com',
+      'http://localhost:3000',
+      'capacitor://localhost',
+      [
+        'https://a.example.com',
+        '*',
+        'null',
+      ],
+    ]) {
+      assert.doesNotThrow(() => validateAladoOptions({ ...valid(), cors: { enable: true, allowedOrigin } }));
+    }
+  });
+
   it('rejects negative cors.maxAge', () => {
     assert.throws(() => validateAladoOptions({ ...valid(), cors: { enable: true, maxAge: -1 } }), /maxAge/);
   });

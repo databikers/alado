@@ -67,6 +67,24 @@ describe('decorator registry', () => {
     );
   });
 
+  it('accepts a controller class however its source is printed (minified, anonymous)', () => {
+    for (const source of [
+      'class{}',
+      'class extends Object{}',
+      'class A{}',
+    ]) {
+      const controller = new Function(`return (${source})`)();
+      initializeApplication({
+        serverOptions: baseOptions(`deco-minified-${source.length}`),
+        controllers: [controller],
+      });
+    }
+    assert.throws(
+      () => initializeApplication({ serverOptions: baseOptions('deco-not-a-class'), controllers: [(() => 1) as any] }),
+      /Input must be a class/,
+    );
+  });
+
   it('keeps DTOs with the same class name in different modules separate', async () => {
     const appId = 'deco-collision';
     const makeOrdersDto = () => {
