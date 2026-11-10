@@ -738,3 +738,23 @@ describe('shape() and keys the schema does not name', () => {
     assert.equal(strict({ name: 'a', toString: 1 }), false);
   });
 });
+
+describe('number() and values that are not finite', () => {
+  it('refuses Infinity, which a JSON body can produce with 1e999', () => {
+    const big = JSON.parse('{"n":1e999,"m":-1e999}');
+    assert.equal(big.n, Infinity);
+    for (const check of [
+      validate.number().buildSync(),
+      validate.number().positive().buildSync(),
+      validate.number().min(0).buildSync(),
+      validate.number().max(10).buildSync(),
+      validate.number().negative().buildSync(),
+    ]) {
+      assert.equal(check(big.n), false);
+      assert.equal(check(big.m), false);
+      assert.equal(check(NaN), false);
+    }
+    assert.equal(validate.number().buildSync()(Number.MAX_VALUE), true);
+    assert.equal(validate.number().buildSync()(-0.5), true);
+  });
+});
