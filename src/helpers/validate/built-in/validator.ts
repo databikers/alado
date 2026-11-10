@@ -62,7 +62,9 @@ function every(results: Array<boolean | Promise<boolean>>): boolean | Promise<bo
 // domain labels cannot contain dots, so the pattern can only match one way (linear time)
 const emailRegExp: RegExp = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
-const isNumeric = (v: unknown): v is number | bigint => (typeof v === 'number' && !isNaN(v)) || typeof v === 'bigint';
+// Infinity is not a number a client can mean: JSON has no literal for it, but 1e999 parses to it
+const isNumeric = (v: unknown): v is number | bigint =>
+  (typeof v === 'number' && Number.isFinite(v)) || typeof v === 'bigint';
 
 // lets the request validation convert a query or path string first (see numeric-input.ts)
 function markNumericInput<T extends object>(fn: T, type: NumericInputType | undefined): T {
@@ -125,7 +127,7 @@ class Validator {
   }
   number(): Validator {
     this.numericType = this.numericType || 'number';
-    return this.add((v) => typeof v === 'number' && !isNaN(v));
+    return this.add((v) => typeof v === 'number' && Number.isFinite(v));
   }
   bigint(): Validator {
     this.numericType = this.numericType || 'bigint';
