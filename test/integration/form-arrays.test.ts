@@ -89,6 +89,49 @@ describe('form fields follow the query rules', () => {
     assert.deepEqual(r.json(), expected);
   });
 
+  it('converts number and bigint fields of a form, as for query values', async () => {
+    const numbers = new AladoServer(baseOptions('form-numbers'));
+    const numeric = (handler: any) => ({
+      validation: { required: true, handler, error: { statusCode: 400, message: 'n' } },
+    });
+    numbers.post(
+      '/n',
+      {
+        title: 't',
+        options: { allowUnknownFields: false },
+        request: {
+          body: { age: numeric(validate.number().integer().min(18).build()), id: numeric(validate.bigint().build()) },
+        },
+        response: { statusCode: 200, body: {} },
+      } as any,
+      async (r: any) => ({
+        statusCode: 200,
+        headers: json,
+        body: { age: r.body.age, id: `${typeof r.body.id}:${r.body.id}` },
+      }),
+    );
+    const p = await listen(numbers);
+    const urlencoded = await send(p, { method: 'POST', path: '/n', headers: form, body: 'age=30&id=9007199254740993' });
+    assert.deepEqual(urlencoded.json(), { age: 30, id: 'bigint:9007199254740993' });
+    const parts = multipart([
+      { name: 'age', value: '30' },
+      { name: 'id', value: '7' },
+    ]);
+    const multi = await send(p, {
+      method: 'POST',
+      path: '/n',
+      headers: { 'Content-Type': parts.contentType },
+      body: parts.body,
+    });
+    assert.deepEqual(multi.json(), { age: 30, id: 'bigint:7' });
+    assert.equal((await send(p, { method: 'POST', path: '/n', headers: form, body: 'age=abc&id=7' })).status, 400);
+    assert.equal((await send(p, { method: 'POST', path: '/n', headers: form, body: 'age=17&id=7' })).status, 400);
+    // a JSON body is typed already: a number sent as a string stays a string and is refused
+    const typed = await send(p, { method: 'POST', path: '/n', headers: json, body: '{"age":"30","id":"7"}' });
+    assert.equal(typed.status, 400);
+    await close(numbers);
+  });
+
   it('a field declared as a string refuses a repeated value instead of keeping the last one', async () => {
     const one = await send(port, { method: 'POST', path: '/strict', headers: form, body: 'name=a' });
     assert.deepEqual(one.json(), { name: 'a' });
