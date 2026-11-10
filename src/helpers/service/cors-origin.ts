@@ -43,3 +43,22 @@ export function corsVariesByOrigin(cors: CorsOptions): boolean {
     (allowed.includes('*') && Boolean(cors.allowedCredentials))
   );
 }
+
+/**
+ * The CORS headers that do not depend on the request. Empty lists are left out instead of sent as an
+ * empty header, and Access-Control-Allow-Credentials goes out only as "true" (the only value browsers
+ * act on: "false" is the same as no header).
+ */
+export function corsStaticHeaders(cors: CorsOptions): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (cors.allowedHeaders?.length) {
+    headers['Access-Control-Allow-Headers'] = cors.allowedHeaders.join(', ');
+  }
+  if (cors.exposeHeaders?.length) {
+    headers['Access-Control-Expose-Headers'] = cors.exposeHeaders.join(', ');
+  }
+  if (cors.allowedCredentials) {
+    headers['Access-Control-Allow-Credentials'] = 'true';
+  }
+  return headers;
+}

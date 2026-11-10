@@ -7,6 +7,7 @@ import {
   bodyReaders,
   clearRoutePath,
   corsAllowOrigin,
+  corsStaticHeaders,
   isOpenApiPath,
   normalizeHeaderNames,
   validateContext,
@@ -294,9 +295,7 @@ export class Router {
           handler: (request: Request) => {
             const headers: Record<string, string> = {
               'Access-Control-Allow-Methods': this.getOptionsData(optionsDataKey).join(', '),
-              'Access-Control-Allow-Headers': this.options.cors?.allowedHeaders?.join(', ') || '',
-              'Access-Control-Expose-Headers': this.options.cors?.exposeHeaders?.join(', ') || '',
-              'Access-Control-Allow-Credentials': this.options.cors?.allowedCredentials ? 'true' : 'false',
+              ...corsStaticHeaders(this.options.cors),
               // ?? and not ||: maxAge 0 (no preflight caching) is a valid value
               'Access-Control-Max-Age': Math.round(this.options.cors?.maxAge ?? 86400).toString(10),
             };

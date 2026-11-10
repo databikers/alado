@@ -5,6 +5,7 @@ import {
   defaultOpenApiDocObject,
   defaultHost,
   defaultBacklog,
+  defaultCorsAllowedHeaders,
   defaultMaxBodySizeBytes,
   DEFAULT_ID,
 } from '@const';
@@ -45,7 +46,8 @@ export class AladoServer {
         cors: {
           enable: options.cors?.enable,
           allowedOrigin: options?.cors?.allowedOrigin || '*',
-          allowedHeaders: options?.cors?.allowedHeaders || [],
+          // ?? and not ||: an explicit [] allows no request headers
+          allowedHeaders: options?.cors?.allowedHeaders ?? [...defaultCorsAllowedHeaders],
           allowedMethods: new Map<any, any>(),
           exposeHeaders: options?.cors?.exposeHeaders || [],
           allowedCredentials: options?.cors?.allowedCredentials || false,

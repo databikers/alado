@@ -16,6 +16,7 @@ import {
   queryParser,
   clearRoutePath,
   corsAllowOrigin,
+  corsStaticHeaders,
   corsVariesByOrigin,
   isReadableStream,
   validateRequestFiles,
@@ -657,11 +658,7 @@ export class RequestProcessor {
   protected corsHeaders(allowedMethods: string[] | undefined, origin: string): Record<string, string> {
     const cors = this.options.router.options.cors;
     if (!this.corsStatic) {
-      this.corsStatic = {
-        'Access-Control-Allow-Headers': cors?.allowedHeaders?.join(', ') || '',
-        'Access-Control-Expose-Headers': cors?.exposeHeaders?.join(', ') || '',
-        'Access-Control-Allow-Credentials': cors?.allowedCredentials ? 'true' : 'false',
-      };
+      this.corsStatic = corsStaticHeaders(cors);
     }
     let methods: string = '';
     if (allowedMethods) {
@@ -673,10 +670,9 @@ export class RequestProcessor {
       }
       methods = cached.value;
     }
-    const headers: Record<string, string> = {
-      'Access-Control-Allow-Methods': methods,
-      ...this.corsStatic,
-    };
+    const headers: Record<string, string> = methods
+      ? { 'Access-Control-Allow-Methods': methods, ...this.corsStatic }
+      : { ...this.corsStatic };
     const allowOrigin: string | undefined = corsAllowOrigin(cors, origin === '*' ? undefined : origin);
     if (allowOrigin !== undefined) {
       headers['Access-Control-Allow-Origin'] = allowOrigin;
