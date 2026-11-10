@@ -96,6 +96,29 @@ function hasKeys(value: any): boolean {
   return false;
 }
 
+const HANDLER_TIMEOUT: unique symbol = Symbol('alado.handlerTimeout');
+
+/**
+ * The handler's response, or HANDLER_TIMEOUT when it takes longer than `ms`. A handler that never
+ * settles would otherwise hold its connection (and everything the request references) for good.
+ * Whatever the handler does after the timeout is ignored, a late rejection included.
+ */
+function answerWithin<T>(pending: T | Promise<T>, ms: number): Promise<T | typeof HANDLER_TIMEOUT> {
+  return new Promise((resolve, reject) => {
+    const timer: NodeJS.Timeout = setTimeout(() => resolve(HANDLER_TIMEOUT), ms);
+    Promise.resolve(pending).then(
+      (value: T) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 const bodyPathRegExp: RegExp = /^(body|rawBody|files)(\.|\[|$)/;
 // where the body has to be read: before authentication or access control when they read it,
 // otherwise after both, so a refused request never has its body read and parsed. 'none': the route
@@ -668,7 +691,16 @@ export class RequestProcessor {
           }
         }
         try {
-          const response: Response<any> = await handler(request);
+          const timeoutMs: number = this.options.handlerTimeoutMs || 0;
+          const response: Response<any> | typeof HANDLER_TIMEOUT = timeoutMs
+            ? await answerWithin(handler(request), timeoutMs)
+            : await handler(request);
+          if (response === HANDLER_TIMEOUT) {
+            this.logError(new Error(`Handler of ${method} ${uri || '/'} did not answer within ${timeoutMs} ms`), 503);
+            // the handler may still be running: nothing more is read from this connection
+            res.setHeader('Connection', 'close');
+            return this.respondError(res, { statusCode: 503, message: 'Service Unavailable' }, backgroundHeaders);
+          }
           return this.respond(res, response, backgroundHeaders);
         } catch (e: any) {
           const clientError = toClientError(e);

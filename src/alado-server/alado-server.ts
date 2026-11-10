@@ -73,6 +73,7 @@ export class AladoServer {
         // 0 explicitly disables the limit
         maxBodySizeBytes: options.maxBodySizeBytes ?? defaultMaxBodySizeBytes,
         trustProxy: options.trustProxy ?? false,
+        handlerTimeoutMs: options.handlerTimeoutMs ?? 0,
         parsing: {
           repeatedFiles: options.parsing?.repeatedFiles ?? 'last',
           maxFilesPerField: options.parsing?.maxFilesPerField ?? 1,

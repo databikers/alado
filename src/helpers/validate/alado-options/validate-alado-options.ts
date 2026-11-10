@@ -139,6 +139,13 @@ function validateParsing(options: AladoServerOptions) {
   }
 }
 
+function validateHandlerTimeout(options: AladoServerOptions) {
+  const { handlerTimeoutMs } = options;
+  if (handlerTimeoutMs !== undefined && !(Number.isFinite(handlerTimeoutMs) && handlerTimeoutMs >= 0)) {
+    throw new Error('AladoServerOptions.handlerTimeoutMs should be a number of milliseconds, 0 for no limit');
+  }
+}
+
 export function validateAladoOptions(options: AladoServerOptions) {
   const { port, cors, openApiDoc, logger, verbose, maxBodySizeBytes } = options;
   validatePort(port);
@@ -150,4 +157,5 @@ export function validateAladoOptions(options: AladoServerOptions) {
   validateTrustProxy(options);
   validateCaseSensitiveRoutes(options);
   validateParsing(options);
+  validateHandlerTimeout(options);
 }

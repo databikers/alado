@@ -13,4 +13,5 @@ export type RequestProcessorOptions = {
   maxBodySizeBytes?: number;
   trustProxy?: boolean | number;
   parsing?: ParsingOptions;
+  handlerTimeoutMs?: number;
 };
