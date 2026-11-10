@@ -220,6 +220,8 @@ import { get, query, post, put, patch, del, head } from 'alado';
 
 Routes are registered in declaration order. Registering a second route with the same method and path (also when only the parameter names differ, e.g. `/users/:id` and `/users/:userId`) throws an `AladoConfigurationError` with `code: 'ROUTE_ALREADY_REGISTERED'` at startup, since the second one could never be reached.
 
+> **Path parameters need a path DTO.** `req.path` holds only the parameters declared with `@defineRequest({ path: ... })`: on a route such as `/orders/:id` without one, `req.path` is `{}` and `req.path.id` is `undefined`, like any other undeclared request field. Declare each parameter the handler reads, with its validator.
+
 The request body is read for `POST`, `PUT`, `PATCH` and `QUERY` only: RFC 9110 gives a `GET`, `HEAD`, `DELETE` or `OPTIONS` body no meaning. A route of those methods that declares `body` or `files` fields, or reads `body.*`, `rawBody` or `files.*` in `@withAuth` or `@accessControl`, throws an `AladoConfigurationError` with `code: 'BODY_NOT_ALLOWED'` at startup instead of refusing every request.
 
 Every declared request field needs a validator: a DTO property with `@documentProperty` or `@transformProperty` but no `@validateProperty` (or a `PropertyDefinition` without `validation`) stops the application at startup with an error naming the field, such as `Request field body.reason has no validator`.
@@ -361,6 +363,7 @@ Throw an `HttpError`, or a plain `{ statusCode, message }` object, to answer wit
 import { HttpError } from 'alado';
 
 @get('/orders/:id')
+@defineRequest({ path: OrderIdDto })
 async getOrder(req: Request) {
   const order = await orders.find(req.path.id);
   if (!order) {
