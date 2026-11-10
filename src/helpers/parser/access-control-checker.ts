@@ -1,8 +1,27 @@
+import { timingSafeEqual } from 'crypto';
 import { AccessControlConfig, AladoServerError, Context } from '@dto';
 import { getProperty } from '../accessor';
 import { checkDeclaredInput } from '../validate/context/request-input';
 
 const isMissing = (value: unknown): boolean => value === undefined || value === null;
+
+/**
+ * `===`, but two strings are compared in constant time: a rule often compares a secret (an API key
+ * header with expectedValue), and a comparison that stops at the first different character tells
+ * how much of a guess was right. Only the length can still be told apart.
+ */
+function sameValue(expected: unknown, provided: unknown): boolean {
+  if (typeof expected !== 'string' || typeof provided !== 'string') {
+    return expected === provided;
+  }
+  const a: Buffer = Buffer.from(expected);
+  const b: Buffer = Buffer.from(provided);
+  if (a.length !== b.length) {
+    timingSafeEqual(a, a);
+    return false;
+  }
+  return timingSafeEqual(a, b);
+}
 
 // request parts a client writes; anything else (auth.*) is set by the application
 const clientParts: Set<string> = new Set([
@@ -80,7 +99,7 @@ export async function accessControlChecker(context: Context<any>, request: any):
     }
 
     if (expectedValue !== undefined) {
-      success = expectedValue === providedValue;
+      success = sameValue(expectedValue, providedValue);
     }
 
     if (!success) {
@@ -95,7 +114,7 @@ export async function accessControlChecker(context: Context<any>, request: any):
         !isMissing(rawValue) &&
         !isMissing(providedValue) &&
         !isMissing(compareWithValue) &&
-        compareWithValue === providedValue;
+        sameValue(compareWithValue, providedValue);
     }
 
     if (!success) {

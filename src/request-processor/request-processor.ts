@@ -120,6 +120,8 @@ function answerWithin<T>(pending: T | Promise<T>, ms: number): Promise<T | typeo
   });
 }
 
+const NO_SNIFF_HEADER: string = 'x-content-type-options';
+
 const bodyPathRegExp: RegExp = /^(body|rawBody|files)(\.|\[|$)/;
 // where the body has to be read: before authentication or access control when they read it,
 // otherwise after both, so a refused request never has its body read and parsed. 'none': the route
@@ -342,12 +344,16 @@ export class RequestProcessor {
   // CORS header values that do not depend on the request, built on first use
   private corsStatic?: Record<string, string>;
   private swaggerJsonPath: string = '';
+  private readonly serverSetsNoSniff: boolean;
   private swaggerJson?: string;
   private swaggerJsonRevision: number = -1;
   private corsMethods: WeakMap<string[], { count: number; value: string }> = new WeakMap();
 
   constructor(requestProcessorOptions: RequestProcessorOptions) {
     this.options = requestProcessorOptions;
+    this.serverSetsNoSniff = Object.keys(requestProcessorOptions.headers || {}).some(
+      (name: string) => name.toLowerCase() === NO_SNIFF_HEADER,
+    );
     if (requestProcessorOptions.openApiDoc?.enable) {
       const swaggerUiDirectory: string = swaggerUiAssetPath();
       // the document is served under the docs route, so it never takes a path of the API at the root
@@ -384,14 +390,24 @@ export class RequestProcessor {
     if (backgroundHeaders?.Vary) {
       mergeVary(headers, backgroundHeaders.Vary);
     }
+    let setsNoSniff: boolean = this.serverSetsNoSniff;
     for (const name in responseHeaders) {
       // only names of a matching length are lower-cased
-      const lower: string = name.length === 12 || name.length === 14 || name.length === 17 ? name.toLowerCase() : '';
+      const length: number = name.length;
+      const lower: string = length === 12 || length === 14 || length === 17 || length === 22 ? name.toLowerCase() : '';
       if (lower === 'content-type' && contentType === undefined) {
         contentType = responseHeaders[name];
       } else if (lower === 'content-length' || lower === 'transfer-encoding') {
         hasContentLength = true;
+      } else if (lower === NO_SNIFF_HEADER) {
+        setsNoSniff = true;
       }
+    }
+    // Without it a browser may guess a type from the bytes: a JSON or text response holding markup
+    // (an echoed value, an uploaded file) can then run as HTML. A header set by the handler or in
+    // the server options wins.
+    if (!setsNoSniff) {
+      headers['X-Content-Type-Options'] = 'nosniff';
     }
     // cheapest checks first: most bodies are plain objects, strings or buffers
     const isRawBody: boolean =
