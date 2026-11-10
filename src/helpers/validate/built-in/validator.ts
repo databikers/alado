@@ -219,10 +219,25 @@ class Validator {
 
   //  Object rules
 
-  shape(schema: Record<string, ValidatorFn>): Validator {
+  /**
+   * The object's keys, each checked by its validator. A key the schema does not name refuses the
+   * object: a validator cannot remove it, so `{ name, isAdmin: true }` would otherwise pass
+   * `shape({ name })` and reach whatever stores the object. `{ allowUnknownKeys: true }` checks the
+   * named keys only. The XML parser's own keys ('@ns', '@attrs') never count as unknown.
+   */
+  shape(schema: Record<string, ValidatorFn>, options: { allowUnknownKeys?: boolean } = {}): Validator {
+    const allowUnknownKeys: boolean = options.allowUnknownKeys === true;
     return this.add((v) => {
       if (typeof v !== 'object' || v === null || Array.isArray(v)) {
         return false;
+      }
+      if (!allowUnknownKeys) {
+        for (const key of Object.keys(v)) {
+          // '@ns' and '@attrs' are added by the XML body parser to every element: not sent as keys
+          if (!Object.prototype.hasOwnProperty.call(schema, key) && key !== '@ns' && key !== '@attrs') {
+            return false;
+          }
+        }
       }
       return every(
         Object.entries(schema).map(
