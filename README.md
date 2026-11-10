@@ -1209,6 +1209,7 @@ When a request arrives with a `Content-Type` of `text/xml` or `application/xml`,
 - **Text next to child elements is kept under `#text`.** `<p>Total: <b>5</b> EUR</p>` becomes `p: { b: '5', '#text': 'Total: EUR', '@ns': null }` (the text pieces, joined). Whitespace used only for indentation is dropped.
 - **CDATA sections are unwrapped automatically**, and their contents treated as plain text.
 - **One root element.** Text before it, or anything after it other than whitespace and comments, gets `400 Invalid XML body`.
+- **Well-formed only.** An attribute repeated on one element, or a character reference to a character XML does not allow (`&#0;` and other control characters, a surrogate half such as `&#xD800;`, `&#xFFFE;`), gets `400 Invalid XML body`.
 - **Namespaces resolve to local names.** For SOAP envelopes or ISO 20022 style payment messages, elements are keyed by their local name regardless of which prefix the sender used (`soapenv:Body` and `soap:Body` parse identically if they share a namespace). Each element also carries an `@ns` field with its resolved namespace URI, so elements sharing a local name across different namespaces stay distinguishable.
 
 Because the contract is identical to JSON, everything documented under [`defineRequest`](#definerequest) and [DTOs](#dtos) — `@validateProperty`, `@documentProperty`, `@transformProperty`, auto-generated OpenAPI schemas applies to XML bodies without any extra setup.
