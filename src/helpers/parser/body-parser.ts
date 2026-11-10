@@ -82,7 +82,8 @@ export function parsePartHeaders(headers: string): PartHeaders {
   return {
     name: name && name[1] ? Buffer.from(name[1], 'latin1').toString('utf8') : null,
     filename: filename ? Buffer.from(filename[1], 'latin1').toString('utf8') : null,
-    mimetype: mimetype && mimetype[1].trim() ? mimetype[1].trim() : null,
+    // the media type alone, lower-cased: "Text/Plain; charset=utf-8" is the type text/plain
+    mimetype: mimetype && mediaType(mimetype[1]) ? mediaType(mimetype[1]) : null,
   };
 }
 

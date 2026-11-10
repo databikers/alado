@@ -19,7 +19,8 @@ export function validateRequestFiles(context: Context<any>, request: any): Alado
       // parsing.repeatedFiles: 'array' gives every file of a repeated field: each one is checked
       for (const one of Array.isArray(uploaded) ? uploaded : [uploaded]) {
         const { size, mimetype } = one;
-        if (!mimetypes.includes(mimetype)) {
+        // media types are case-insensitive (RFC 9110 8.3.1); the parser already gives them lower-cased
+        if (!mimetypes.some((allowed: string) => allowed.toLowerCase() === mimetype)) {
           return mimetypeError;
         }
         if (size > maxSize) {
