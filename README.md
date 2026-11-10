@@ -611,6 +611,8 @@ const isAddress = validate
   .build();
 ```
 
+> **A shape refuses keys it does not name.** `{ "city": "Kyiv", "isVerified": true }` fails a shape without `isVerified`, at any depth. Top-level request fields are stripped when unknown, but a validator cannot remove a key from a nested object, so an extra key would otherwise reach the handler and whatever stores the object. Accepting extra keys is an explicit choice: `shape(schema, { allowUnknownKeys: true })` checks the named keys only. The keys the XML parser adds to elements (`@ns`, `@attrs`) never count as unknown.
+
 Shapes can be nested to any depth:
 
 ```ts
