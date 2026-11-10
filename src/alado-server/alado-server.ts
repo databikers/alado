@@ -120,11 +120,41 @@ export class AladoServer {
     this.router.use(HttpMethod.HEAD, path, context, handler);
   }
 
+  /**
+   * Starts listening. `cb` is called once: without an argument when the server listens (also when
+   * it already did), with the error when it cannot (EADDRINUSE, EACCES, ...). Without `cb`, such
+   * an error is emitted by the returned server, as Node does.
+   */
   public start(cb?: (err?: Error) => void): Server {
-    return this.listening ? this.server : this.server.listen(this.port, this.host, this.backlog, cb);
+    if (this.listening) {
+      if (cb) {
+        queueMicrotask(() => cb());
+      }
+      return this.server;
+    }
+    if (cb) {
+      const onError = (error: Error): void => {
+        this.server.removeListener('listening', onListening);
+        cb(error);
+      };
+      const onListening = (): void => {
+        this.server.removeListener('error', onError);
+        cb();
+      };
+      this.server.once('error', onError);
+      this.server.once('listening', onListening);
+    }
+    return this.server.listen(this.port, this.host, this.backlog);
   }
 
-  public stop(cb: (error?: Error) => void): Server {
-    return this.listening ? this.server.close(cb) : this.server;
+  /** Stops listening. `cb` is always called: with the error from close(), or at once when not listening. */
+  public stop(cb?: (error?: Error) => void): Server {
+    if (this.listening) {
+      return this.server.close(cb);
+    }
+    if (cb) {
+      queueMicrotask(() => cb());
+    }
+    return this.server;
   }
 }
