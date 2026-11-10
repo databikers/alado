@@ -226,6 +226,8 @@ Routes are registered in declaration order. Registering a second route with the 
 
 The request body is read for `POST`, `PUT`, `PATCH` and `QUERY` only: RFC 9110 gives a `GET`, `HEAD`, `DELETE` or `OPTIONS` body no meaning. A route of those methods that declares `body` or `files` fields, or reads `body.*`, `rawBody` or `files.*` in `@withAuth` or `@accessControl`, throws an `AladoConfigurationError` with `code: 'BODY_NOT_ALLOWED'` at startup instead of refusing every request.
 
+Keys named `__proto__`, `constructor`, `prototype`, `__defineGetter__` and `__defineSetter__` are removed from JSON bodies (at any depth), form fields, query strings and XML: they could reach the prototype of the object they are copied into. A field with one of those names never reaches a validator or the handler. A UTF-8 byte order mark at the start of a text body is skipped for parsing (`rawBody` keeps it).
+
 A path parameter (`:id`) runs to the end of its path segment and its name is made of letters, digits, `_` and `-`. A route whose parameter name contains anything else (`/files/:name.json` would declare a parameter called `name.json`, matching `report.xml` too), or that declares one name twice (`/orgs/:id/users/:id`), throws an `AladoConfigurationError` with `code: 'INVALID_PATH_PARAMETER'` at startup.
 
 Every declared request field needs a validator: a DTO property with `@documentProperty` or `@transformProperty` but no `@validateProperty` (or a `PropertyDefinition` without `validation`) stops the application at startup with an error naming the field, such as `Request field body.reason has no validator`.
