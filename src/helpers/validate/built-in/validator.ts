@@ -13,6 +13,43 @@ function isAsyncFunction(fn: unknown): boolean {
   return typeof fn === 'function' && fn.constructor?.name === 'AsyncFunction';
 }
 
+/**
+ * A validator from build() is an async function: calling it allocates a promise even when every rule
+ * is synchronous. It also carries its rules as a plain function under this key, which answers with
+ * a boolean when it can and a promise only when a rule returns one. items() and shape() call that,
+ * so a large array costs no promise per item.
+ */
+const direct: unique symbol = Symbol('alado.validator.direct');
+
+const directCall = (fn: ValidatorFn): ValidatorFn => (fn as any)[direct] ?? fn;
+
+function runRules(rules: ValidatorFn[], input: any, root: any, from: number = 0): boolean | Promise<boolean> {
+  for (let i: number = from; i < rules.length; i++) {
+    const ok: boolean | Promise<boolean> = rules[i](input, root);
+    if (isThenable(ok)) {
+      return Promise.resolve(ok).then((result: boolean) => (result ? runRules(rules, input, root, i + 1) : false));
+    }
+    if (!ok) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// one item after the other, stopping at the first that fails; a promise only where an item gives one
+function everyItem(items: any[], fn: ValidatorFn, from: number = 0): boolean | Promise<boolean> {
+  for (let i: number = from; i < items.length; i++) {
+    const ok: boolean | Promise<boolean> = fn(items[i]);
+    if (isThenable(ok)) {
+      return Promise.resolve(ok).then((result: boolean) => (result ? everyItem(items, fn, i + 1) : false));
+    }
+    if (!ok) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // Stays synchronous when every result is synchronous, so composed
 // validators built with .buildSync() can be nested in shape() / items().
 function every(results: Array<boolean | Promise<boolean>>): boolean | Promise<boolean> {
@@ -192,7 +229,7 @@ class Validator {
           ([
             key,
             fn,
-          ]) => fn(v[key], v),
+          ]) => directCall(fn)(v[key], v),
         ),
       );
     });
@@ -264,12 +301,8 @@ class Validator {
   //  Array rules
 
   items(fn: ValidatorFn): Validator {
-    return this.add((v) => {
-      if (!Array.isArray(v)) {
-        return false;
-      }
-      return every(v.map((item) => fn(item)));
-    });
+    const item: ValidatorFn = directCall(fn);
+    return this.add((v) => Array.isArray(v) && everyItem(v, item));
   }
 
   minItems(n: number): Validator {
@@ -288,19 +321,13 @@ class Validator {
     const rules = [...this.rules];
     const required = this._required;
     const nullable = this._nullable;
-    return markNumericInput(async (input: any, root?: any): Promise<boolean> => {
+    const run = (input: any, root?: any): boolean | Promise<boolean> => {
       const settled: boolean | undefined = emptyInput(input, required, nullable);
-      if (settled !== undefined) {
-        return settled;
-      }
-      for (const rule of rules) {
-        const ok = await rule(input, root);
-        if (!ok) {
-          return false;
-        }
-      }
-      return true;
-    }, this.numericType);
+      return settled !== undefined ? settled : runRules(rules, input, root);
+    };
+    const built = async (input: any, root?: any): Promise<boolean> => run(input, root);
+    Object.defineProperty(built, direct, { value: run });
+    return markNumericInput(built, this.numericType);
   }
 
   // Same semantics as build(), but returns a plain boolean. Throws if any rule
