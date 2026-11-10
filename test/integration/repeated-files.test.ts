@@ -89,6 +89,28 @@ describe('repeated multipart files, default (one file per field name)', () => {
     }
   });
 
+  it('compares the media type of a file without its parameters or letter case', async () => {
+    for (const contentType of [
+      'text/plain; charset=utf-8',
+      'Text/Plain',
+      'TEXT/PLAIN;charset=UTF-8',
+    ]) {
+      const r = await upload(port, [doc('a.txt', 'aa', contentType)]);
+      assert.deepEqual(
+        [
+          r.status,
+          r.json(),
+        ],
+        [
+          200,
+          { docs: 'a.txt:text/plain:2' },
+        ],
+        contentType,
+      );
+    }
+    assert.equal((await upload(port, [doc('a.txt', 'aa', 'text/plainer')])).status, 415);
+  });
+
   it('does not count text fields, and skips undeclared file fields', async () => {
     const r = await upload(port, [
       doc('a.txt', 'aa'),
