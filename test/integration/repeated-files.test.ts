@@ -29,8 +29,11 @@ const echo = async (r: any) => ({
   ),
 });
 
-function start(repeatedFiles?: 'last' | 'array') {
-  const app = new AladoServer({ ...baseOptions(`repeated-${repeatedFiles}`), parsing: { repeatedFiles } });
+function start(repeatedFiles?: 'last' | 'array', maxFilesPerField?: number) {
+  const app = new AladoServer({
+    ...baseOptions(`repeated-${repeatedFiles}-${maxFilesPerField}`),
+    parsing: { repeatedFiles, maxFilesPerField },
+  });
   app.post(
     '/upload',
     {
@@ -55,7 +58,7 @@ const doc = (filename: string, value: string, contentType = 'text/plain') => ({
   contentType,
 });
 
-describe('repeated multipart files, default (last)', () => {
+describe('repeated multipart files, default (one file per field name)', () => {
   let app: AladoServer;
   let port: number;
   before(async () => {
@@ -64,13 +67,26 @@ describe('repeated multipart files, default (last)', () => {
   });
   after(() => close(app));
 
-  it('keeps the last file of a repeated field, as before', async () => {
+  it('refuses a second file under the same name with 400', async () => {
     const r = await upload(port, [
       doc('a.txt', 'aa'),
       doc('b.txt', 'bbbb'),
     ]);
+    assert.equal(r.status, 400);
+    assert.deepEqual(r.json(), { message: 'Too many files under one field name' });
+    assert.deepEqual((await upload(port, [doc('a.txt', 'aa')])).json(), { docs: 'a.txt:text/plain:2' });
+  });
+
+  it('does not count text fields, and skips undeclared file fields', async () => {
+    const r = await upload(port, [
+      doc('a.txt', 'aa'),
+      { name: 'note', value: '1' },
+      { name: 'note', value: '2' },
+      { name: 'other', filename: 'x.txt', value: 'x', contentType: 'text/plain' },
+      { name: 'other', filename: 'y.txt', value: 'y', contentType: 'text/plain' },
+    ]);
     assert.equal(r.status, 200);
-    assert.deepEqual(r.json(), { docs: 'b.txt:text/plain:4' });
+    assert.deepEqual(r.json(), { docs: 'a.txt:text/plain:2' });
   });
 
   it('keeps a file sent without a Content-Type as application/octet-stream', async () => {
@@ -81,11 +97,30 @@ describe('repeated multipart files, default (last)', () => {
   });
 });
 
-describe("repeated multipart files, parsing.repeatedFiles: 'array'", () => {
+describe("repeated multipart files, maxFilesPerField: 0 with repeatedFiles: 'last'", () => {
   let app: AladoServer;
   let port: number;
   before(async () => {
-    app = start('array');
+    app = start('last', 0);
+    port = await listen(app);
+  });
+  after(() => close(app));
+
+  it('keeps the last file of a repeated field', async () => {
+    const r = await upload(port, [
+      doc('a.txt', 'aa'),
+      doc('b.txt', 'bbbb'),
+    ]);
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.json(), { docs: 'b.txt:text/plain:4' });
+  });
+});
+
+describe("repeated multipart files, parsing.repeatedFiles: 'array', maxFilesPerField: 3", () => {
+  let app: AladoServer;
+  let port: number;
+  before(async () => {
+    app = start('array', 3);
     port = await listen(app);
   });
   after(() => close(app));
@@ -112,6 +147,16 @@ describe("repeated multipart files, parsing.repeatedFiles: 'array'", () => {
     assert.deepEqual(listed.json(), { docs: ['a.txt:text/plain:2'] });
   });
 
+  it('refuses more files than maxFilesPerField', async () => {
+    const r = await upload(port, [
+      doc('a.txt', 'a'),
+      doc('b.txt', 'b'),
+      doc('c.txt', 'c'),
+      doc('d.txt', 'd'),
+    ]);
+    assert.equal(r.status, 400);
+  });
+
   it('checks every file of the list against the rules', async () => {
     assert.equal(
       (
@@ -135,6 +180,19 @@ describe("repeated multipart files, parsing.repeatedFiles: 'array'", () => {
 });
 
 describe('parsing options', () => {
+  it('refuses a maxFilesPerField that is not a whole number from 0', () => {
+    for (const maxFilesPerField of [
+      -1,
+      1.5,
+      '2' as any,
+    ]) {
+      assert.throws(
+        () => new AladoServer({ ...baseOptions('bad-max-files'), parsing: { maxFilesPerField } }),
+        /maxFilesPerField should be a whole number/,
+      );
+    }
+  });
+
   it('refuses an unknown repeatedFiles value', () => {
     assert.throws(
       () => new AladoServer({ ...baseOptions('bad-parsing'), parsing: { repeatedFiles: 'first' as any } }),
