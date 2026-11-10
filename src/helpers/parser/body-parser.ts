@@ -25,6 +25,42 @@ export function isJsonContentType(contentType: string | undefined): boolean {
   return mime === ContentType.JSON || /^application\/[\w.+-]+\+json$/.test(mime);
 }
 
+const binaryTypes: Set<string> = new Set([
+  ContentType.OCTET_STREAM,
+  'application/pdf',
+  'application/zip',
+  'application/gzip',
+  'application/protobuf',
+  'application/x-protobuf',
+  'application/msgpack',
+  'application/cbor',
+]);
+
+/**
+ * Types whose bytes are not text: decoding them as UTF-8 replaces every invalid sequence, so the
+ * content cannot be recovered from the string. Their body is given as bytes (request.rawBodyBytes).
+ * Types written as XML or JSON (image/svg+xml) are text.
+ */
+export function isBinaryContentType(contentType: string | undefined): boolean {
+  const mime: string = mediaType(contentType);
+  if (mime.endsWith('+xml') || mime.endsWith('+json')) {
+    return false;
+  }
+  return binaryTypes.has(mime) || /^(image|audio|video|font)\//.test(mime);
+}
+
+const utf8Charsets: Set<string> = new Set([
+  'utf-8',
+  'utf8',
+  'us-ascii',
+]);
+
+// the charset parameter of a Content-Type, lower-cased and unquoted; undefined when there is none
+export function charsetOf(contentType: string | undefined): string | undefined {
+  const match: RegExpExecArray | null = /;\s*charset\s*=\s*"?([^";\s]+)"?/i.exec(contentType || '');
+  return match ? match[1].toLowerCase() : undefined;
+}
+
 type PartHeaders = { name: string | null; filename: string | null; mimetype: string | null };
 type MultipartFile = { name: string; mimetype: string; filename: string; content: Buffer };
 
@@ -250,6 +286,19 @@ export async function bodyParser(
     throw contentTooLarge;
   }
   const mime: string = mediaType(contentType);
+  // bodies are read as sent: a compressed one would only fail later as "invalid JSON"
+  const encoding: string = String(req.headers['content-encoding'] || '')
+    .trim()
+    .toLowerCase();
+  if (encoding && encoding !== 'identity') {
+    throw { statusCode: 415, message: 'Unsupported Content-Encoding' } as AladoServerError;
+  }
+  const binary: boolean = isBinaryContentType(contentType);
+  // text is decoded as UTF-8: another declared charset would be read as garbage
+  const charset: string | undefined = charsetOf(contentType);
+  if (charset && !utf8Charsets.has(charset) && mime !== ContentType.FORM_DATA && !binary) {
+    throw { statusCode: 415, message: 'Unsupported charset' } as AladoServerError;
+  }
   if (mime === ContentType.FORM_DATA) {
     const boundary: string | null = multipartBoundary(req.headers['content-type'] as string);
     // The body is needed as one Buffer. Joining all chunks at the end holds it twice (chunks plus the
@@ -397,6 +446,12 @@ export async function bodyParser(
       req.on('data', collectChunks(req, res, limit, received, reject, textLimits.maxBytes));
       req.once('error', onRequestError(reject));
       const readText = (): void => {
+        if (binary) {
+          // the exact bytes, in a Buffer of their own (never Node's pool or a socket chunk)
+          result.rawBodyBytes = ownCopy(received.chunks, received.bytes);
+          resolve();
+          return;
+        }
         body = concatChunks(received, 'utf8');
         result.rawBody = body;
         if (!body && !mime) {

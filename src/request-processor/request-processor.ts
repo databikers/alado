@@ -623,6 +623,9 @@ export class RequestProcessor {
           } else if (r.rawBody) {
             request.rawBody = r.rawBody;
           }
+          if (r.rawBodyBytes) {
+            request.rawBodyBytes = r.rawBodyBytes;
+          }
           request.files = r.files;
         };
         // Authenticate

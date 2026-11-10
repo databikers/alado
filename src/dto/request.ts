@@ -35,6 +35,8 @@ export interface Request {
   query?: Record<string, any>;
   body?: Record<string, any>;
   rawBody?: string;
+  // the exact bytes of a body with a binary Content-Type (application/octet-stream, image/*, ...)
+  rawBodyBytes?: Buffer;
   // with parsing.repeatedFiles: 'array', a field sent several times (or as name[]) holds an UploadedFile[]
   files?: Record<string, UploadedFile>;
 }
