@@ -1188,7 +1188,7 @@ setAvatar(req) {
 }
 ```
 
-`filename` is the name the client sent (`filename="..."`), decoded as UTF-8 and unchecked: never use it as a path as it is (the example above builds its own). A file part without a `Content-Type` is kept as `application/octet-stream`, so only a field whose `mimetypes` include that type accepts it.
+`filename` is the name the client sent (`filename="..."`), decoded as UTF-8 and unchecked: never use it as a path as it is (the example above builds its own). `mimetype` is the part's media type alone, lower-cased (`Text/Plain; charset=utf-8` is `text/plain`), and is compared with `mimetypes` that way. A file part without a `Content-Type` is kept as `application/octet-stream`, so only a field whose `mimetypes` include that type accepts it.
 
 > **One file per field name by default.** A request may carry one file under each file field name: a second file under the same name (`<input type="file" multiple>`, `docs[]` sent twice) is refused with `400 Too many files under one field name`. Accepting several files is an explicit choice: set `parsing: { maxFilesPerField: n }` in `AladoServerOptions` (`0` for no limit). File parts under a name the route does not declare are skipped while the body is parsed. Text fields are not limited.
 
