@@ -72,8 +72,8 @@ const HEADERS_END: Buffer = Buffer.from('\r\n\r\n');
 
 /**
  * Header fields of one part. `headers` is the text before the blank line, read as latin1 (one
- * char per byte); the field name is UTF-8 and is decoded back. filename="" is kept as '': it is
- * what a browser sends for a file input left empty.
+ * char per byte); the field name and the file name are UTF-8 and are decoded back. filename="" is
+ * kept as '': it is what a browser sends for a file input left empty.
  */
 export function parsePartHeaders(headers: string): PartHeaders {
   const name: RegExpExecArray | null = partNameRegExp.exec(headers);
@@ -81,7 +81,7 @@ export function parsePartHeaders(headers: string): PartHeaders {
   const mimetype: RegExpExecArray | null = partContentTypeRegExp.exec(headers);
   return {
     name: name && name[1] ? Buffer.from(name[1], 'latin1').toString('utf8') : null,
-    filename: filename ? filename[1] : null,
+    filename: filename ? Buffer.from(filename[1], 'latin1').toString('utf8') : null,
     mimetype: mimetype && mimetype[1].trim() ? mimetype[1].trim() : null,
   };
 }
