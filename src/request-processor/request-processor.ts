@@ -18,6 +18,7 @@ import {
   corsAllowOrigin,
   corsStaticHeaders,
   corsVariesByOrigin,
+  FORM_BODY,
   isReadableStream,
   validateRequestFiles,
   validateRequestPart,
@@ -645,6 +646,9 @@ export class RequestProcessor {
             Object.defineProperty(request, 'rawBody', rawBody);
           } else if (r.rawBody) {
             request.rawBody = r.rawBody;
+          }
+          if (r.formBody) {
+            Object.defineProperty(request, FORM_BODY, { value: true });
           }
           if (r.rawBodyBytes) {
             request.rawBodyBytes = r.rawBodyBytes;

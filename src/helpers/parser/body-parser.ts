@@ -362,6 +362,8 @@ export async function bodyParser(
             return (rawBody ??= raw.toString('latin1'));
           },
         });
+        // form fields are text: a number()/bigint() field is converted before validation
+        result.formBody = true;
         if (!boundary) {
           resolve();
           return;
@@ -485,6 +487,7 @@ export async function bodyParser(
               appendField(result.body, key, value);
             }
           }
+          result.formBody = true;
           resolve();
         } else if (isXmlContentType(contentType)) {
           try {

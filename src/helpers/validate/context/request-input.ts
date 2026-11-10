@@ -3,20 +3,29 @@ import { parseJson } from '../../parser/json-parser';
 import { NumericInputType, numericInput, toNumericInput } from '../built-in/numeric-input';
 
 /**
- * The value a declared validator sees. Query and path values are strings: a number()/bigint()
- * validator gets them converted (`numeric` tells the caller to store the converted value). An
+ * The value a declared validator sees. Query and path values, and the fields of a form body, are
+ * strings: a number()/bigint() validator gets them converted (`numeric` tells the caller to store the converted value). An
  * isJSON field gets the parsed JSON, from the same parser as JSON bodies, so a field such as
  * {"__proto__":{...}} never reaches a validator or a transform with an own __proto__ key.
  */
+// set on a request whose body came from a form (urlencoded or multipart): its fields are text
+export const FORM_BODY: unique symbol = Symbol('alado.formBody');
+
+// parts whose values are always text, so a number has to be converted before it can be validated
+function isTextPart(key: string, request: any): boolean {
+  return key === 'query' || key === 'path' || (key === 'body' && request?.[FORM_BODY] === true);
+}
+
 export function validatorInput(
   key: string,
   definition: PropertyDefinition,
   raw: unknown,
+  request?: any,
 ): { value: unknown; numeric: boolean } {
   let value: unknown = raw;
   let numeric: boolean = false;
   const numericType: NumericInputType | undefined = (definition.validation?.handler as any)?.[numericInput];
-  if (numericType && (key === 'query' || key === 'path') && typeof value === 'string') {
+  if (numericType && typeof value === 'string' && isTextPart(key, request)) {
     value = toNumericInput(numericType, value);
     numeric = typeof value !== 'string';
   }
@@ -77,7 +86,7 @@ export function checkDeclaredInput(
   }
   let result: unknown;
   try {
-    result = handler.apply(request, [validatorInput(key, definition as PropertyDefinition, raw).value]);
+    result = handler.apply(request, [validatorInput(key, definition as PropertyDefinition, raw, request).value]);
   } catch {
     return false;
   }

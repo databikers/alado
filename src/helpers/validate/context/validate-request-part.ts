@@ -77,7 +77,7 @@ function validateProperty(
   const accepted: boolean = isPrevalidated(request, key, property, raw);
   // query and path values are strings: a number()/bigint() validator gets them converted, and so
   // does the handler. A value that is not a well-formed number stays a string and fails validation.
-  const input = validatorInput(key, definition, raw);
+  const input = validatorInput(key, definition, raw, request);
   const value: any = input.value;
   if (input.numeric) {
     part[property] = value;
