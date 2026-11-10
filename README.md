@@ -566,7 +566,7 @@ Only a missing value counts as "not provided". A `null` or `""` that is sent goe
 
 `min`, `max`, `integer`, `positive` and `negative` accept bigints as well.
 
-Query and path values always arrive as strings. When a query or path field is validated by a validator built from `validate.number()` or `validate.bigint()`, the string is converted before validation, and the handler gets the converted value. Accepted: decimal numbers with sign, fraction and exponent (`-1.5e3`), `0x` / `0o` / `0b` integers, digit separators (`1_000`), and for `bigint()` an optional `n` suffix (`123n`). Anything else (padded or empty text, `Infinity`, `NaN`, out-of-range values, integers past `Number.MAX_SAFE_INTEGER` for `number()`) stays a string and fails validation. Note that `JSON.stringify` cannot serialise a bigint: convert it before putting it in a response body.
+Query and path values always arrive as strings, and so do the fields of a form body (urlencoded or multipart). When such a field is validated by a validator built from `validate.number()` or `validate.bigint()`, the string is converted before validation, and the handler gets the converted value. Accepted: decimal numbers with sign, fraction and exponent (`-1.5e3`), `0x` / `0o` / `0b` integers, digit separators (`1_000`), and for `bigint()` an optional `n` suffix (`123n`). Anything else (padded or empty text, `Infinity`, `NaN`, out-of-range values, integers past `Number.MAX_SAFE_INTEGER` for `number()`) stays a string and fails validation. A JSON body is typed already, so nothing is converted there: `"30"` is a string and fails `number()`. Note that `JSON.stringify` cannot serialise a bigint: convert it before putting it in a response body.
 
 **Generic**
 
