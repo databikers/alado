@@ -40,11 +40,35 @@ function pascalPath(route: string): string {
  * ("GetUsersById200"), so two routes never overwrite each other's schema (a shared title such as
  * "OK" or a missing one used to put every such response under one name).
  */
-function responseSchemaName(openApiMethod: string, openApiRoute: string, statusCode: number, entity?: string): string {
+// which route owns each generated schema name, per document
+const generatedNames: WeakMap<object, Map<string, string>> = new WeakMap();
+
+function responseSchemaName(
+  openApiDocObject: object,
+  openApiMethod: string,
+  openApiRoute: string,
+  statusCode: number,
+  entity?: string,
+): string {
   if (entity) {
-    return entity;
+    // OpenAPI component names allow letters, digits, '.', '-' and '_' only ("User Profile" -> "User_Profile")
+    return entity.replace(/[^a-zA-Z0-9.\-_]/g, '_');
   }
-  return `${openApiMethod.charAt(0).toUpperCase()}${openApiMethod.slice(1).toLowerCase()}${pascalPath(openApiRoute)}${statusCode}`;
+  // routes that differ only in punctuation or a param ("/users/{id}", "/users/by-id", "/user_list",
+  // "/user-list") build the same name: the later one gets a suffix instead of replacing the first
+  let owners: Map<string, string> | undefined = generatedNames.get(openApiDocObject);
+  if (!owners) {
+    owners = new Map();
+    generatedNames.set(openApiDocObject, owners);
+  }
+  const owner: string = `${openApiMethod} ${openApiRoute} ${statusCode}`;
+  const base: string = `${openApiMethod.charAt(0).toUpperCase()}${openApiMethod.slice(1).toLowerCase()}${pascalPath(openApiRoute)}${statusCode}`;
+  let name: string = base;
+  for (let n: number = 2; owners.has(name) && owners.get(name) !== owner; n++) {
+    name = `${base}_${n}`;
+  }
+  owners.set(name, owner);
+  return name;
 }
 
 function documentResponse(openApiMethod: string, openApiRoute: string, context: Context<any>, openApiDocObject: any) {
@@ -67,7 +91,7 @@ function documentResponse(openApiMethod: string, openApiRoute: string, context: 
       } else {
         schema = { example: '' };
       }
-      const name: string = responseSchemaName(openApiMethod, openApiRoute, statusCode, entity);
+      const name: string = responseSchemaName(openApiDocObject, openApiMethod, openApiRoute, statusCode, entity);
       openApiDocObject.components.schemas[name] = schema;
       const ref: any = { $ref: `#/components/schemas/${name}` };
       response.content = {
