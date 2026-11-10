@@ -77,6 +77,18 @@ describe('repeated multipart files, default (one file per field name)', () => {
     assert.deepEqual((await upload(port, [doc('a.txt', 'aa')])).json(), { docs: 'a.txt:text/plain:2' });
   });
 
+  it('gives a file name that is not ASCII as it was sent', async () => {
+    for (const name of [
+      'файл.txt',
+      'résumé.txt',
+      '履歴書.txt',
+      'plain.txt',
+    ]) {
+      const r = await upload(port, [doc(name, 'aa')]);
+      assert.deepEqual(r.json(), { docs: `${name}:text/plain:2` });
+    }
+  });
+
   it('does not count text fields, and skips undeclared file fields', async () => {
     const r = await upload(port, [
       doc('a.txt', 'aa'),
