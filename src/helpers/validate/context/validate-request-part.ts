@@ -98,7 +98,12 @@ function validateProperty(
     request[key][property] = transformed;
   };
   if (accepted) {
-    return applyTransform();
+    // a throwing transform ends as the field's error here too, not as a 500
+    try {
+      return applyTransform();
+    } catch {
+      return error;
+    }
   }
   try {
     const isValid: any = handler.apply(request, [value]);

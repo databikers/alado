@@ -457,6 +457,11 @@ export async function bodyParser(
         }
         body = concatChunks(received, 'utf8');
         result.rawBody = body;
+        // a UTF-8 byte order mark (written by some Windows tools) is not part of the document:
+        // parsers refuse it, so it is skipped for parsing; rawBody keeps the body as sent
+        if (body.charCodeAt(0) === 0xfeff) {
+          body = body.slice(1);
+        }
         if (!body && !mime) {
           // nothing sent and no type given: there is no body (request.body stays missing). An empty
           // text/plain body is the text '', an empty JSON, XML or form body an empty object

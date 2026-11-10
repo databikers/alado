@@ -520,6 +520,9 @@ export class RequestProcessor {
       return;
     }
     const { statusCode, message } = error;
+    // a writeHead() that threw (an invalid header value from the handler) has already set the reason
+    // phrase of its own status: "500 OK" would go out. Empty: Node uses the one of this status
+    res.statusMessage = '';
     return this.respond(res, {
       statusCode,
       headers: { ...this.options.headers, ...headers, 'Content-Type': 'application/json' },
