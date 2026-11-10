@@ -161,9 +161,11 @@ const app = initializeApplication({
   controllers: [UserController],
 });
 
-app.start(() => console.log('Started'));
+app.start((error) => (error ? console.error('Cannot start', error) : console.log('Started')));
 app.stop(() => console.log('Stopped'));
 ```
+
+The `start()` callback is called once: without an argument when the server listens, with the error when it cannot (`EADDRINUSE`, `EACCES`). Without a callback such an error is emitted by the returned `http.Server`. The `stop()` callback is always called, also when the server was not listening.
 
 ### Passing options to controller constructors
 
