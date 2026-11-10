@@ -57,6 +57,54 @@ describe('OpenAPI document', () => {
     assert.equal(doc.components.schemas.undefined, undefined);
   });
 
+  it('keeps generated names unique when routes differ only in punctuation or a param', () => {
+    const doc = documentOf((app) => {
+      const response = (body: object) => ({ response: { statusCode: 200, headers: json, body } });
+      app.get('/users/:id', route(response({ fromParam: 1 })), ok);
+      app.get('/users/by-id', route(response({ fromLiteral: 1 })), ok);
+      app.get('/user-list', route(response({ dash: 1 })), ok);
+      app.get('/user_list', route(response({ underscore: 1 })), ok);
+    });
+    const schema = (path: string) => {
+      const ref: string = doc.paths[path].get.responses['200'].content['application/json'].schema.$ref;
+      return [
+        ref.split('/').pop(),
+        Object.keys(doc.components.schemas[ref.split('/').pop() as string].properties),
+      ];
+    };
+    assert.deepEqual(schema('/users/{id}'), [
+      'GetUsersById200',
+      ['fromParam'],
+    ]);
+    assert.deepEqual(schema('/users/by-id'), [
+      'GetUsersById200_2',
+      ['fromLiteral'],
+    ]);
+    assert.deepEqual(schema('/user-list'), [
+      'GetUserList200',
+      ['dash'],
+    ]);
+    assert.deepEqual(schema('/user_list'), [
+      'GetUserList200_2',
+      ['underscore'],
+    ]);
+  });
+
+  it('turns an entity into a valid component name', () => {
+    const doc = documentOf((app) => {
+      app.get(
+        '/p',
+        route({ response: { statusCode: 200, headers: json, body: { a: 1 }, entity: 'User Profile' } }),
+        ok,
+      );
+    });
+    assert.equal(
+      doc.paths['/p'].get.responses['200'].content['application/json'].schema.$ref,
+      '#/components/schemas/User_Profile',
+    );
+    assert.ok(Object.keys(doc.components.schemas).every((name) => /^[a-zA-Z0-9.\-_]+$/.test(name)));
+  });
+
   it('describes the body for a Content-Type with parameters, and JSON without one', () => {
     const doc = documentOf((app) => {
       app.post(
