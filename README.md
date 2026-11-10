@@ -530,14 +530,14 @@ Only a missing value counts as "not provided". A `null` or `""` that is sent goe
 
 **Type**
 
-| Method      | Description                                  |
-| ----------- | -------------------------------------------- |
-| `string()`  | Must be a string                             |
-| `number()`  | Must be a number (not NaN)                   |
-| `bigint()`  | Must be a bigint                             |
-| `boolean()` | Must be a boolean                            |
-| `array()`   | Must be an array                             |
-| `object()`  | Must be a plain object (not array, not null) |
+| Method      | Description                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------ |
+| `string()`  | Must be a string                                                                           |
+| `number()`  | Must be a finite number (not NaN, not `Infinity`: a JSON body can produce it with `1e999`) |
+| `bigint()`  | Must be a bigint                                                                           |
+| `boolean()` | Must be a boolean                                                                          |
+| `array()`   | Must be an array                                                                           |
+| `object()`  | Must be a plain object (not array, not null)                                               |
 
 **String**
 
