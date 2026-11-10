@@ -540,8 +540,15 @@ describe('validate: buildSync', () => {
   });
 
   it('throws at call time when a rule returns a Promise', () => {
-    const v = validate.object().shape({ email: validate.string().email().build() }).buildSync();
+    const lookup = validate.custom((v) => Promise.resolve(v === 'a@b.co')).build();
+    const v = validate.object().shape({ email: lookup }).buildSync();
     assert.throws(() => v({ email: 'a@b.co' }), /use \.build\(\) instead of \.buildSync\(\)/);
+  });
+
+  it('accepts a nested build() validator whose rules are all synchronous', () => {
+    const v = validate.object().shape({ email: validate.string().email().build() }).buildSync();
+    assert.equal(v({ email: 'a@b.co' }), true);
+    assert.equal(v({ email: 'nope' }), false);
   });
 
   it('does not throw for an async chain when the input is empty', () => {
@@ -575,5 +582,124 @@ describe('validate: buildSync', () => {
     // handler may return boolean | Promise<boolean>; a plain boolean must be accepted
     const handler = validate.string().min(3).buildSync();
     assert.equal(await Promise.resolve(handler('abcd')), true);
+  });
+});
+
+describe('items() and shape() with validators from build()', () => {
+  it('validate a large array without a promise per item', async () => {
+    const list = validate.array().items(validate.number().build()).build();
+    const items = new Array(300000).fill(1);
+    global.gc?.();
+    const before = process.memoryUsage().heapUsed;
+    assert.equal(await list(items), true);
+    const grown = (process.memoryUsage().heapUsed - before) / 1048576;
+    assert.ok(grown < 40, `heap grew by ${grown.toFixed(0)} MB`);
+    assert.equal(
+      await list([
+        ...items,
+        'x',
+      ]),
+      false,
+    );
+  });
+
+  it('stop at the first item that fails', async () => {
+    let calls = 0;
+    const item = validate
+      .custom((v) => {
+        calls++;
+        return v !== 'bad';
+      })
+      .build();
+    assert.equal(
+      await validate.array().items(item).build()([
+        'a',
+        'bad',
+        'c',
+        'd',
+      ]),
+      false,
+    );
+    assert.equal(calls, 2);
+  });
+
+  it('still await async rules, in order', async () => {
+    const seen: number[] = [];
+    const item = validate
+      .custom(async (v) => {
+        await new Promise((r) => setTimeout(r, v === 1 ? 5 : 0));
+        seen.push(v);
+        return v < 3;
+      })
+      .build();
+    const list = validate.array().items(item).build();
+    assert.equal(
+      await list([
+        1,
+        2,
+      ]),
+      true,
+    );
+    assert.deepEqual(
+      seen,
+      [
+        1,
+        2,
+      ],
+    );
+    assert.equal(
+      await list([
+        1,
+        3,
+        2,
+      ]),
+      false,
+    );
+    const nested = validate
+      .object()
+      .shape({ tags: validate.array().items(validate.string().build()).build() })
+      .build();
+    assert.equal(
+      await nested({
+        tags: [
+          'a',
+          'b',
+        ],
+      }),
+      true,
+    );
+    assert.equal(
+      await nested({
+        tags: [
+          'a',
+          1,
+        ],
+      }),
+      false,
+    );
+  });
+
+  it('keep optional, required and nullable for items', async () => {
+    assert.equal(
+      await validate.array().items(validate.string().nullable().build()).build()([
+        'a',
+        null,
+      ]),
+      true,
+    );
+    assert.equal(
+      await validate.array().items(validate.string().build()).build()([
+        'a',
+        null,
+      ]),
+      false,
+    );
+    assert.equal(
+      await validate.array().items(validate.string().required().build()).build()([
+        'a',
+        '',
+      ]),
+      false,
+    );
   });
 });
