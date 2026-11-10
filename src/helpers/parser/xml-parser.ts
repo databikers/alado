@@ -49,9 +49,17 @@ function decodeEntity(reference: string, name: string): string {
   }
   // character reference: &#65; or &#x41;
   const code: number = name[1] === 'x' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
-  // not a character XML allows (NUL, a surrogate half, past U+10FFFF): kept as written
-  if (code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
-    return reference;
+  // a reference to a character XML does not allow (NUL and other controls, a surrogate half,
+  // U+FFFE/U+FFFF, past U+10FFFF) is a well-formedness error (XML 1.0, 4.1 and 2.2)
+  const allowed: boolean =
+    code === 0x9 ||
+    code === 0xa ||
+    code === 0xd ||
+    (code >= 0x20 && code <= 0xd7ff) ||
+    (code >= 0xe000 && code <= 0xfffd) ||
+    (code >= 0x10000 && code <= 0x10ffff);
+  if (!allowed) {
+    throw new Error(`Invalid character reference ${reference}`);
   }
   return String.fromCodePoint(code);
 }
@@ -119,14 +127,23 @@ export function xmlParser(xmlInput: string): XmlObject {
 
   function parseAttributes(tagContent: string): { [key: string]: string } {
     const attrs: { [key: string]: string } = {};
+    const seen: Set<string> = new Set();
     let i: number = 0;
     for (;;) {
       const attribute: XmlAttribute | null = nextAttribute(tagContent, i);
       if (attribute === null) {
         break;
       }
-      if (attribute.value !== undefined && !unsafeKeys.has(attribute.name)) {
-        attrs[attribute.name] = decodeEntities(attribute.value);
+      if (attribute.value !== undefined) {
+        // XML 1.0, 3.1: an attribute name appears once per element
+        if (seen.has(attribute.name)) {
+          const shown: string = attribute.name.length > 64 ? `${attribute.name.slice(0, 64)}...` : attribute.name;
+          throw new Error(`Attribute "${shown}" repeated`);
+        }
+        seen.add(attribute.name);
+        if (!unsafeKeys.has(attribute.name)) {
+          attrs[attribute.name] = decodeEntities(attribute.value);
+        }
       }
       i = attribute.end;
     }
