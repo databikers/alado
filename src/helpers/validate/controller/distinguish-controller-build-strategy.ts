@@ -1,5 +1,6 @@
 function isClass(value: any): boolean {
-  return typeof value === 'function' && /^\s*class\s/.test(Function.prototype.toString.call(value));
+  // \b, not \s: a minified anonymous class prints as "class{...}"
+  return typeof value === 'function' && /^\s*class\b/.test(Function.prototype.toString.call(value));
 }
 
 function isPlainObject(value: any): boolean {

@@ -10,6 +10,33 @@ function validatePort(port: number) {
   }
 }
 
+const originRegExp: RegExp = /^[a-z][a-z0-9+.-]*:\/\/[^/?#\s]+$/;
+
+/**
+ * Browsers send an origin as scheme://host[:port], lower-cased, without a path or a trailing slash,
+ * and it is compared as text: "https://app.example.com/" or "https://App.Example.com" could never
+ * match, so every request from that site would be refused with nothing pointing at the setting.
+ */
+function validateOrigin(origin: string) {
+  if (origin === '*' || origin === 'null') {
+    return;
+  }
+  let normalized: string | undefined;
+  if (/^https?:\/\//i.test(origin)) {
+    try {
+      normalized = new URL(origin).origin;
+    } catch {
+      normalized = undefined;
+    }
+  }
+  if (!originRegExp.test(origin) || (normalized !== undefined && normalized !== origin)) {
+    throw new Error(
+      `AladoServerOptions.cors.allowedOrigin "${origin}" is not an origin: use scheme://host[:port] in lower case, ` +
+        `without a path or a trailing slash${normalized && normalized !== 'null' ? ` ("${normalized}")` : ''}`,
+    );
+  }
+}
+
 function validateCors(cors: CorsOptions) {
   if (!cors || typeof cors !== 'object') {
     throw new Error('AladoServerOptions.cors should be an object');
@@ -28,7 +55,7 @@ function validateCors(cors: CorsOptions) {
   }
   if (
     Object.prototype.hasOwnProperty.apply(cors, ['maxAge']) &&
-    (typeof cors.maxAge !== 'number' || cors?.maxAge < 0)
+    (typeof cors.maxAge !== 'number' || !Number.isFinite(cors.maxAge) || cors.maxAge < 0)
   ) {
     throw new Error('AladoServerOptions.cors.maxAge should be a positive number');
   }
@@ -44,6 +71,9 @@ function validateCors(cors: CorsOptions) {
           !cors[key]
         ) {
           throw new Error('AladoServerOptions.cors.allowedOrigin should be a non-empty string');
+        }
+        for (const origin of Array.isArray(cors[key]) ? (cors[key] as string[]) : [cors[key] as string]) {
+          validateOrigin(origin);
         }
         break;
       case 'allowedHeaders':
@@ -99,7 +129,10 @@ function validateVerbose(options: AladoServerOptions) {
 function validateMaxBodySize(options: AladoServerOptions) {
   if (
     Object.prototype.hasOwnProperty.apply(options, ['maxBodySizeBytes']) &&
-    (typeof options.maxBodySizeBytes !== 'number' || options.maxBodySizeBytes < 0)
+    // NaN would pass a "< 0" test and then count as "no limit"
+    (typeof options.maxBodySizeBytes !== 'number' ||
+      !Number.isFinite(options.maxBodySizeBytes) ||
+      options.maxBodySizeBytes < 0)
   ) {
     throw new Error('AladoServerOptions.maxBodySizeBytes should be a positive number');
   }
