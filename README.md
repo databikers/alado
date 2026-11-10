@@ -447,6 +447,8 @@ export class UserController {
 
 DTOs are plain TypeScript classes with decorated properties. They define how request data is validated, transformed, and documented.
 
+A DTO class may extend another one: it has the decorated properties of its parents as well as its own (`class UserDto extends ContactDto`), and a property decorated again in the subclass replaces the parent's definition.
+
 ### `validateProperty`
 
 Validates an incoming property value. Runs before your handler.
