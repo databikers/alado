@@ -15,6 +15,7 @@ import {
 } from '@helper';
 
 const pathVariableRegex = /:([^/]+)/g;
+const pathParamNameRegExp: RegExp = /^[A-Za-z_][\w-]*$/;
 
 /**
  * Path params arrive percent-encoded ("john%20doe"); handlers get the decoded value. Only values
@@ -220,6 +221,26 @@ export class Router {
           'ROUTE_ALREADY_REGISTERED',
           `Route ${method} ${clearRoutePath(uri) || '/'} is already registered` +
             (same ? '' : ` as ${method} ${registered || '/'} (same path with other parameter names)`),
+        );
+      }
+
+      // A parameter runs to the end of its segment, so "/files/:name.json" declares a parameter
+      // called "name.json" (matching "report.xml" too), and a name used twice keeps one value only
+      const names: string[] = toRoutePattern(clearRoutePath(uri)).params;
+      for (const name of names) {
+        if (!pathParamNameRegExp.test(name)) {
+          throw new AladoConfigurationError(
+            'INVALID_PATH_PARAMETER',
+            `Route ${method} ${clearRoutePath(uri) || '/'}: parameter ":${name}" should be a name of letters, digits, ` +
+              `"_" or "-" that ends its path segment (text after a parameter is part of its name)`,
+          );
+        }
+      }
+      const repeated: string | undefined = names.find((name: string, i: number) => names.indexOf(name) !== i);
+      if (repeated !== undefined) {
+        throw new AladoConfigurationError(
+          'INVALID_PATH_PARAMETER',
+          `Route ${method} ${clearRoutePath(uri) || '/'}: parameter ":${repeated}" is declared twice`,
         );
       }
 
