@@ -1306,21 +1306,24 @@ Documentation is built from:
 
 The object received in every route handler:
 
-| Property  | Type                           | Description                                            |
-| --------- | ------------------------------ | ------------------------------------------------------ |
-| `request` | `IncomingMessage`              | Raw Node.js request                                    |
-| `ip`      | `string`                       | Client IP address                                      |
-| `method`  | `string`                       | HTTP method                                            |
-| `url`     | `string`                       | Request URL                                            |
-| `headers` | `IncomingHttpHeaders`          | Request headers                                        |
-| `path`    | `Record<string, string>`       | Path parameters                                        |
-| `query`   | `Record<string, any>`          | Query parameters                                       |
-| `body`    | `Record<string, any>`          | Request body (POST/PUT/PATCH only)                     |
-| `rawBody` | `string`                       | Unparsed body string                                   |
-| `files`   | `Record<string, UploadedFile>` | Uploaded files: `{ stream, size, mimetype, filename }` |
-| `auth`    | `Record<string, any>`          | Auth handler output                                    |
+| Property       | Type                           | Description                                            |
+| -------------- | ------------------------------ | ------------------------------------------------------ |
+| `request`      | `IncomingMessage`              | Raw Node.js request                                    |
+| `ip`           | `string`                       | Client IP address                                      |
+| `method`       | `string`                       | HTTP method                                            |
+| `url`          | `string`                       | Request URL                                            |
+| `headers`      | `IncomingHttpHeaders`          | Request headers                                        |
+| `path`         | `Record<string, string>`       | Path parameters                                        |
+| `query`        | `Record<string, any>`          | Query parameters                                       |
+| `body`         | `Record<string, any>`          | Request body (POST/PUT/PATCH only)                     |
+| `rawBody`      | `string`                       | Unparsed body string                                   |
+| `rawBodyBytes` | `Buffer`                       | The exact bytes of a body with a binary `Content-Type` |
+| `files`        | `Record<string, UploadedFile>` | Uploaded files: `{ stream, size, mimetype, filename }` |
+| `auth`         | `Record<string, any>`          | Auth handler output                                    |
 
 Query strings, urlencoded bodies and multipart text fields are read the same way: a key sent more than once, or as `key[]`, gives an array of every value in order (checkboxes, multi-selects); a single key gives a string. A field declared with `validate.string()` therefore refuses a repeated value instead of keeping one of them. Form fields sent empty are kept as `''`; empty query values are skipped.
+
+Text bodies are read as UTF-8. A body with a binary `Content-Type` (`application/octet-stream`, `image/*`, `audio/*`, `video/*`, `font/*`, `application/pdf`, `application/zip`, `application/gzip`, protobuf, msgpack, cbor) is not text: it is given as its exact bytes in `rawBodyBytes` (a `Buffer`), with `body` left `{}` and `rawBody` unset. The route needs `rawBody: true` (or body fields) to read it, as for any body. A compressed body (`Content-Encoding` other than `identity`) gets `415 Unsupported Content-Encoding`, and a text body declaring a charset other than UTF-8 gets `415 Unsupported charset`.
 
 `body` is missing only when the request has no body: an empty body without a `Content-Type`. An empty `text/plain` (or other text) body is `''`, an empty JSON, XML, urlencoded or multipart body `{}`, and a JSON body of `false`, `0`, `""` or `null` is that value.
 
