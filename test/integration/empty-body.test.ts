@@ -42,7 +42,9 @@ describe('an empty body', () => {
 
   it('is the empty text for text types', async () => {
     assert.deepEqual(await post('text/plain'), { has: true, body: '' });
-    assert.deepEqual(await post('application/octet-stream'), { has: true, body: '' });
+    assert.deepEqual(await post('text/csv'), { has: true, body: '' });
+    // bytes, not text: given as request.rawBodyBytes
+    assert.deepEqual(await post('application/octet-stream'), { has: true, body: {} });
   });
 
   it('is an empty object for JSON, XML and forms', async () => {
