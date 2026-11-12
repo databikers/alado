@@ -63,6 +63,10 @@ function validateCors(cors: CorsOptions) {
   for (const key in cors) {
     switch (key) {
       case 'allowedOrigin':
+        // a function is checked when it is called: its value can change
+        if (typeof cors[key] === 'function') {
+          break;
+        }
         if (
           (typeof cors[key] !== 'string' &&
             !(
@@ -71,7 +75,9 @@ function validateCors(cors: CorsOptions) {
             )) ||
           !cors[key]
         ) {
-          throw new Error('AladoServerOptions.cors.allowedOrigin should be a non-empty string');
+          throw new Error(
+            'AladoServerOptions.cors.allowedOrigin should be a non-empty string, a list of them or a function returning one',
+          );
         }
         for (const origin of Array.isArray(cors[key]) ? (cors[key] as string[]) : [cors[key] as string]) {
           validateOrigin(origin);

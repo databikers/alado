@@ -568,11 +568,15 @@ export class RequestProcessor {
       // Process Open API routes (HEAD as GET: same status and headers, the body is not sent)
       if (openApiDoc?.enable && (method === HttpMethod.GET || method === HttpMethod.HEAD)) {
         const pathname: string = uri;
+        const swaggerFile: string | undefined =
+          pathname === this.swaggerJsonPath ? undefined : resolveSwaggerUiFile(pathname, openApiDoc.route as string);
         // the docs are part of the API for a browser on another origin (a hosted Swagger UI, a client
-        // generator): they carry the same CORS headers as any route
-        const docsHeaders: Record<string, string> | undefined = enableCors
-          ? this.corsHeaders(undefined, origin)
-          : undefined;
+        // generator): they carry the same CORS headers as any route. Built for docs requests only, so an
+        // API request does not compute them twice
+        const docsHeaders: Record<string, string> | undefined =
+          enableCors && (pathname === this.swaggerJsonPath || swaggerFile)
+            ? this.corsHeaders(undefined, origin)
+            : undefined;
         if (pathname === this.swaggerJsonPath) {
           return this.respond(
             res,
@@ -580,7 +584,6 @@ export class RequestProcessor {
             docsHeaders,
           );
         }
-        const swaggerFile: string | undefined = resolveSwaggerUiFile(pathname, openApiDoc.route as string);
         if (swaggerFile === 'index.html') {
           return this.respond(
             res,
@@ -791,7 +794,10 @@ export class RequestProcessor {
     const headers: Record<string, string> = methods
       ? { 'Access-Control-Allow-Methods': methods, ...this.corsStatic }
       : { ...this.corsStatic };
-    const allowOrigin: string | undefined = corsAllowOrigin(cors, origin === '*' ? undefined : origin);
+    // an allowedOrigin function that fails allows no origin and is logged
+    const allowOrigin: string | undefined = corsAllowOrigin(cors, origin === '*' ? undefined : origin, (e) =>
+      this.logError(e as Error, 500),
+    );
     if (allowOrigin !== undefined) {
       headers['Access-Control-Allow-Origin'] = allowOrigin;
     }

@@ -19,6 +19,7 @@ export {
   AladoServerOptions,
   ContextOptions,
   CorsOptions,
+  CorsOriginList,
   OpenApiDoc,
   ParsingOptions,
   SecurityHeadersOption,
