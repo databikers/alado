@@ -177,6 +177,17 @@ describe('parseMultipartBody', () => {
     assert.equal(parseMultipartBody(Buffer.from('--XX\r\n\r\nv\r\n--XX\r\n'), 'XX').complete, false);
   });
 
+  it('throws a 400 past maxParts, counting every part, named or not', () => {
+    const raw = body('XX', [
+      fieldPart('a', '1'),
+      Buffer.from('\r\nheaderless'),
+      filePart('f', Buffer.from('x')),
+    ]);
+    assert.equal(parseMultipartBody(raw, 'XX', 3).complete, true);
+    assert.equal(parseMultipartBody(raw, 'XX', 0).complete, true);
+    assert.throws(() => parseMultipartBody(raw, 'XX', 2), { statusCode: 400, message: 'Too many multipart parts' });
+  });
+
   it('returns nothing without the boundary in the body', () => {
     assert.deepEqual(parseMultipartBody(Buffer.from('no parts here'), 'XX'), {
       fields: [],
