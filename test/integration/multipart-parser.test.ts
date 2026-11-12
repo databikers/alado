@@ -1,12 +1,40 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { AladoServer, Request, defineResponse, initializeApplication, post } from '../../src';
+import {
+  AladoServer,
+  Request,
+  defineRequest,
+  defineResponse,
+  fileUploadProperty,
+  initializeApplication,
+  post,
+} from '../../src';
 import { baseOptions, close, listen, send } from '../helpers/http';
 
 const appId = 'multipart-parser';
 const json = { 'Content-Type': 'application/json' };
 
+class DocFilesDto {
+  @fileUploadProperty({
+    mimetypes: ['text/plain'],
+    maxSize: 1024,
+    required: true,
+    requiredError: { statusCode: 400, message: 'doc is required' },
+    mimetypeError: { statusCode: 415, message: 'text only' },
+    maxSizeError: { statusCode: 413, message: 'too big' },
+  })
+  doc: any;
+}
+
 class MultipartController {
+  @post('/upload', { appId })
+  @defineRequest({ files: DocFilesDto })
+  @defineResponse({ statusCode: 200, headers: json, body: {} })
+  async upload(req: Request) {
+    const { filename, size } = req.files!.doc as any;
+    return { statusCode: 200, headers: json, body: { filename, size } };
+  }
+
   @post('/form', { appId })
   @defineResponse({ statusCode: 200, headers: json, body: {} })
   async form(req: Request) {
@@ -74,6 +102,32 @@ describe('multipart parser', () => {
       filename: null,
       mimetype: null,
     });
+  });
+
+  it('keeps only the last segment of a filename', async () => {
+    const { parsePartHeaders } = await import('../../src/helpers/parser/body-parser');
+    const filename = (value: string) =>
+      parsePartHeaders(`Content-Disposition: form-data; name="f"; filename="${value}"`).filename;
+    assert.equal(filename('../../etc/passwd'), 'passwd');
+    assert.equal(filename('/abs/path/a.txt'), 'a.txt');
+    assert.equal(filename('C:\\Users\\me\\cv.pdf'), 'cv.pdf');
+    assert.equal(filename('..\\..\\boot.ini'), 'boot.ini');
+    assert.equal(filename('..'), '');
+    assert.equal(filename('dir/.'), '');
+    assert.equal(filename('dir/'), '');
+    assert.equal(filename('my .. v2.pdf'), 'my .. v2.pdf');
+    assert.equal(filename(''), '');
+  });
+
+  it('gives a traversal filename to the handler without its directories', async () => {
+    const r = await send(port, {
+      method: 'POST',
+      path: '/upload',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=XX' },
+      body: '--XX\r\nContent-Disposition: form-data; name="doc"; filename="../../../etc/cron.d/x"\r\nContent-Type: text/plain\r\n\r\nhi\r\n--XX--\r\n',
+    });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.json(), { filename: 'x', size: 2 });
   });
 
   it('does not take header fields from the value', async () => {
