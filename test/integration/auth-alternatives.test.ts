@@ -250,6 +250,29 @@ describe('optional alternatives', () => {
     assert.equal(anonymous.status, 200);
     assert.deepEqual((await call('/optional', { authorization: 'Bearer alice' })).json(), { user: { id: 1 } });
   });
+
+  it('try the next alternative when an earlier optional one authenticated nobody', async () => {
+    // no bearer token: the API key alternative authenticates the request
+    assert.deepEqual((await call('/optional', { 'x-api-key': 'key-1' })).json(), { client: { client: 'ci' } });
+    // a refused bearer token does not stop the API key either
+    assert.deepEqual((await call('/optional', { authorization: 'Bearer eve', 'x-api-key': 'key-1' })).json(), {
+      client: { client: 'ci' },
+    });
+  });
+
+  it('fall back to the first alternative when none authenticates', async () => {
+    const r = await call('/optional', { authorization: 'Bearer eve', 'x-api-key': 'wrong' });
+    assert.equal(r.status, 200);
+    // the first alternative's result, as with a single optional strategy
+    assert.deepEqual(r.json(), { user: null });
+  });
+
+  it('stop at the first alternative that authenticates', async () => {
+    assert.deepEqual((await call('/optional', { authorization: 'Bearer alice', 'x-api-key': 'key-1' })).json(), {
+      user: { id: 1 },
+    });
+    assert.deepEqual(calls, { bearer: 1 });
+  });
 });
 
 describe('Context.auth with alternatives, without decorators', () => {
