@@ -51,6 +51,31 @@ describe('multipart parser', () => {
     assert.deepEqual(part, { name: 'avatar', filename: 'photo.png', mimetype: 'image/png' });
   });
 
+  it('reads name and filename from Content-Disposition only, not from another header', async () => {
+    const { parsePartHeaders } = await import('../../src/helpers/parser/body-parser');
+    assert.deepEqual(parsePartHeaders('X-Junk: x; name="admin"\r\nContent-Disposition: form-data; name="user"'), {
+      name: 'user',
+      filename: null,
+      mimetype: null,
+    });
+    assert.deepEqual(
+      parsePartHeaders(
+        'Content-Type: text/plain; name="role"; filename="x.exe"\r\nContent-Disposition: form-data; name="note"',
+      ),
+      { name: 'note', filename: null, mimetype: 'text/plain' },
+    );
+    assert.deepEqual(parsePartHeaders('Content-Type: text/plain; name="role"'), {
+      name: null,
+      filename: null,
+      mimetype: 'text/plain',
+    });
+    assert.deepEqual(parsePartHeaders('content-disposition: form-data; name="lower"'), {
+      name: 'lower',
+      filename: null,
+      mimetype: null,
+    });
+  });
+
   it('does not take header fields from the value', async () => {
     const { parseMultipartBody } = await import('../../src/helpers/parser/body-parser');
     const raw = Buffer.from(
