@@ -19,7 +19,8 @@ export interface UploadedFile {
   size: number;
   // the part's Content-Type; application/octet-stream when the client sent none
   mimetype: string;
-  // the name the client sent (filename="..."), unchecked: never use it as a path as is
+  // the last segment of the name the client sent (filename="..."), otherwise unchecked: never use it
+  // as a path as is
   filename: string;
 }
 

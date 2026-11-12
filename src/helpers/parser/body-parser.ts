@@ -68,13 +68,25 @@ const partNameRegExp: RegExp = /(?:^|[;\s])name="([^"]*)"/i;
 const partFilenameRegExp: RegExp = /(?:^|[;\s])filename="([^"]*)"/i;
 const partDispositionRegExp: RegExp = /^content-disposition:([^\r\n]*)$/im;
 const partContentTypeRegExp: RegExp = /^content-type:([^\r\n]*)$/im;
+
+/**
+ * The last segment of a client's file name: "../../etc/passwd" is "passwd" and
+ * "C:\\Users\\me\\cv.pdf" (Internet Explorer sent the full path) is "cv.pdf". "." and ".." name a
+ * directory, not a file: ''.
+ */
+function fileBasename(filename: string): string {
+  const name: string = filename.slice(Math.max(filename.lastIndexOf('/'), filename.lastIndexOf('\\')) + 1);
+  return name === '.' || name === '..' ? '' : name;
+}
+
 const CRLF: Buffer = Buffer.from('\r\n');
 const HEADERS_END: Buffer = Buffer.from('\r\n\r\n');
 
 /**
  * Header fields of one part. `headers` is the text before the blank line, read as latin1 (one
  * char per byte); the field name and the file name are UTF-8 and are decoded back. filename="" is
- * kept as '': it is what a browser sends for a file input left empty. name and filename are read
+ * kept as '': it is what a browser sends for a file input left empty; directories in a filename
+ * are dropped (see fileBasename). name and filename are read
  * from the Content-Disposition field only: `X-Anything: ; name="admin"` or a Content-Type with a
  * name parameter must not rename the part.
  */
@@ -85,7 +97,7 @@ export function parsePartHeaders(headers: string): PartHeaders {
   const mimetype: RegExpExecArray | null = partContentTypeRegExp.exec(headers);
   return {
     name: name && name[1] ? Buffer.from(name[1], 'latin1').toString('utf8') : null,
-    filename: filename ? Buffer.from(filename[1], 'latin1').toString('utf8') : null,
+    filename: filename ? fileBasename(Buffer.from(filename[1], 'latin1').toString('utf8')) : null,
     // the media type alone, lower-cased: "Text/Plain; charset=utf-8" is the type text/plain
     mimetype: mimetype && mediaType(mimetype[1]) ? mediaType(mimetype[1]) : null,
   };
