@@ -15,7 +15,14 @@ export {
   FilePropertyDefinition,
   UploadedFile,
 } from '@dto';
-export { AladoServerOptions, ContextOptions, CorsOptions, OpenApiDoc, ParsingOptions } from '@options';
+export {
+  AladoServerOptions,
+  ContextOptions,
+  CorsOptions,
+  OpenApiDoc,
+  ParsingOptions,
+  SecurityHeadersOption,
+} from '@options';
 export { HttpMethod, httpStatus, ContentType } from '@const';
 export { validate } from '@helper';
 export {

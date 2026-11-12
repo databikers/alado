@@ -16,7 +16,21 @@ import { AladoServerOptions } from '@options';
 import { AladoServerLogger, Context, Response } from '@dto';
 import { Router } from '@router';
 import { httpServerFactory } from '@factory';
-import { clearRoutePath, validateAladoOptions } from '@helper';
+import { clearRoutePath, resolveSecurityHeaders, validateAladoOptions } from '@helper';
+
+/**
+ * The headers added to every response: `securityHeaders` (if any) with `headers` over them, names
+ * compared in any letter case. Without securityHeaders this is `headers` unchanged.
+ */
+function withSecurityHeaders(options: AladoServerOptions): Record<string, string> | undefined {
+  const security: Record<string, string> = resolveSecurityHeaders(options.securityHeaders);
+  const names: Set<string> = new Set(Object.keys(options.headers || {}).map((name) => name.toLowerCase()));
+  const kept: [
+    string,
+    string,
+  ][] = Object.entries(security).filter(([name]) => !names.has(name.toLowerCase()));
+  return kept.length ? { ...Object.fromEntries(kept), ...options.headers } : options.headers;
+}
 
 export class AladoServer {
   private readonly appId: string;
@@ -68,7 +82,8 @@ export class AladoServer {
     this.server = httpServerFactory(
       {
         router: this.router,
-        headers: options.headers,
+        // the security headers first: a header of the same name in `headers` replaces one of them
+        headers: withSecurityHeaders(options),
         openApiDoc: options.openApiDoc,
         enableCors: options.cors?.enable,
         logger: this.logger,

@@ -1,5 +1,6 @@
 import { AladoServerOptions, CorsOptions, OpenApiDoc, OpenApiDocInfo } from '@options';
 import { AladoServerLogger } from '@dto';
+import { validateSecurityHeaders } from '../../service/security-headers';
 
 function validatePort(port: number) {
   if (typeof port !== 'number') {
@@ -180,6 +181,7 @@ function validateHandlerTimeout(options: AladoServerOptions) {
   if (handlerTimeoutMs !== undefined && !(Number.isFinite(handlerTimeoutMs) && handlerTimeoutMs >= 0)) {
     throw new Error('AladoServerOptions.handlerTimeoutMs should be a number of milliseconds, 0 for no limit');
   }
+  validateSecurityHeaders(options.securityHeaders);
   const { bodyIdleTimeoutMs } = options;
   if (bodyIdleTimeoutMs !== undefined && !(Number.isFinite(bodyIdleTimeoutMs) && bodyIdleTimeoutMs >= 0)) {
     throw new Error('AladoServerOptions.bodyIdleTimeoutMs should be a number of milliseconds, 0 for no limit');

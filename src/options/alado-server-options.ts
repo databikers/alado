@@ -27,4 +27,9 @@ export type AladoServerOptions = {
   // how long reading a request body may wait for its next part, in milliseconds (default 30 000, then
   // 408 and the connection is closed); 0 for no limit
   bodyIdleTimeoutMs?: number;
+  // security headers on every response: true for the preset (HSTS, Referrer-Policy, X-Frame-Options,
+  // CSP frame-ancestors), or an object that changes it (false leaves a header out); default none
+  securityHeaders?: SecurityHeadersOption;
 };
+
+export type SecurityHeadersOption = boolean | Record<string, string | false>;
