@@ -107,7 +107,8 @@ export function parsePartHeaders(headers: string): PartHeaders {
  * Splits a multipart body without turning it into a string: delimiters are found with
  * Buffer.indexOf, and a file's content is a subarray() of `raw` (same memory, no copy). Every
  * search is bounded by the part it belongs to, so the whole body is scanned once.
- * A part without its closing delimiter (a cut-off body) is dropped.
+ * A part without its closing delimiter (a cut-off body) is dropped, and `complete` is false: the
+ * body has no first delimiter or ends before the close delimiter ("--boundary--").
  */
 export function parseMultipartBody(
   raw: Buffer,
@@ -120,6 +121,7 @@ export function parseMultipartBody(
     ]
   >;
   files: MultipartFile[];
+  complete: boolean;
 } {
   const fields: Array<
     [
@@ -133,12 +135,14 @@ export function parseMultipartBody(
   const delimiter: Buffer = Buffer.from(`\r\n--${boundary}`);
   let position: number = raw.indexOf(dashBoundary);
   if (position === -1) {
-    return { fields, files };
+    return { fields, files, complete: false };
   }
   position += dashBoundary.length;
+  let complete: boolean = false;
   for (;;) {
     // "--" after a delimiter closes the body; anything after it is an epilogue
     if (raw[position] === 45 && raw[position + 1] === 45) {
+      complete = true;
       break;
     }
     // the rest of the delimiter line (optional whitespace) up to its line break
@@ -187,7 +191,7 @@ export function parseMultipartBody(
     }
     position = next + delimiter.length;
   }
-  return { fields, files };
+  return { fields, files, complete };
 }
 
 // boundary parameter of a multipart Content-Type, unquoted and without the parameters after it
@@ -279,6 +283,7 @@ export type MultipartFileOptions = {
 };
 
 const tooManyFiles: AladoServerError = { statusCode: 400, message: 'Too many files under one field name' };
+const malformedMultipart: AladoServerError = { statusCode: 400, message: 'Malformed multipart body' };
 
 export async function bodyParser(
   req: IncomingMessage,
@@ -380,11 +385,21 @@ export async function bodyParser(
         });
         // form fields are text: a number()/bigint() field is converted before validation
         result.formBody = true;
-        if (!boundary) {
+        // no body at all is an empty form; a body without a boundary to split it, without its first
+        // delimiter or cut off before the close delimiter is refused rather than read in part
+        if (!raw.length) {
           resolve();
           return;
         }
-        const { fields, files } = parseMultipartBody(raw, boundary);
+        if (!boundary) {
+          reject(malformedMultipart);
+          return;
+        }
+        const { fields, files, complete } = parseMultipartBody(raw, boundary);
+        if (!complete) {
+          reject(malformedMultipart);
+          return;
+        }
         for (const [
           name,
           value,
