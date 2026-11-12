@@ -674,7 +674,8 @@ export class RequestProcessor {
           const r = await bodyParser(
             req,
             res,
-            this.options.maxBodySizeBytes as number,
+            // the route's own limit, when it sets one
+            (context.options?.maxBodySizeBytes ?? this.options.maxBodySizeBytes) as number,
             Boolean(context.options?.allowUnknownFields) || hasKeys(context.request.files),
             {
               repeatedFiles: this.options.parsing?.repeatedFiles,

@@ -25,6 +25,7 @@ function callHttpMethod(httpMethod: HttpMethod, path: string, options: HttpDecor
           options: {
             allowUnknownFields: false,
             rawBody: options.rawBody || false,
+            maxBodySizeBytes: options.maxBodySizeBytes,
             isHidden: options.isHidden || false,
             openApiDoc: {
               description: options.description || defaultDescription,

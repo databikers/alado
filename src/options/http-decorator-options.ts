@@ -7,4 +7,7 @@ export type HttpDecoratorOptions = {
   // read the request body although the route declares no body or files fields (a webhook that checks
   // a signature over request.rawBody). Without it, such a route never reads the body
   rawBody?: boolean;
+  // largest request body this route reads, in bytes; replaces the server's maxBodySizeBytes for it
+  // (an upload route can take more than the JSON routes). 0 removes the limit
+  maxBodySizeBytes?: number;
 };

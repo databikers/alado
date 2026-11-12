@@ -148,6 +148,13 @@ export function validateContextOptions(context: Context<any>, useApiDoc?: boolea
     if (context.options.rawBody !== undefined && typeof context.options.rawBody !== 'boolean') {
       throw new Error(`Context.options.rawBody should be a boolean`);
     }
+    const { maxBodySizeBytes } = context.options;
+    if (
+      maxBodySizeBytes !== undefined &&
+      (typeof maxBodySizeBytes !== 'number' || !Number.isFinite(maxBodySizeBytes) || maxBodySizeBytes < 0)
+    ) {
+      throw new Error(`Context.options.maxBodySizeBytes should be a number from 0, 0 for no limit`);
+    }
     if (useApiDoc && !context?.options?.isHidden) {
       if (typeof context.options.openApiDoc !== 'object' && context.options?.openApiDoc) {
         throw new Error(`Context.options.openApiDoc should be an object`);
