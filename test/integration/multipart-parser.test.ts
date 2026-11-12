@@ -56,18 +56,19 @@ before(async () => {
 after(() => close(app));
 
 describe('multipart parser', () => {
-  it('parses an unterminated part full of blank lines in linear time', async () => {
+  it('refuses an unterminated part full of blank lines, in linear time', async () => {
     // 1 MB of "\r\n\r\n" without the closing "\r\n--": 3.3.0 spent minutes in the part RegExp
     const body = '--XX\r\nContent-Disposition: form-data; name="f"' + '\r\n\r\n'.repeat(256 * 1024) + 'x';
     const started = Date.now();
     const r = await send(port, {
       method: 'POST',
-      path: '/form',
+      path: '/upload',
       headers: { 'Content-Type': 'multipart/form-data; boundary=XX' },
       body,
     });
     const elapsed = Date.now() - started;
-    assert.equal(r.status, 200);
+    assert.equal(r.status, 400);
+    assert.deepEqual(r.json(), { message: 'Malformed multipart body' });
     assert.ok(elapsed < 1000, `took ${elapsed} ms`);
   });
 

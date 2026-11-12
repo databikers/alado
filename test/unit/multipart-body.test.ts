@@ -159,28 +159,36 @@ describe('parseMultipartBody', () => {
     ]);
   });
 
-  it('drops a part cut off before its closing delimiter and keeps the ones before it', () => {
+  it('drops a part cut off before its closing delimiter and reports the body incomplete', () => {
     const raw = body('XX', [
       fieldPart('done', '1'),
       fieldPart('cut', '2'),
     ]);
-    const truncated = raw.subarray(0, raw.length - 12);
-    assert.deepEqual(text(parseMultipartBody(truncated, 'XX').fields), [
+    assert.equal(parseMultipartBody(raw, 'XX').complete, true);
+    const truncated = parseMultipartBody(raw.subarray(0, raw.length - 12), 'XX');
+    assert.deepEqual(text(truncated.fields), [
       [
         'done',
         '1',
       ],
     ]);
+    assert.equal(truncated.complete, false);
+    // every part closed but no "--" after the last delimiter
+    assert.equal(parseMultipartBody(Buffer.from('--XX\r\n\r\nv\r\n--XX\r\n'), 'XX').complete, false);
   });
 
   it('returns nothing without the boundary in the body', () => {
-    assert.deepEqual(parseMultipartBody(Buffer.from('no parts here'), 'XX'), { fields: [], files: [] });
+    assert.deepEqual(parseMultipartBody(Buffer.from('no parts here'), 'XX'), {
+      fields: [],
+      files: [],
+      complete: false,
+    });
   });
 
   it('scans a large body without its closing delimiter in linear time', () => {
     const raw = Buffer.from('--XX\r\nContent-Disposition: form-data; name="f"' + '\r\n\r\n'.repeat(256 * 1024) + 'x');
     const started = Date.now();
-    assert.deepEqual(parseMultipartBody(raw, 'XX'), { fields: [], files: [] });
+    assert.deepEqual(parseMultipartBody(raw, 'XX'), { fields: [], files: [], complete: false });
     assert.ok(Date.now() - started < 200);
   });
 });
@@ -262,6 +270,24 @@ describe('bodyParser (multipart collection)', () => {
         `${input.pieces.length} pieces ${JSON.stringify(input.headers)}`,
       );
     }
+  });
+
+  it('refuses a cut-off body, a body without its boundary and one without a boundary parameter', async () => {
+    await assert.rejects(parse([raw.subarray(0, raw.length - 10)], {}), {
+      statusCode: 400,
+      message: 'Malformed multipart body',
+    });
+    await assert.rejects(parse([Buffer.from('no delimiter at all')], {}), { statusCode: 400 });
+    const req: any = Readable.from([raw], { objectMode: false });
+    req.headers = { 'content-type': 'multipart/form-data' };
+    await assert.rejects(bodyParser(req, fakeResponse, 0, true), { statusCode: 400 });
+  });
+
+  it('reads an empty body as an empty form, with or without a boundary parameter', async () => {
+    assert.deepEqual((await parse([], {})).body, {});
+    const req: any = Readable.from([], { objectMode: false });
+    req.headers = { 'content-type': 'multipart/form-data' };
+    assert.deepEqual((await bodyParser(req, fakeResponse, 0, true)).body, {});
   });
 
   it('refuses more data than the declared length', async () => {
