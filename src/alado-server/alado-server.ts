@@ -7,6 +7,7 @@ import {
   defaultBacklog,
   defaultCorsAllowedHeaders,
   defaultMaxBodySizeBytes,
+  defaultMaxMultipartParts,
   DEFAULT_ID,
 } from '@const';
 import { AladoServerOptions } from '@options';
@@ -77,6 +78,7 @@ export class AladoServer {
         parsing: {
           repeatedFiles: options.parsing?.repeatedFiles ?? 'last',
           maxFilesPerField: options.parsing?.maxFilesPerField ?? 1,
+          maxParts: options.parsing?.maxParts ?? defaultMaxMultipartParts,
         },
       },
       options.serverOptions,

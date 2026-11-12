@@ -679,6 +679,7 @@ export class RequestProcessor {
             {
               repeatedFiles: this.options.parsing?.repeatedFiles,
               maxFilesPerField: this.options.parsing?.maxFilesPerField,
+              maxParts: this.options.parsing?.maxParts,
               fieldNames: context.options?.allowUnknownFields ? undefined : declaredFileNames(context),
             },
           );

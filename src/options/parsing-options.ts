@@ -10,6 +10,12 @@ export type ParsingOptions = {
    */
   maxFilesPerField?: number;
   /**
+   * How many parts one multipart body may hold, text fields and files together. Default 1000: a body
+   * with more is refused with 400 before any field is built, so a large maxBodySizeBytes cannot be
+   * spent on hundreds of thousands of tiny fields. 0 means no limit.
+   */
+  maxParts?: number;
+  /**
    * Several multipart files under one field name, when `maxFilesPerField` allows them:
    * - 'last' (default): `request.files[name]` is the last of them, as before;
    * - 'array': `request.files[name]` is an array of every file, in order (also for one file sent

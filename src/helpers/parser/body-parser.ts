@@ -79,6 +79,7 @@ function fileBasename(filename: string): string {
   return name === '.' || name === '..' ? '' : name;
 }
 
+const tooManyParts: AladoServerError = { statusCode: 400, message: 'Too many multipart parts' };
 const CRLF: Buffer = Buffer.from('\r\n');
 const HEADERS_END: Buffer = Buffer.from('\r\n\r\n');
 
@@ -109,10 +110,13 @@ export function parsePartHeaders(headers: string): PartHeaders {
  * search is bounded by the part it belongs to, so the whole body is scanned once.
  * A part without its closing delimiter (a cut-off body) is dropped, and `complete` is false: the
  * body has no first delimiter or ends before the close delimiter ("--boundary--").
+ * More than `maxParts` parts (every one between two delimiters, named or not; 0: no limit) throws
+ * a 400 as soon as the next one is reached, before the rest of the body is scanned.
  */
 export function parseMultipartBody(
   raw: Buffer,
   boundary: string,
+  maxParts: number = 0,
 ): {
   fields: Array<
     [
@@ -139,6 +143,7 @@ export function parseMultipartBody(
   }
   position += dashBoundary.length;
   let complete: boolean = false;
+  let parts: number = 0;
   for (;;) {
     // "--" after a delimiter closes the body; anything after it is an epilogue
     if (raw[position] === 45 && raw[position + 1] === 45) {
@@ -154,6 +159,9 @@ export function parseMultipartBody(
     const next: number = raw.indexOf(delimiter, headersStart);
     if (next === -1) {
       break;
+    }
+    if (maxParts && ++parts > maxParts) {
+      throw tooManyParts;
     }
     // the blank line ending the headers, looked for inside this part only
     const part: Buffer = raw.subarray(headersStart, next);
@@ -280,6 +288,8 @@ export type MultipartFileOptions = {
   // the declared file fields: files under any other name are skipped before an object is built for
   // them. Unset: every name is kept (allowUnknownFields)
   fieldNames?: ReadonlySet<string>;
+  // parts one body may hold, fields and files together; 0 or unset: no limit
+  maxParts?: number;
 };
 
 const tooManyFiles: AladoServerError = { statusCode: 400, message: 'Too many files under one field name' };
@@ -292,7 +302,7 @@ export async function bodyParser(
   acceptFiles: boolean = true,
   fileOptions: MultipartFileOptions = {},
 ) {
-  const { repeatedFiles = 'last', maxFilesPerField = 0, fieldNames } = fileOptions;
+  const { repeatedFiles = 'last', maxFilesPerField = 0, fieldNames, maxParts = 0 } = fileOptions;
   const contentType = req.headers['content-type'];
   const result: any = {
     body: {},
@@ -395,7 +405,7 @@ export async function bodyParser(
           reject(malformedMultipart);
           return;
         }
-        const { fields, files, complete } = parseMultipartBody(raw, boundary);
+        const { fields, files, complete } = parseMultipartBody(raw, boundary, maxParts);
         if (!complete) {
           reject(malformedMultipart);
           return;
