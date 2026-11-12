@@ -248,6 +248,51 @@ function abortOversizedBody(req: IncomingMessage, res: OutgoingMessage) {
   }
 }
 
+const bodyTimeout: AladoServerError = { statusCode: 408, message: 'Request body timeout' };
+
+/**
+ * Reads a body with `read()` and refuses it with 408 when no part of it arrives for `idleMs`
+ * (0: no limit): a client that sends half a body and then stalls would otherwise hold the buffered
+ * part until Node's requestTimeout (300 s by default). The timer restarts with every chunk, so a slow
+ * but steady upload is not cut off. Like an oversized body, the rest is not read and the connection
+ * is closed after the response.
+ */
+export async function readBodyWithin<T>(
+  req: IncomingMessage,
+  res: OutgoingMessage,
+  idleMs: number,
+  read: () => Promise<T>,
+): Promise<T> {
+  if (!idleMs) {
+    return read();
+  }
+  let timer: NodeJS.Timeout | undefined;
+  let onChunk: (() => void) | undefined;
+  const stalled: Promise<never> = new Promise<never>((_, reject) => {
+    const expire = () => {
+      abortOversizedBody(req, res);
+      reject(bodyTimeout);
+    };
+    onChunk = () => {
+      clearTimeout(timer);
+      timer = setTimeout(expire, idleMs);
+    };
+    onChunk();
+    req.on('data', onChunk);
+  });
+  // never left unhandled when the body is read in time
+  stalled.catch(() => {});
+  try {
+    return await Promise.race([
+      read(),
+      stalled,
+    ]);
+  } finally {
+    clearTimeout(timer);
+    req.removeListener('data', onChunk!);
+  }
+}
+
 function collectChunks(
   req: IncomingMessage,
   res: OutgoingMessage,

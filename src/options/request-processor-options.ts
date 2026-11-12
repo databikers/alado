@@ -14,4 +14,5 @@ export type RequestProcessorOptions = {
   trustProxy?: boolean | number;
   parsing?: ParsingOptions;
   handlerTimeoutMs?: number;
+  bodyIdleTimeoutMs?: number;
 };

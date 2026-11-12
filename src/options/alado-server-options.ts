@@ -24,4 +24,7 @@ export type AladoServerOptions = {
   // how long a handler may take to answer, in milliseconds (default 60 000, a slower one gets 503);
   // 0 for no limit
   handlerTimeoutMs?: number;
+  // how long reading a request body may wait for its next part, in milliseconds (default 30 000, then
+  // 408 and the connection is closed); 0 for no limit
+  bodyIdleTimeoutMs?: number;
 };

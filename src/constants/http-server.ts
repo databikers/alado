@@ -6,6 +6,8 @@ export const defaultMaxMultipartParts: number = 1000;
 // how long a handler may take to answer (handlerTimeoutMs): a handler that never answers must not
 // hold its connection and memory for good
 export const defaultHandlerTimeoutMs: number = 60_000;
+// how long reading a body may wait for its next chunk (bodyIdleTimeoutMs)
+export const defaultBodyIdleTimeoutMs: number = 30_000;
 
 // request headers browsers may send cross-origin when cors.allowedHeaders is left out: the two every
 // JSON API call needs (Content-Type: application/json and Authorization both require a preflight)

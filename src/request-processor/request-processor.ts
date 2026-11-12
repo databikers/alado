@@ -13,6 +13,7 @@ import {
   authStrategies,
   bodyMethods,
   bodyParser,
+  readBodyWithin,
   bodyReaders,
   queryParser,
   clearRoutePath,
@@ -672,18 +673,20 @@ export class RequestProcessor {
             return;
           }
           bodyRead = true;
-          const r = await bodyParser(
-            req,
-            res,
-            // the route's own limit, when it sets one
-            (context.options?.maxBodySizeBytes ?? this.options.maxBodySizeBytes) as number,
-            Boolean(context.options?.allowUnknownFields) || hasKeys(context.request.files),
-            {
-              repeatedFiles: this.options.parsing?.repeatedFiles,
-              maxFilesPerField: this.options.parsing?.maxFilesPerField,
-              maxParts: this.options.parsing?.maxParts,
-              fieldNames: context.options?.allowUnknownFields ? undefined : declaredFileNames(context),
-            },
+          const r = await readBodyWithin(req, res, this.options.bodyIdleTimeoutMs || 0, () =>
+            bodyParser(
+              req,
+              res,
+              // the route's own limit, when it sets one
+              (context.options?.maxBodySizeBytes ?? this.options.maxBodySizeBytes) as number,
+              Boolean(context.options?.allowUnknownFields) || hasKeys(context.request.files),
+              {
+                repeatedFiles: this.options.parsing?.repeatedFiles,
+                maxFilesPerField: this.options.parsing?.maxFilesPerField,
+                maxParts: this.options.parsing?.maxParts,
+                fieldNames: context.options?.allowUnknownFields ? undefined : declaredFileNames(context),
+              },
+            ),
           );
           // a JSON body may be false, 0, "" or null: a value the client sent, not a missing body
           if (r.body !== undefined) {
