@@ -1,5 +1,5 @@
-import { Context } from '@dto';
-import { docObjectSetter } from '@helper';
+import { Context, RequestAuthentication } from '@dto';
+import { authAlternatives, docObjectSetter } from '@helper';
 
 // media types whose body is described property by property (the media type without parameters)
 function isStructured(mediaType: string): boolean {
@@ -106,6 +106,33 @@ function documentResponse(openApiMethod: string, openApiRoute: string, context: 
   openApiDocObject.paths[openApiRoute][openApiMethod].responses = { [statusCode]: response };
 }
 
+/**
+ * The security scheme of an auth input, registered on first use; undefined when OpenAPI cannot
+ * describe it. An apiKey lives in a header, the query or a cookie: a credential read from the body
+ * or the path is documented by that field alone, not as a security scheme.
+ */
+function securityScheme(openApiDocObject: any, inputProperty: string): string | undefined {
+  const [
+    where,
+    what,
+  ] = inputProperty.split('.');
+  const location: string | undefined = ({ headers: 'header', query: 'query' } as Record<string, string>)[
+    where.toLowerCase()
+  ];
+  if (!location) {
+    return undefined;
+  }
+  const name: string = where.toLowerCase() + what.charAt(0).toUpperCase() + what.slice(1);
+  if (!openApiDocObject.components.securitySchemes[name]) {
+    openApiDocObject.components.securitySchemes[name] = {
+      type: 'apiKey',
+      in: location,
+      name: location === 'header' ? what.toLowerCase() : what,
+    };
+  }
+  return name;
+}
+
 export function openApiDocFactory(
   openApiMethod: string,
   openApiRoute: string,
@@ -120,32 +147,39 @@ export function openApiDocFactory(
   const openApiDoc = context.options?.openApiDoc;
   openApiDocObject.paths[openApiRoute][openApiMethod] = { ...openApiDoc, parameters: [] };
   const { title } = context;
-  if (context.auth) {
-    const { inputProperty, required } = context.auth;
-    const [
-      where,
-      what,
-    ] = inputProperty.split('.');
-    // an OpenAPI apiKey lives in a header, the query or a cookie: a credential read from the body or
-    // the path is documented by that field alone, not as a security scheme
-    const location: string | undefined = { headers: 'header', query: 'query' }[where.toLowerCase()];
-    if (location) {
-      const authStrategyName: string = where.toLowerCase() + what.charAt(0).toUpperCase() + what.slice(1);
-      if (!openApiDocObject.components.securitySchemes[authStrategyName]) {
-        openApiDocObject.components.securitySchemes[authStrategyName] = {
-          type: 'apiKey',
-          in: location,
-          name: location === 'header' ? what.toLowerCase() : what,
-        };
+  const alternatives: RequestAuthentication[][] = authAlternatives(context.auth);
+  if (alternatives.length) {
+    // every alternative needs no credentials: a request without any is let through
+    const anonymous: boolean = alternatives.every((alternative) =>
+      alternative.every((strategy) => strategy.required === false),
+    );
+    // OpenAPI `security` has the same shape: a list of alternatives, each naming the schemes it needs
+    const security: Record<string, string[]>[] = [];
+    for (const alternative of alternatives) {
+      const requirement: Record<string, string[]> = {};
+      for (const strategy of alternative) {
+        // a strategy that never refuses is not a requirement, unless the whole alternative is optional
+        if (!anonymous && strategy.required === false) {
+          continue;
+        }
+        const scheme: string | undefined = securityScheme(openApiDocObject, strategy.inputProperty);
+        if (scheme) {
+          requirement[scheme] = [];
+        }
       }
+      const names: string = Object.keys(requirement).sort().join(' ');
+      if (names && !security.some((known) => Object.keys(known).sort().join(' ') === names)) {
+        security.push(requirement);
+      }
+    }
+    if (security.length) {
       // optional auth: the empty requirement lets a request without the credential through
-      openApiDocObject.paths[openApiRoute][openApiMethod].security =
-        required === false
-          ? [
-              { [authStrategyName]: [] },
-              {},
-            ]
-          : [{ [authStrategyName]: [] }];
+      openApiDocObject.paths[openApiRoute][openApiMethod].security = anonymous
+        ? [
+            ...security,
+            {},
+          ]
+        : security;
     }
   }
   const { headers, body, path, query, files } = context.request || {};

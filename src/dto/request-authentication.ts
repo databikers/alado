@@ -13,3 +13,15 @@ export type RequestAuthentication = {
   required?: boolean;
   error: AladoServerError;
 };
+
+/**
+ * One way to authenticate: a strategy alone, or a group of strategies that must all pass.
+ */
+export type AuthAlternative = RequestAuthentication | RequestAuthentication[];
+
+/**
+ * Context.auth: one strategy, or a list of alternatives of which any one is enough. A list is OR, a
+ * list inside it is AND, as in OpenAPI `security`: `[bearer, apiKey]` is bearer or apiKey,
+ * `[[apiKey, bearer]]` both, `[[apiKey, bearer], basic]` both of the first two or basic.
+ */
+export type ContextAuth = RequestAuthentication | AuthAlternative[];

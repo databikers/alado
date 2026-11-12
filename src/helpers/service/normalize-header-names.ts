@@ -1,4 +1,5 @@
 import { AccessControlConfig, AladoConfigurationError, Context } from '@dto';
+import { mapAuth } from './auth-alternatives';
 
 const HEADERS_PREFIX: string = 'headers.';
 
@@ -13,7 +14,8 @@ function lowerHeaderPath<T>(path: T): T {
  * DTO, or as `headers.X-Api-Key` in the auth input or an access-control rule) would never be found:
  * a required header always failing, an optional one never validated while the handler still reads it.
  * Done once when the route is registered, after the OpenAPI document keeps the declared spelling.
- * The auth and rule objects are copied, not changed: one config object is often shared by routes.
+ * The auth strategies and rule objects are copied, not changed: one config object is often shared by
+ * routes.
  */
 export function normalizeHeaderNames(context: Context<any>): void {
   const declared: Record<string, any> | undefined = context.request?.headers as Record<string, any> | undefined;
@@ -32,7 +34,7 @@ export function normalizeHeaderNames(context: Context<any>): void {
     (context.request as any).headers = lowered;
   }
   if (context.auth) {
-    context.auth = { ...context.auth, inputProperty: lowerHeaderPath(context.auth.inputProperty) };
+    context.auth = mapAuth(context.auth, (auth) => ({ ...auth, inputProperty: lowerHeaderPath(auth.inputProperty) }));
   }
   if (Array.isArray(context.accessControl)) {
     context.accessControl = context.accessControl.map((rule: AccessControlConfig<any>) => ({

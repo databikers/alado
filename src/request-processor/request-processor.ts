@@ -10,6 +10,7 @@ import { AladoServerError, Context, ContextRequest, HttpError, Request, Response
 import {
   accessControlChecker,
   authenticate,
+  authStrategies,
   bodyMethods,
   bodyParser,
   bodyReaders,
@@ -149,7 +150,7 @@ function bodyStage(context: Context<any>): BodyStage {
       rule.compareWithProperty,
     ]);
     const reads = (path: unknown): boolean => typeof path === 'string' && bodyPathRegExp.test(path);
-    stage = reads(context.auth?.inputProperty)
+    stage = authStrategies(context.auth).some((auth) => reads(auth.inputProperty))
       ? 'auth'
       : accessControlPaths.some(reads)
         ? 'accessControl'
@@ -189,7 +190,7 @@ function readsQuery(context: Context<any>): boolean {
   let reads: boolean | undefined = queryReaders.get(context);
   if (reads === undefined) {
     const paths: string[] = [
-      context.auth?.inputProperty,
+      ...authStrategies(context.auth).map((auth) => auth.inputProperty),
       ...(context.accessControl || []).flatMap((rule) => [
         rule.inputProperty,
         rule.compareWithProperty,

@@ -8,6 +8,7 @@ import {
   RequestAuthentication,
   Response,
 } from '@dto';
+import { authAlternatives } from '../../service/auth-alternatives';
 
 function validateError(path: string, error: AladoServerError, errorName?: string) {
   if (!error) {
@@ -55,6 +56,48 @@ function validateContextAuth(auth: RequestAuthentication) {
   }
 
   validateError('RequestAuthentication', error);
+}
+
+/**
+ * Context.auth: one strategy, or a non-empty list of alternatives, each a strategy or a non-empty
+ * group of different strategies (no group inside a group). Alternatives that need no credentials
+ * (every strategy `required: false`) always pass, so they cannot be mixed with ones that do: the
+ * latter would never refuse anything.
+ */
+function validateAuth(auth: unknown) {
+  if (!Array.isArray(auth)) {
+    validateContextAuth(auth as RequestAuthentication);
+    return;
+  }
+  if (!auth.length) {
+    throw new Error(`Context.auth should list at least one RequestAuthentication`);
+  }
+  auth.forEach((alternative: unknown, i: number) => {
+    if (!Array.isArray(alternative)) {
+      validateContextAuth(alternative as RequestAuthentication);
+      return;
+    }
+    if (!alternative.length) {
+      throw new Error(`Context.auth[${i}] should list at least one RequestAuthentication`);
+    }
+    for (const strategy of alternative) {
+      if (Array.isArray(strategy)) {
+        throw new Error(`Context.auth[${i}] holds a group inside a group: a group is a list of RequestAuthentication`);
+      }
+      validateContextAuth(strategy);
+    }
+    if (new Set(alternative).size !== alternative.length) {
+      throw new Error(`Context.auth[${i}] lists the same RequestAuthentication twice`);
+    }
+  });
+  const anonymous: number = authAlternatives(auth as RequestAuthentication[]).filter((alternative) =>
+    alternative.every((strategy) => strategy.required === false),
+  ).length;
+  if (anonymous && anonymous !== auth.length) {
+    throw new Error(
+      `Context.auth mixes alternatives that need credentials with ones that need none (every strategy required: false): the first kind would never refuse a request`,
+    );
+  }
 }
 
 // request properties a rule may read (the first segment of its path)
@@ -185,7 +228,7 @@ export function validateContext(context: Context<any>, useApiDoc?: boolean) {
   }
   validateContextOptions(context, useApiDoc);
   if (context.auth) {
-    validateContextAuth(context.auth);
+    validateAuth(context.auth);
   }
   if (context.accessControl !== undefined && context.accessControl !== null) {
     validateAccessControl(context.accessControl);

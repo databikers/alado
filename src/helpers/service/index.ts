@@ -5,3 +5,4 @@ export * from './safe-log';
 export * from './normalize-header-names';
 export * from './body-readers';
 export * from './cors-origin';
+export * from './auth-alternatives';

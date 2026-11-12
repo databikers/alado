@@ -317,7 +317,7 @@ Documents the expected response shape for OpenAPI output.
 
 The body schema is published under `components.schemas` with the name in `entity`; routes that name the same entity share one schema. Without `entity`, the schema is named after the route (`POST /users` answering 201 gives `PostUsers201`, `GET /users/:id` gives `GetUsersById200`), so two routes never overwrite each other's schema; routes whose names come out the same (`/user-list` and `/user_list`) get a suffix (`GetUserList200_2`). Characters OpenAPI does not allow in a component name are replaced in `entity` (`'User Profile'` → `User_Profile`). `description` falls back to `title`, then to `"<status> response"` (OpenAPI requires one). In the `body` example, an array is documented by its first item, `null` as nullable, a `Date` as a date-time string, and nested objects by their properties; an object that has schema keywords only and names a schema type (`{ type: 'string', format: 'uuid' }`) is taken as a schema written by hand. A 204 or 304 response is documented without content, and an object body without a `Content-Type` as `application/json`, the type it is sent with.
 
-In request bodies, fields declared with `required: true` are listed in the schema's `required` and the request body is marked required. `@withAuth` adds an `apiKey` security scheme when it reads a header or a query parameter (an optional one, `required: false`, is documented as optional); a credential read from the body or the path is documented by that field only, since OpenAPI has no security scheme for it.
+In request bodies, fields declared with `required: true` are listed in the schema's `required` and the request body is marked required. `@withAuth` adds an `apiKey` security scheme for each strategy that reads a header or a query parameter (an optional one, `required: false`, is documented as optional); a credential read from the body or the path is documented by that field only, since OpenAPI has no security scheme for it. Several strategies are documented with the same meaning as in `@withAuth`: every alternative is one entry of the operation's `security`, and the strategies of a group share one entry (see [Several strategies](#several-strategies)).
 
 ---
 
@@ -334,7 +334,7 @@ async update(req: Request) {
 }
 ```
 
-See [Authentication](#authentication) for full config details.
+Several strategies can be given: `@withAuth(bearerAuth, apiKeyAuth)` accepts either, `@withAuth([apiKeyAuth, bearerAuth])` needs both. See [Authentication](#authentication) for full config details and [Several strategies](#several-strategies).
 
 ---
 
@@ -1051,6 +1051,28 @@ export const optionalAuth: RequestAuthentication = {
   },
 };
 ```
+
+### Several strategies
+
+`@withAuth` takes any number of arguments. Every argument is an **alternative**, and one passing alternative is enough. An array argument is a **group**: every strategy in it must pass.
+
+```ts
+@withAuth(bearerAuth, apiKeyAuth)               // a bearer token OR an API key
+@withAuth([apiKeyAuth, bearerAuth])             // an API key AND a bearer token
+@withAuth(allOf(apiKeyAuth, bearerAuth))        // the same group, spelled out
+@withAuth([apiKeyAuth, bearerAuth], shareLink)  // (API key AND bearer token) OR a share link
+```
+
+- Alternatives are tried in the order given; the first one that passes wins and the ones after it are not run (their handlers are not called). Inside a group, the first strategy that refuses ends the group.
+- A missing credential just moves on to the next alternative. So does a `handler` that throws: the exception is logged and that strategy counts as refused.
+- Every strategy writes its result to its own `outputProperty`, so the handler can tell which one let the request in (`req.auth.user` or `req.auth.client`). Results are written only for the alternative that passed: a group that fails half-way leaves nothing in `req.auth`.
+- When no alternative passes, the answer is the `error` of the first alternative whose credential was sent and refused ("invalid token" rather than "missing API key"), or, if no credential was sent at all, the `error` of the first alternative.
+- In a group, a `required: false` strategy runs and writes its result when its credential is valid, but never fails the group: `[apiKeyAuth, optionalBearerAuth]` needs the API key and picks up the user when a token comes with it. Alternatives made only of `required: false` strategies let anonymous requests through; they cannot be mixed with alternatives that need credentials (those would never refuse anything), and startup fails if they are.
+- When any strategy reads `body.*`, the body is read before authentication, and a `GET` route with such a strategy fails at startup (`BODY_NOT_ALLOWED`).
+
+> **Arrays and spreading.** `@withAuth([a, b])` needs both, but `@withAuth(...[a, b])` passes `a` and `b` as two alternatives and accepts either one: spreading a list turns AND into OR without any error. Prefer `allOf(a, b)` for a group, and never spread a list into `@withAuth`.
+
+The same works without decorators, in `Context.auth`: one `RequestAuthentication`, or a list of alternatives in which a nested list is a group (`auth: [[apiKeyAuth, bearerAuth], shareLink]`). The list is checked when the route is registered: an empty list or group, a group inside a group, or the same strategy twice in one group fail at startup.
 
 ---
 

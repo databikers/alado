@@ -1,5 +1,6 @@
 import { HttpMethod } from '@const';
 import { Context } from '@dto';
+import { authStrategies } from './auth-alternatives';
 
 // methods whose request body is read: RFC 9110 defines no meaning for a GET, HEAD, DELETE or OPTIONS body
 export const bodyMethods: ReadonlySet<string> = new Set<string>([
@@ -28,7 +29,7 @@ export function bodyReaders(context: Context<any>): string[] {
     readers.push(`files.${name}`);
   }
   const paths: unknown[] = [
-    context.auth?.inputProperty,
+    ...authStrategies(context.auth).map((auth) => auth.inputProperty),
     ...(context.accessControl || []).flatMap((rule) => [
       rule.inputProperty,
       rule.compareWithProperty,
