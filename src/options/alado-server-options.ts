@@ -21,6 +21,7 @@ export type AladoServerOptions = {
   trustProxy?: boolean | number;
   caseSensitiveRoutes?: boolean;
   parsing?: ParsingOptions;
-  // how long a handler may take to answer, in milliseconds; 0 (default) for no limit
+  // how long a handler may take to answer, in milliseconds (default 60 000, a slower one gets 503);
+  // 0 for no limit
   handlerTimeoutMs?: number;
 };

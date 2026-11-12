@@ -8,6 +8,7 @@ import {
   defaultCorsAllowedHeaders,
   defaultMaxBodySizeBytes,
   defaultMaxMultipartParts,
+  defaultHandlerTimeoutMs,
   DEFAULT_ID,
 } from '@const';
 import { AladoServerOptions } from '@options';
@@ -74,7 +75,8 @@ export class AladoServer {
         // 0 explicitly disables the limit
         maxBodySizeBytes: options.maxBodySizeBytes ?? defaultMaxBodySizeBytes,
         trustProxy: options.trustProxy ?? false,
-        handlerTimeoutMs: options.handlerTimeoutMs ?? 0,
+        // 0 explicitly disables the limit
+        handlerTimeoutMs: options.handlerTimeoutMs ?? defaultHandlerTimeoutMs,
         parsing: {
           repeatedFiles: options.parsing?.repeatedFiles ?? 'last',
           maxFilesPerField: options.parsing?.maxFilesPerField ?? 1,
