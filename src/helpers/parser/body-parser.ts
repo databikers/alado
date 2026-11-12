@@ -66,6 +66,7 @@ type MultipartFile = { name: string; mimetype: string; filename: string; content
 
 const partNameRegExp: RegExp = /(?:^|[;\s])name="([^"]*)"/i;
 const partFilenameRegExp: RegExp = /(?:^|[;\s])filename="([^"]*)"/i;
+const partDispositionRegExp: RegExp = /^content-disposition:([^\r\n]*)$/im;
 const partContentTypeRegExp: RegExp = /^content-type:([^\r\n]*)$/im;
 const CRLF: Buffer = Buffer.from('\r\n');
 const HEADERS_END: Buffer = Buffer.from('\r\n\r\n');
@@ -73,11 +74,14 @@ const HEADERS_END: Buffer = Buffer.from('\r\n\r\n');
 /**
  * Header fields of one part. `headers` is the text before the blank line, read as latin1 (one
  * char per byte); the field name and the file name are UTF-8 and are decoded back. filename="" is
- * kept as '': it is what a browser sends for a file input left empty.
+ * kept as '': it is what a browser sends for a file input left empty. name and filename are read
+ * from the Content-Disposition field only: `X-Anything: ; name="admin"` or a Content-Type with a
+ * name parameter must not rename the part.
  */
 export function parsePartHeaders(headers: string): PartHeaders {
-  const name: RegExpExecArray | null = partNameRegExp.exec(headers);
-  const filename: RegExpExecArray | null = partFilenameRegExp.exec(headers);
+  const disposition: string = partDispositionRegExp.exec(headers)?.[1] ?? '';
+  const name: RegExpExecArray | null = partNameRegExp.exec(disposition);
+  const filename: RegExpExecArray | null = partFilenameRegExp.exec(disposition);
   const mimetype: RegExpExecArray | null = partContentTypeRegExp.exec(headers);
   return {
     name: name && name[1] ? Buffer.from(name[1], 'latin1').toString('utf8') : null,
