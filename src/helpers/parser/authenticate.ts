@@ -32,8 +32,9 @@ function isValidAuthInput(
 
 // refused: `presented` tells whether the client sent this strategy's credential at all
 type StrategyRefusal = { passed: false; error: AladoServerError; presented: boolean };
-// passed: `output` is written to outputProperty once the whole alternative has passed
-type StrategyResult = { passed: true; output?: { value: any } } | StrategyRefusal;
+// passed: `output` is written to outputProperty once the whole alternative has passed;
+// `authenticated` when a credential was sent and the handler accepted it
+type StrategyResult = { passed: true; authenticated?: boolean; output?: { value: any } } | StrategyRefusal;
 
 /**
  * One strategy. `required` defaults to true. With `required: false` a strategy never refuses:
@@ -71,7 +72,7 @@ async function runStrategy(
     if (!result && required) {
       return { passed: false, error, presented };
     }
-    return { passed: true, output: { value: result } };
+    return { passed: true, authenticated: presented && Boolean(result), output: { value: result } };
   } catch (e) {
     onHandlerError?.(e);
     // the configured error, never the exception text (it may describe internals)
@@ -81,8 +82,13 @@ async function runStrategy(
 
 /**
  * Authenticates a request against Context.auth: alternatives are tried in the order declared, and
- * the first whose strategies all pass wins (the rest are not run). Outputs are written only for the
- * alternative that passed: a group that fails half-way leaves nothing behind. When none passes, the
+ * the first whose strategies all pass and that authenticated a credential wins (the rest are not
+ * run). An alternative that passes only because its strategies are optional (no credential sent, or
+ * one refused) is kept as a fallback while the later alternatives are tried: with
+ * `@withAuth(optionalBearer, optionalApiKey)` a request carrying only an API key is authenticated by
+ * the second, not left anonymous by the first. The fallback is used when no later alternative
+ * authenticates, which keeps a single optional strategy working as before. Outputs are written only
+ * for the alternative used: a group that fails half-way leaves nothing behind. When none passes, the
  * error is the one of the first alternative whose credential was sent but refused, or else the one
  * of the first alternative (nothing was sent).
  */
@@ -93,6 +99,15 @@ export async function authenticate(
 ): Promise<AladoServerError | undefined> {
   let firstError: AladoServerError | undefined;
   let rejectedError: AladoServerError | undefined;
+  // outputs of the first alternative that passed without authenticating anyone
+  let anonymous:
+    | Array<
+        [
+          string,
+          any,
+        ]
+      >
+    | undefined;
   for (const alternative of authAlternatives(context.auth)) {
     const outputs: Array<
       [
@@ -101,12 +116,14 @@ export async function authenticate(
       ]
     > = [];
     let refused: StrategyRefusal | undefined;
+    let authenticated: boolean = false;
     for (const auth of alternative) {
       const result: StrategyResult = await runStrategy(context, auth, request, onHandlerError);
       if (result.passed === false) {
         refused = result;
         break;
       }
+      authenticated ||= Boolean(result.authenticated);
       if (result.output) {
         outputs.push([
           auth.outputProperty,
@@ -115,12 +132,11 @@ export async function authenticate(
       }
     }
     if (!refused) {
-      for (const [
-        outputProperty,
-        value,
-      ] of outputs) {
-        setProperty(request, outputProperty, value);
+      if (!authenticated) {
+        anonymous ??= outputs;
+        continue;
       }
+      writeOutputs(request, outputs);
       return undefined;
     }
     firstError ??= refused.error;
@@ -128,5 +144,26 @@ export async function authenticate(
       rejectedError ??= refused.error;
     }
   }
+  if (anonymous) {
+    writeOutputs(request, anonymous);
+    return undefined;
+  }
   return rejectedError ?? firstError;
+}
+
+function writeOutputs(
+  request: any,
+  outputs: Array<
+    [
+      string,
+      any,
+    ]
+  >,
+) {
+  for (const [
+    outputProperty,
+    value,
+  ] of outputs) {
+    setProperty(request, outputProperty, value);
+  }
 }
