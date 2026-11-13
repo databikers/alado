@@ -68,6 +68,13 @@ const partNameRegExp: RegExp = /(?:^|[;\s])name="([^"]*)"/i;
 const partFilenameRegExp: RegExp = /(?:^|[;\s])filename="([^"]*)"/i;
 const partDispositionRegExp: RegExp = /^content-disposition:([^\r\n]*)$/im;
 const partContentTypeRegExp: RegExp = /^content-type:([^\r\n]*)$/im;
+// C0 controls, DEL and C1 controls: a NUL makes fs calls throw, ESC and CSI (\x1b, \x9b) start terminal
+// escape sequences that can rewrite log lines
+const controlCharsRegExp: RegExp = /[\u0000-\u001f\u007f-\u009f]/g;
+
+function withoutControlChars(value: string): string {
+  return value.replace(controlCharsRegExp, '');
+}
 
 /**
  * The last segment of a client's file name: "../../etc/passwd" is "passwd" and
@@ -87,7 +94,8 @@ const HEADERS_END: Buffer = Buffer.from('\r\n\r\n');
  * Header fields of one part. `headers` is the text before the blank line, read as latin1 (one
  * char per byte); the field name and the file name are UTF-8 and are decoded back. filename="" is
  * kept as '': it is what a browser sends for a file input left empty; directories in a filename
- * are dropped (see fileBasename). name and filename are read
+ * are dropped (see fileBasename). Control characters are removed from both (see withoutControlChars),
+ * before the directories, so "..\u0000" is ".." and gives ''. name and filename are read
  * from the Content-Disposition field only: `X-Anything: ; name="admin"` or a Content-Type with a
  * name parameter must not rename the part.
  */
@@ -97,8 +105,8 @@ export function parsePartHeaders(headers: string): PartHeaders {
   const filename: RegExpExecArray | null = partFilenameRegExp.exec(disposition);
   const mimetype: RegExpExecArray | null = partContentTypeRegExp.exec(headers);
   return {
-    name: name && name[1] ? Buffer.from(name[1], 'latin1').toString('utf8') : null,
-    filename: filename ? fileBasename(Buffer.from(filename[1], 'latin1').toString('utf8')) : null,
+    name: name && name[1] ? withoutControlChars(Buffer.from(name[1], 'latin1').toString('utf8')) || null : null,
+    filename: filename ? fileBasename(withoutControlChars(Buffer.from(filename[1], 'latin1').toString('utf8'))) : null,
     // the media type alone, lower-cased: "Text/Plain; charset=utf-8" is the type text/plain
     mimetype: mimetype && mediaType(mimetype[1]) ? mediaType(mimetype[1]) : null,
   };
