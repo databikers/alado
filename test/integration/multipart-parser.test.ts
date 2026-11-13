@@ -120,6 +120,34 @@ describe('multipart parser', () => {
     assert.equal(filename(''), '');
   });
 
+  it('removes control characters from name and filename', async () => {
+    const { parsePartHeaders } = await import('../../src/helpers/parser/body-parser');
+    const parsed = (name: string, filename: string) =>
+      parsePartHeaders(`Content-Disposition: form-data; name="${name}"; filename="${filename}"`);
+    assert.deepEqual(parsed('f', 'a\u0000\u001b[31mb.txt'), { name: 'f', filename: 'a[31mb.txt', mimetype: null });
+    assert.deepEqual(parsed('f', 'tab\there\u007f.txt'), { name: 'f', filename: 'tabhere.txt', mimetype: null });
+    // U+009B (CSI) sent as UTF-8 arrives as the latin1 pair C2 9B and is decoded back first
+    const csi = Buffer.from('a\u009b2Jb.txt', 'utf8').toString('latin1');
+    assert.deepEqual(parsed('f', csi), { name: 'f', filename: 'a2Jb.txt', mimetype: null });
+    assert.deepEqual(parsed('do\u0000c\u001b', 'x'), { name: 'doc', filename: 'x', mimetype: null });
+    // removed before the directories: what remains is ".." and names no file
+    assert.equal(parsed('f', '..\u0000').filename, '');
+    assert.equal(parsed('f', 'dir/\u0000').filename, '');
+    // a name of control characters only is no name
+    assert.equal(parsed('\u0000\u001b', 'x').name, null);
+  });
+
+  it('gives a filename with control characters to the handler without them', async () => {
+    const r = await send(port, {
+      method: 'POST',
+      path: '/upload',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=XX' },
+      body: '--XX\r\nContent-Disposition: form-data; name="doc"; filename="re\u001b[2Kport\u0000.txt"\r\nContent-Type: text/plain\r\n\r\nhi\r\n--XX--\r\n',
+    });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.json(), { filename: 're[2Kport.txt', size: 2 });
+  });
+
   it('gives a traversal filename to the handler without its directories', async () => {
     const r = await send(port, {
       method: 'POST',
